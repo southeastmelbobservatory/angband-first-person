@@ -51,7 +51,6 @@ static void abfp_player_moved(game_event_type type,
     abfp_bridge_emit(&event);
     pending_move = false;
     (void)abfp_upstream_refresh_snapshot();
-    (void)abfp_upstream_refresh_snapshot();
 }
 
 bool abfp_upstream_install_handlers(void)
@@ -59,7 +58,9 @@ bool abfp_upstream_install_handlers(void)
     if (handlers_installed) return true;
     event_add_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
     handlers_installed = true;
-    return abfp_upstream_refresh_snapshot();
+    /* A frontend may register before character creation or dungeon entry. */
+    (void)abfp_upstream_refresh_snapshot();
+    return true;
 }
 
 void abfp_upstream_remove_handlers(void)
