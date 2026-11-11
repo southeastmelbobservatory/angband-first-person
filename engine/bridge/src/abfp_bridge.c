@@ -18,11 +18,22 @@ bool abfp_bridge_init(void)
     event_count = 0;
     event_capacity = 64;
     events = calloc(event_capacity, sizeof(*events));
-    return events != NULL;
+    if (!events) return false;
+#ifdef ABFP_WITH_ANGBAND
+    if (!abfp_upstream_install_handlers()) {
+        free(events);
+        events = NULL;
+        return false;
+    }
+#endif
+    return true;
 }
 
 void abfp_bridge_shutdown(void)
 {
+#ifdef ABFP_WITH_ANGBAND
+    abfp_upstream_remove_handlers();
+#endif
     free(events);
     events = NULL;
     event_count = 0;
