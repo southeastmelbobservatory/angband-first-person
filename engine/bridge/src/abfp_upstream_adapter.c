@@ -7,6 +7,8 @@
 #include "game-event.h"
 
 static bool handlers_installed = false;
+static struct loc pending_from;
+static bool pending_move = false;
 
 static int abfp_direction(abfp_command_type command)
 {
@@ -33,9 +35,13 @@ static void abfp_player_moved(game_event_type type,
 
     event.type = ABFP_EVENT_ENTITY_MOVED;
     event.subject_id = 1;
+    event.from_x = pending_move ? pending_from.x : player->grid.x;
+    event.from_y = pending_move ? pending_from.y : player->grid.y;
     event.to_x = player->grid.x;
     event.to_y = player->grid.y;
     abfp_bridge_emit(&event);
+
+    pending_move = false;
 }
 
 bool abfp_upstream_install_handlers(void)
@@ -56,11 +62,18 @@ void abfp_upstream_remove_handlers(void)
 bool abfp_upstream_queue_command(abfp_command_type command)
 {
     int dir = abfp_direction(command);
+
     if (dir != DIR_UNKNOWN) {
-        if (cmdq_push(CMD_WALK)) return false;
+        pending_from = player->grid;
+        pending_move = true;
+        if (cmdq_push(CMD_WALK)) {
+            pending_move = false;
+            return false;
+        }
         cmd_set_arg_direction(cmdq_peek(), "direction", dir);
         return true;
     }
+
     if (command == ABFP_COMMAND_WAIT) return cmdq_push(CMD_HOLD) == 0;
     return false;
 }
