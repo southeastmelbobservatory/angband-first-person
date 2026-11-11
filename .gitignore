@@ -1,0 +1,14 @@
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+.vscode/
+*.suo
+build/
+out/
+*.o
+*.obj
+*.exe
+.DS_Store
+Thumbs.db
