@@ -1,41 +1,34 @@
-# Angband API Findings — Initial Bridge
+# Angband API Findings — 4.2.6
 
-Pinned inspection baseline: 42cd156ac9f95ddf4311e88dd7ad462292d6d1d6.
+Source inspected at the exact peeled release commit `f3082213b73f3e463e3d0d60bff4b00462beae6e` (tag `4.2.6`).
 
 ## Command queue
 
-Angband exposes cmdq_push(CMD_WALK), cmdq_peek(), cmd_set_arg_direction(..., "direction", dir), and cmdq_execute(CTX_GAME).
+The UI frontends enqueue commands with `cmdq_push()`. Directional walk is `CMD_WALK`; its `direction` argument is set with `cmd_set_arg_direction(cmdq_peek(), "direction", dir)`. The main loop processes queued commands through `cmdq_execute()` in `process_player()`.
 
-For ABFP movement, queue CMD_WALK with the normal Angband numeric direction. Do not call do_cmd_walk() directly.
+The bridge only queues commands. The host's normal Angband game loop must call `process_player()`/the normal command-processing path; do not independently execute the queue from a renderer tick.
 
-## Direction mapping
+## Directions
 
-- SW = 1
-- S = 2
-- SE = 3
-- W = 4
-- E = 6
-- NW = 7
-- N = 8
-- NE = 9
+The actual keypad constants are declared in `cave.h`: NW=7, N=8, NE=9, W=4, E=6, SW=1, S=2, SE=3.
 
-## Player movement event
+## Events
 
-Angband provides EVENT_PLAYERMOVED through game-event.h. Register a handler with event_add_handler(EVENT_PLAYERMOVED, handler, user).
+`EVENT_PLAYERMOVED` is declared in `game-event.h`; handlers use `event_add_handler()` and `event_remove_handler()`.
 
-## Map refresh
+## Snapshot source
 
-EVENT_MAP and EVENT_REFRESH are useful invalidation signals for rebuilding the local presentation snapshot.
+- Current chunk: global `cave`
+- Player: global `player`, position `player->grid`
+- Chunk dimensions/depth/turn: `cave->width`, `cave->height`, `cave->depth`, `cave->turn`
+- Bounds: `square_in_bounds(cave, grid)`
+- Memory/visibility: `square_isknown()`, `square_isseen()`
+- Lighting: `square_islit()`
+- Terrain predicates: `square_isfloor()`, `square_isrock()`, `square_isdoor()`, `square_isupstairs()`, `square_isdownstairs()`
+- Occupancy helpers: `square_monster()`, `square_object()`
 
-## Authoritative state
+Only known cells may be exported as terrain. A remembered but currently unseen cell must not be treated as currently visible. Do not expose unseen monster or object occupancy.
 
-The current player position is player->grid. The current dungeon is the global cave pointer. Terrain can be queried with square predicates such as square_isfloor(), square_isrock(), square_isdoor(), square_isupstairs(), square_isdownstairs(), and square_isknown().
+## Initial snapshot contract
 
-## First implementation scope
-
-1. eight-direction walking
-2. wait/hold
-3. EVENT_PLAYERMOVED
-4. local terrain snapshot export
-
-Monster and object extraction follows after movement is proven.
+The first exporter returns a 21x21 window centred on the player. Unknown/out-of-bounds cells are `ABFP_TERRAIN_UNKNOWN`; known cells export terrain and independent `visible`/ `lit` flags. Entity details are a later increment once visibility-safe monster/object identity is implemented.
