@@ -3,18 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * This file intentionally contains no Angband gameplay logic.
- *
- * Phase 1 provides the event queue and public boundary. The upstream adapter
- * will populate snapshots and translate abstract commands into the appropriate
- * Angband command path.
- */
-
 static abfp_event *events;
 static size_t event_count;
 static size_t event_capacity;
-
 static abfp_snapshot snapshot;
 
 bool abfp_bridge_init(void)
@@ -37,20 +28,18 @@ void abfp_bridge_shutdown(void)
 
 bool abfp_bridge_submit_command(abfp_command_type command)
 {
-    /*
-     * TODO: implemented by the upstream adapter.
-     *
-     * Important: do not update snapshot positions here. The Angband engine
-     * advances first; the adapter then refreshes the snapshot and emits
-     * presentation events.
-     */
     (void)command;
-    return false;
+    return false; /* The host frontend wires this to the upstream adapter. */
 }
 
 const abfp_snapshot *abfp_bridge_snapshot(void)
 {
     return &snapshot;
+}
+
+void abfp_bridge_set_snapshot(const abfp_snapshot *next)
+{
+    if (next) snapshot = *next;
 }
 
 size_t abfp_bridge_event_count(void)
@@ -60,8 +49,7 @@ size_t abfp_bridge_event_count(void)
 
 const abfp_event *abfp_bridge_event_at(size_t index)
 {
-    if (index >= event_count) return NULL;
-    return &events[index];
+    return index < event_count ? &events[index] : NULL;
 }
 
 void abfp_bridge_clear_events(void)
@@ -72,17 +60,13 @@ void abfp_bridge_clear_events(void)
 void abfp_bridge_emit(const abfp_event *event)
 {
     if (!event) return;
-
     if (event_count == event_capacity) {
         size_t new_capacity = event_capacity ? event_capacity * 2 : 64;
         abfp_event *replacement =
             realloc(events, new_capacity * sizeof(*replacement));
-
         if (!replacement) return;
-
         events = replacement;
         event_capacity = new_capacity;
     }
-
     events[event_count++] = *event;
 }
