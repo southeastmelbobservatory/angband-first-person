@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef ABFP_WITH_ANGBAND
+#include "../include/abfp_upstream_adapter.h"
+#endif
+
 static abfp_event *events;
 static size_t event_count;
 static size_t event_capacity;
@@ -28,8 +32,12 @@ void abfp_bridge_shutdown(void)
 
 bool abfp_bridge_submit_command(abfp_command_type command)
 {
+#ifdef ABFP_WITH_ANGBAND
+    return abfp_upstream_queue_command(command);
+#else
     (void)command;
-    return false; /* The host frontend wires this to the upstream adapter. */
+    return false;
+#endif
 }
 
 const abfp_snapshot *abfp_bridge_snapshot(void)
