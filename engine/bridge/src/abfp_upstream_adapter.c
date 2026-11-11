@@ -50,6 +50,7 @@ static void abfp_player_moved(game_event_type type,
     event.turn = cave ? (uint64_t)cave->turn : 0;
     abfp_bridge_emit(&event);
     pending_move = false;
+    (void)abfp_upstream_refresh_snapshot();
 }
 
 bool abfp_upstream_install_handlers(void)
@@ -57,7 +58,7 @@ bool abfp_upstream_install_handlers(void)
     if (handlers_installed) return true;
     event_add_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
     handlers_installed = true;
-    return true;
+    return abfp_upstream_refresh_snapshot();
 }
 
 void abfp_upstream_remove_handlers(void)
