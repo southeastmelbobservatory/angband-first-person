@@ -21,18 +21,16 @@ After the first client command, and after each completed Angband game loop, the
 host sends one newline-delimited JSON object on the same TCP connection:
 
 - type: "state"
-- turn, depth, player: [x, y]
+- turn, depth, initial, player: [x, y]
 - cells: arrays [x, y, terrain, visible, lit, occupied_monster, occupied_object]
 - entities: arrays [id, x, y, type, kind_id, category_id, variant_id, hp, max_hp, quantity]
 - events: arrays [type, turn, subject_id, target_id, from_x, from_y, to_x, to_y, value]
 
-All values are numeric except the top-level type. The arrays preserve the
+Coordinates, flags, enum values, depth, turn, and hit points are numeric; 64-bit entity/event IDs are decimal strings to avoid JSON floating-point precision loss. The initial boolean distinguishes the first snapshot from post-turn updates. The arrays preserve the
 protocol enum values in protocol/game_state.h and protocol/events.h. The host
 serializes and sends on the Angband game thread after the normal game loop; the
 network worker never reads game state. Event records are cleared after each
-publish attempt. The first state response is sent immediately before the first
-queued game command is submitted, so the client receives the initial view
-before the first turn resolves.
+publish attempt. The host waits for the TCP client to connect, sends the initial state before accepting the first command, then sends post-turn state after each normal Angband loop.
 
 This response is currently implemented as host output; the Unreal-side socket
 reader and JSON decoder are still to be connected.
