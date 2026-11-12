@@ -113,9 +113,13 @@ static bool abfp_host_seed_test_monster(void)
     {
         struct monster *mon = square_monster(cave, test_item_grid);
         if (!mon) return false;
-        /* Give the CI combat test enough health for a non-lethal first hit. */
-        mon->hp = 6;
-        mon->maxhp = 6;
+        /*
+         * This is a deterministic combat fixture, not a balance test.
+         * Keep the real Angband race/attack/turn path but make the seeded
+         * target killable by the level-one character after one successful hit.
+         */
+        mon->hp = 1;
+        mon->maxhp = 1;
         monster_wake(mon, true, 100);
     }
     update_monsters(true);
