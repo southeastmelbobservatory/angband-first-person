@@ -104,6 +104,7 @@ static void *worker_main(void *unused)
         active_fd = fd;
         serve = running;
         if (!serve) shutdown(fd, SHUT_RDWR);
+        pthread_cond_broadcast(&ready);
         pthread_mutex_unlock(&mutex);
         { struct timeval timeout = {0, 200000};
           (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)); }
@@ -147,6 +148,15 @@ bool abfp_transport_start(uint16_t port)
     worker_started = true;
     return true;
 }
+bool abfp_transport_wait_for_client(void)
+{
+    pthread_mutex_lock(&mutex);
+    while (running && active_fd < 0) pthread_cond_wait(&ready, &mutex);
+    const bool connected = active_fd >= 0;
+    pthread_mutex_unlock(&mutex);
+    return connected;
+}
+
 bool abfp_transport_wait_command(abfp_command_type *out)
 {
     if (!out) return false;
