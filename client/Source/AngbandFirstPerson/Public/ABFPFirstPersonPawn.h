@@ -31,6 +31,7 @@ private:
     void MoveBackward();
     void MoveLeft();
     void MoveRight();
+    void WaitTurn();
     void Turn(float Value);
     void LookUp(float Value);
     void MoveRelative(FVector2D LocalDirection);
