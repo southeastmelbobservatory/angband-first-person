@@ -110,8 +110,10 @@ static void *worker_main(void *unused)
         if (serve) serve_client(fd);
         pthread_mutex_lock(&send_mutex);
         close(fd);
+        pthread_mutex_lock(&mutex);
+        active_fd = -1;
+        pthread_mutex_unlock(&mutex);
         pthread_mutex_unlock(&send_mutex);
-        pthread_mutex_lock(&mutex); active_fd = -1; pthread_mutex_unlock(&mutex);
         pthread_mutex_lock(&mutex);
         if (!running) { pthread_mutex_unlock(&mutex); break; }
         pthread_mutex_unlock(&mutex);
