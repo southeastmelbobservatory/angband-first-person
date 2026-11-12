@@ -19,8 +19,8 @@ enum class EABFPTerrain : uint8
 UENUM(BlueprintType)
 enum class EABFPEntityType : uint8
 {
-    Monster,
-    Object
+    Monster = 1,
+    Object = 2
 };
 
 USTRUCT(BlueprintType)
