@@ -33,6 +33,8 @@ struct FABFPCell
     UPROPERTY(EditAnywhere, BlueprintReadWrite) EABFPTerrain Terrain = EABFPTerrain::Unknown;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bVisible = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bLit = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bOccupiedByMonster = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bOccupiedByObject = false;
 };
 
 USTRUCT(BlueprintType)
@@ -53,6 +55,22 @@ struct FABFPEntity
 };
 
 USTRUCT(BlueprintType)
+struct FABFPEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Type = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Turn = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 SubjectId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 TargetId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 FromX = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 FromY = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ToX = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ToY = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Value = 0;
+};
+
+USTRUCT(BlueprintType)
 struct FABFPSnapshot
 {
     GENERATED_BODY()
@@ -63,4 +81,5 @@ struct FABFPSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerY = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPCell> Cells;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEntity> Entities;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEvent> Events;
 };
