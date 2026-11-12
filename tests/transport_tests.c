@@ -76,16 +76,16 @@ static void test_loopback_round_trip(void)
         n = recv(fd, response + used, sizeof(response) - used - 1, 0);
         assert(n > 0);
         used += (size_t)n;
-        if (memchr(response, '\\n', used)) break;
+        if (memchr(response, '\n', used)) break;
     }
-    response[used] = '\\0';
-    assert(strstr(response, "\\"type\\":\\"state\\"") != NULL);
-    assert(strstr(response, "\\"turn\\":99") != NULL);
-    assert(strstr(response, "\\"depth\\":5") != NULL);
-    assert(strstr(response, "\\"player\\":[12,7]") != NULL);
-    assert(strstr(response, "\\"initial\\":true") != NULL);
+    response[used] = '\0';
+    assert(strstr(response, "\"type\":\"state\"") != NULL);
+    assert(strstr(response, "\"turn\":99") != NULL);
+    assert(strstr(response, "\"depth\":5") != NULL);
+    assert(strstr(response, "\"player\":[12,7]") != NULL);
+    assert(strstr(response, "\"initial\":true") != NULL);
 
-    assert(send(fd, "INVALID\\nWAIT\\n", 13, 0) == 13);
+    assert(send(fd, "INVALID\nWAIT\n", 13, 0) == 13);
     assert(abfp_transport_wait_command(&command));
     assert(command == ABFP_COMMAND_WAIT);
 
