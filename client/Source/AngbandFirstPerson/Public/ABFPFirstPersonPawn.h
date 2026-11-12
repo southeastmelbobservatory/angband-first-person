@@ -34,6 +34,7 @@ private:
     void WaitTurn();
     void GoUp();
     void GoDown();
+    void AutoPickup();
     void SendSimpleCommand(const FString& Command);
     void Turn(float Value);
     void LookUp(float Value);
