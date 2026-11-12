@@ -195,7 +195,25 @@ void AABFPFirstPersonPawn::GoDown()
 
 void AABFPFirstPersonPawn::AutoPickup()
 {
-    SendSimpleCommand(TEXT("AUTOPICKUP"));
+    if (bLiveMode)
+    {
+        SendSimpleCommand(TEXT("AUTOPICKUP"));
+        return;
+    }
+
+    const int32 Index = DemoSnapshot.Entities.IndexOfByPredicate(
+        [this](const FABFPEntity& Entity)
+        {
+            return Entity.Type == EABFPEntityType::Object &&
+                Entity.X == DemoSnapshot.PlayerX &&
+                Entity.Y == DemoSnapshot.PlayerY;
+        });
+    if (Index != INDEX_NONE)
+    {
+        DemoSnapshot.Entities.RemoveAt(Index);
+        if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
+        UpdateStatusReadout();
+    }
 }
 
 void AABFPFirstPersonPawn::Turn(float Value)
