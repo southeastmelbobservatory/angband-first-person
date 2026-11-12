@@ -5,9 +5,10 @@
 #include "ABFPCreatureActor.generated.h"
 
 class UStaticMeshComponent;
+class USceneComponent;
 
 UCLASS()
-class ANG BANDFIRSTPERSON_API AABFPCreatureActor : public AActor
+class ANGBANDFIRSTPERSON_API AABFPCreatureActor : public AActor
 {
     GENERATED_BODY()
 
