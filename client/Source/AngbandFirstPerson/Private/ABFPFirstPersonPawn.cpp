@@ -5,6 +5,7 @@
 #include "Components/InputComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
@@ -29,6 +30,14 @@ AABFPFirstPersonPawn::AABFPFirstPersonPawn()
     Lantern->SetAttenuationRadius(1900.0f);
     Lantern->SetLightColor(FLinearColor(1.0f, 0.78f, 0.52f));
     Lantern->SetCastShadows(true);
+
+    StatusReadout = CreateDefaultSubobject<UTextRenderComponent>(TEXT("StatusReadout"));
+    StatusReadout->SetupAttachment(Camera);
+    StatusReadout->SetRelativeLocation(FVector(420.0f, 0.0f, -170.0f));
+    StatusReadout->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+    StatusReadout->SetHorizontalAlignment(EHTA_Center);
+    StatusReadout->SetWorldSize(28.0f);
+    StatusReadout->SetTextRenderColor(FColor(232, 211, 160));
 }
 
 void AABFPFirstPersonPawn::BeginPlay()
@@ -61,6 +70,7 @@ void AABFPFirstPersonPawn::BeginPlay()
             DemoSnapshot.PlayerY * GridCellSize, 0.0f));
         TargetPawnLocation = GetActorLocation();
         if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
+        UpdateStatusReadout();
         if (GEngine)
             GEngine->AddOnScreenDebugMessage(-1, 12.0f, FColor::Yellow,
                 TEXT("No Angband host at 127.0.0.1:47652 — running local renderer demo"));
@@ -110,6 +120,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 
             if (!DemoSnapshot.bInitialState) bAwaitingServerTurn = false;
             bHaveAuthoritativeState = true;
+            UpdateStatusReadout();
         }
     }
 
@@ -200,6 +211,10 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     DemoSnapshot.DungeonDepth = 1;
     DemoSnapshot.PlayerX = 7;
     DemoSnapshot.PlayerY = 7;
+    DemoSnapshot.PlayerHitPoints = 42;
+    DemoSnapshot.PlayerMaxHitPoints = 42;
+    DemoSnapshot.PlayerLevel = 1;
+    DemoSnapshot.PlayerGold = 120;
 
     for (int32 Y = 0; Y < 15; ++Y)
     {
@@ -254,6 +269,20 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     DemoSnapshot.Entities.Add(Potion);
 }
 
+void AABFPFirstPersonPawn::UpdateStatusReadout()
+{
+    if (!StatusReadout) return;
+
+    const FString Mode = bLiveMode ? TEXT("ANGBAND LIVE") : TEXT("RENDERER DEMO");
+    const FString Health = DemoSnapshot.PlayerMaxHitPoints > 0 ?
+        FString::Printf(TEXT("HP %d/%d"), DemoSnapshot.PlayerHitPoints,
+            DemoSnapshot.PlayerMaxHitPoints) : TEXT("HP --");
+    StatusReadout->SetText(FText::FromString(FString::Printf(
+        TEXT("%s\nDepth %d  Turn %lld\n%s  Level %d  Gold %d"),
+        *Mode, DemoSnapshot.DungeonDepth, DemoSnapshot.Turn, *Health,
+        DemoSnapshot.PlayerLevel, DemoSnapshot.PlayerGold)));
+}
+
 void AABFPFirstPersonPawn::TryDemoStep(int32 DX, int32 DY)
 {
     const int32 TargetX = DemoSnapshot.PlayerX + DX;
@@ -273,6 +302,7 @@ void AABFPFirstPersonPawn::TryDemoStep(int32 DX, int32 DY)
     ++DemoSnapshot.Turn;
 
     if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
+    UpdateStatusReadout();
     const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
     TargetPawnLocation = FVector(TargetX * GridCellSize, TargetY * GridCellSize, 0.0f);
     bInterpolatingMove = true;
