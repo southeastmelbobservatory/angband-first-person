@@ -386,6 +386,15 @@ def main():
                 )
 
             seeded_item_id, item_xy, item_delta = seeded_item
+            seeded_item_row = next(
+                entity for entity in stair_state.get("entities", [])
+                if entity[0] == seeded_item_id
+            )
+            if len(seeded_item_row) < 11 or "ration" not in seeded_item_row[10].lower():
+                raise AssertionError(
+                    f"Native object display name was not serialized: {seeded_item_row!r}"
+                )
+
             client.sendall((movement_by_delta[item_delta] + "\n").encode("ascii"))
             item_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
@@ -456,6 +465,13 @@ def main():
                     "and damage the player within five turns. "
                     f"Entities: {monster_state.get('entities')!r}; "
                     f"events: {monster_state.get('events')!r}"
+                )
+            if not any(
+                len(entity) > 10 and "giant white mouse" in entity[10].lower()
+                for entity in visible_monsters
+            ):
+                raise AssertionError(
+                    f"Monster display name was not serialized: {visible_monsters!r}"
                 )
 
             client.sendall(b"GO_UP\n")
