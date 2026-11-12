@@ -179,7 +179,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 
     for (const FABFPEvent& Event : Snapshot.Events)
     {
-        if (Event.Type != 3) continue; // ABFP_EVENT_DAMAGE
+        if (Event.Type != EABFPEventType::Damage) continue;
         if (TObjectPtr<AActor>* Target = SpawnedEntities.Find(Event.TargetId))
         {
             if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Target->Get()))
