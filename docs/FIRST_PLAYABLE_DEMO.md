@@ -17,8 +17,9 @@ The GitHub Actions native-host workflow now builds the pinned Angband executable
 - `AUTOPICKUP`, `GO_UP` and `GO_DOWN` commands are accepted and return to the client even when the player is not standing on a relevant item or staircase; the native host suppresses blocking text-UI `-more-` prompts in 3D mode.
 - A real Angband down-stair transition and return up-stair transition (`depth 0 → 1 → 0`).
 - An eligible floor ration is picked up by Angband when the player walks onto it, and the bridge exports the matching pickup event.
+- A visible Angband monster is exported with its live HP, and an attack produces a player-damage event.
 
-Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43179405465).
+Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43187060819).
 
 ## Implemented behaviour (not all yet runtime-verified)
 
@@ -89,7 +90,7 @@ This client receives the same authoritative snapshots and can submit movement an
 
 The native build, protocol tests, real character creation, initial snapshot, wait, movement, movement event and blocked movement are now verified in CI. Remaining gates are:
 
-1. runtime verification of visible monster state, monster movement and damage/death events;
+1. runtime verification of monster movement and death events;
 2. runtime verification of combat, monster movement/damage events and reconnect;
 3. clean local bootstrap/build on the target Linux host;
 4. compile the Unreal project and connect its live input/rendering path to the native host;
