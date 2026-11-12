@@ -29,7 +29,9 @@ private:
 
     UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Floors;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RememberedFloors;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Walls;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RememberedWalls;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Doors;
     UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> DungeonFog;
     UPROPERTY() TObjectPtr<USkyLightComponent> AmbientSky;
