@@ -50,7 +50,8 @@
 - [x] Exercise `AUTOPICKUP`, `GO_UP` and `GO_DOWN` no-op paths in the live host without blocking on text-UI message prompts.
 - [x] Verify successful down/up stair traversal and an actual floor-item pickup event in the live Angband host (CI fixture uses real Angband terrain and object APIs).
 - [x] Emit authoritative pickup events for floor objects removed by autopickup.
-- [x] Verify blocked movement returns a snapshot without moving or consuming a turn in the live CI build.\n- [ ] Verify diagonal movement and monster interruption in a running build.
+- [x] Verify blocked movement returns a snapshot without moving or consuming a turn in the live CI build.
+- [ ] Verify diagonal movement and monster interruption in a running build.
 - [x] Verify one successful movement command advances exactly one Angband turn; blocked movement advances none.
 
 ## Renderer
