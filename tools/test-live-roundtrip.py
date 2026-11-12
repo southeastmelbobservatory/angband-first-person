@@ -102,6 +102,7 @@ def main():
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
                 "ABFP_TEST_AUTOEXPLORE_STAIRS": "1",
+                "ABFP_TEST_FLOOR_ITEM": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
@@ -364,6 +365,38 @@ def main():
                 )
 
             depth_after_down = stair_state.get("depth")
+            dungeon_player_xy = tuple(stair_state.get("player", []))
+            dungeon_floor_items = {
+                entity[0] for entity in stair_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 2
+                and (entity[1], entity[2]) == dungeon_player_xy
+            }
+            if not dungeon_floor_items:
+                raise AssertionError(
+                    "The test host did not expose its seeded floor ration at "
+                    f"the player square {dungeon_player_xy}: {stair_state.get('entities')!r}"
+                )
+
+            client.sendall(b"AUTOPICKUP\n")
+            dungeon_pickup_state, buffer = receive_state(
+                client, buffer, timeout=15, master=master, output=output
+            )
+            dungeon_floor_items_after = {
+                entity[0] for entity in dungeon_pickup_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 2
+                and (entity[1], entity[2]) == dungeon_player_xy
+            }
+            dungeon_removed_items = dungeon_floor_items - dungeon_floor_items_after
+            dungeon_pickup_events = {
+                event[3] for event in dungeon_pickup_state.get("events", [])
+                if len(event) >= 9 and event[0] == 5 and event[2] == "1"
+            }
+            if not dungeon_removed_items or not dungeon_removed_items.issubset(dungeon_pickup_events):
+                raise AssertionError(
+                    "AUTOPICKUP did not remove the seeded ration and emit its pickup event: "
+                    f"removed={dungeon_removed_items}, events={dungeon_pickup_events}"
+                )
+
             client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
@@ -391,7 +424,7 @@ def main():
                 f"player {initial['player']} -> {updated['player']} -> "
                 f"{moved['player']} via {move_command}; "
                 f"movement event exported; "
-                f"autopickup removed {len(removed_objects)} floor objects; "
+                f"town autopickup removed {len(removed_objects)}; dungeon pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
                 f"new level visible monsters={dungeon_monster_count}, "
                 f"objects={dungeon_object_count}."
