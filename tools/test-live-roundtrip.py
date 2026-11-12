@@ -460,7 +460,7 @@ def main():
                 )
             invalid_monsters = [
                 entity for entity in dungeon_monsters
-                if entity[8] <= 0 or entity[9] < entity[8]
+                if entity[7] <= 0 or entity[8] < entity[7]
             ]
             if invalid_monsters:
                 raise AssertionError(
