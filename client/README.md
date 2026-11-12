@@ -12,7 +12,7 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 - Distinct 3D up/down staircases, rubble piles and shop entrance geometry driven by Angband terrain snapshots.
 - Dungeon fog, ambient skylight and a warm player lantern.
 - Persistent 3D entity actors keyed by bridge entity ID.
-- Visible monsters interpolate between authoritative grid positions; damage events trigger creature hit reactions.
+- Visible monsters interpolate between authoritative grid positions; race and object-kind names drive the procedural appearance, and damage events trigger creature hit reactions.
 - In-world status readout showing authoritative depth, turn, HP, level and gold.
 - Procedural articulated creature actor with idle motion (not a billboard).
 - Procedural floating item actor.
