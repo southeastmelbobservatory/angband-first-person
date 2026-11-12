@@ -21,11 +21,13 @@ static errr abfp_host_get_command(cmd_context context)
         bridge_registered = true;
     }
 
+    if (!initial_state_sent) {
+        if (!abfp_transport_wait_for_client()) return -1;
+        abfp_host_publish_state(true);
+        initial_state_sent = true;
+    }
+
     while (abfp_transport_wait_command(&command)) {
-        if (!initial_state_sent) {
-            abfp_host_publish_state(true);
-            initial_state_sent = true;
-        }
         if (abfp_frontend_submit_command(command)) return 0;
     }
     return -1;
