@@ -154,6 +154,7 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction("WaitTurn", IE_Pressed, this, &AABFPFirstPersonPawn::WaitTurn);
     PlayerInputComponent->BindAction("GoUp", IE_Pressed, this, &AABFPFirstPersonPawn::GoUp);
     PlayerInputComponent->BindAction("GoDown", IE_Pressed, this, &AABFPFirstPersonPawn::GoDown);
+    PlayerInputComponent->BindAction("AutoPickup", IE_Pressed, this, &AABFPFirstPersonPawn::AutoPickup);
     PlayerInputComponent->BindAxis("Turn", this, &AABFPFirstPersonPawn::Turn);
     PlayerInputComponent->BindAxis("LookUp", this, &AABFPFirstPersonPawn::LookUp);
 }
@@ -190,6 +191,11 @@ void AABFPFirstPersonPawn::GoUp()
 void AABFPFirstPersonPawn::GoDown()
 {
     SendSimpleCommand(TEXT("GO_DOWN"));
+}
+
+void AABFPFirstPersonPawn::AutoPickup()
+{
+    SendSimpleCommand(TEXT("AUTOPICKUP"));
 }
 
 void AABFPFirstPersonPawn::Turn(float Value)
