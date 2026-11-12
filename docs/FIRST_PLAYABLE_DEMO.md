@@ -14,6 +14,7 @@ The GitHub Actions native-host workflow now builds the pinned Angband executable
 - A legal directional move changes the authoritative player coordinates.
 - The corresponding player-movement event is exported with the state snapshot.
 - A move into a known wall returns a snapshot without moving or consuming a turn.
+- `AUTOPICKUP`, `GO_UP` and `GO_DOWN` commands are accepted and return to the client even when the player is not standing on a relevant item or staircase; the native host suppresses blocking text-UI `-more-` prompts in 3D mode.
 
 Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43179405465).
 
@@ -86,7 +87,7 @@ This client receives the same authoritative snapshots and can submit movement an
 
 The native build, protocol tests, real character creation, initial snapshot, wait, movement, movement event and blocked movement are now verified in CI. Remaining gates are:
 
-1. runtime verification of stairs and autopickup;
+1. runtime verification of a successful stair transition and pickup of a real floor item (the current generated smoke-test tile was empty and had no stairs);
 2. runtime verification of combat, monster movement/damage events and reconnect;
 3. clean local bootstrap/build on the target Linux host;
 4. compile the Unreal project and connect its live input/rendering path to the native host;
