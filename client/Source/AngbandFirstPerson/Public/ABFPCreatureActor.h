@@ -15,6 +15,8 @@ class ANGBANDFIRSTPERSON_API AABFPCreatureActor : public AActor
 public:
     AABFPCreatureActor();
 
+    void PlayHitReaction(int32 Damage);
+
 protected:
     virtual void Tick(float DeltaSeconds) override;
 
@@ -29,4 +31,5 @@ private:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftEye;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> RightEye;
     float Elapsed = 0.0f;
+    float DamageFlashSeconds = 0.0f;
 };
