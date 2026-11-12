@@ -1,6 +1,10 @@
 #include "angband.h"
 #include "cmd-core.h"
 #include "option.h"
+#include "list-tvals.h"
+#include "obj-make.h"
+#include "obj-pile.h"
+#include "obj-util.h"
 #include "ui-game.h"
 #include "abfp_frontend.h"
 #include "abfp_transport.h"
@@ -9,6 +13,41 @@
 
 static bool bridge_registered;
 static bool initial_state_sent;
+static bool test_floor_item_seeded;
+
+static bool abfp_host_seed_test_floor_item(void)
+{
+    const int sval = lookup_sval(TV_FOOD, "Ration of Food");
+    struct object_kind *kind;
+    struct object *object;
+    struct object *known;
+    bool note = true;
+
+    if (sval < 0) return false;
+    kind = lookup_kind(TV_FOOD, sval);
+    if (!kind) return false;
+
+    object = object_new();
+    known = object_new();
+    if (!object || !known) {
+        if (object) object_free(object);
+        if (known) object_free(known);
+        return false;
+    }
+
+    object_prep(object, kind, cave->depth, AVERAGE);
+    object_prep(known, kind, cave->depth, AVERAGE);
+    object->known = known;
+    if (!floor_carry(cave, player->grid, object, &note)) {
+        object->known = NULL;
+        object_free(known);
+        object_free(object);
+        return false;
+    }
+
+    test_floor_item_seeded = true;
+    return true;
+}
 
 static errr abfp_host_get_command(cmd_context context)
 {
@@ -63,7 +102,13 @@ bool abfp_host_install(uint16_t port)
  */
 bool abfp_host_publish_state(bool initial_state)
 {
-    const abfp_snapshot *snapshot = abfp_frontend_snapshot();
+    const abfp_snapshot *snapshot;
+    if (getenv("ABFP_TEST_FLOOR_ITEM") && !test_floor_item_seeded &&
+        player && cave && cave->depth > 0) {
+        if (!abfp_host_seed_test_floor_item() ||
+            !abfp_frontend_refresh_snapshot()) return false;
+    }
+    snapshot = abfp_frontend_snapshot();
     size_t count = abfp_bridge_event_count();
     abfp_event *events = count ? (abfp_event *)malloc(count * sizeof(*events)) : NULL;
     size_t i;
@@ -91,6 +136,7 @@ void abfp_host_game_closed(void)
         bridge_registered = false;
     }
     initial_state_sent = false;
+    test_floor_item_seeded = false;
 }
 
 void abfp_host_shutdown(void)
