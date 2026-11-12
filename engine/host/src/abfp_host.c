@@ -4,6 +4,8 @@
 #include "obj-make.h"
 #include "obj-pile.h"
 #include "obj-util.h"
+#include "mon-make.h"
+#include "mon-util.h"
 #include "ui-game.h"
 #include "abfp_frontend.h"
 #include "abfp_transport.h"
@@ -14,6 +16,9 @@ static bool bridge_registered;
 static bool initial_state_sent;
 static bool test_floor_item_seeded;
 static bool test_down_stair_seeded;
+static bool test_monster_seeded;
+static bool test_item_grid_valid;
+static struct loc test_item_grid;
 
 static bool abfp_host_seed_test_floor_item(void)
 {
@@ -63,8 +68,36 @@ static bool abfp_host_seed_test_floor_item(void)
         return false;
     }
 
+    test_item_grid = item_grid;
+    test_item_grid_valid = true;
     test_floor_item_seeded = true;
     return true;
+}
+
+static bool abfp_host_seed_test_monster(void)
+{
+    struct monster_race *race = lookup_monster("giant white mouse");
+    struct monster_group_info group_info = {0};
+    static const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 };
+    static const int dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
+    size_t direction;
+
+    if (!race) return false;
+    for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
+        struct loc candidate = loc(player->grid.x + dx[direction],
+            player->grid.y + dy[direction]);
+        if (!square_in_bounds_fully(cave, candidate) ||
+            !square_is_monster_walkable(cave, candidate) ||
+            square_isoccupied(cave, candidate) ||
+            (test_item_grid_valid && loc_eq(candidate, test_item_grid))) continue;
+        if (!place_new_monster(cave, candidate, race, true, false,
+                group_info, ORIGIN_DROP_SPECIAL)) continue;
+        update_monsters(true);
+        square_light_spot(cave, candidate);
+        test_monster_seeded = true;
+        return true;
+    }
+    return false;
 }
 
 static errr abfp_host_get_command(cmd_context context)
@@ -141,6 +174,11 @@ bool abfp_host_publish_state(bool initial_state)
         if (!abfp_host_seed_test_floor_item() ||
             !abfp_frontend_refresh_snapshot()) return false;
     }
+    if (getenv("ABFP_TEST_MONSTER") && !test_monster_seeded &&
+        player && cave && cave->depth > 0) {
+        if (!abfp_host_seed_test_monster() ||
+            !abfp_frontend_refresh_snapshot()) return false;
+    }
     snapshot = abfp_frontend_snapshot();
     size_t count = abfp_bridge_event_count();
     abfp_event *events = count ? (abfp_event *)malloc(count * sizeof(*events)) : NULL;
@@ -171,6 +209,8 @@ void abfp_host_game_closed(void)
     initial_state_sent = false;
     test_floor_item_seeded = false;
     test_down_stair_seeded = false;
+    test_monster_seeded = false;
+    test_item_grid_valid = false;
 }
 
 void abfp_host_shutdown(void)
