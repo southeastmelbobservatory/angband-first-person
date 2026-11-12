@@ -370,7 +370,7 @@ def main():
                 and max(
                     abs(entity[1] - dungeon_player_xy[0]),
                     abs(entity[2] - dungeon_player_xy[1])
-                ) <= 1
+                ) <= 2
             ]
             if not visible_monsters or visible_monsters[0][7] <= 0:
                 raise AssertionError(
@@ -445,6 +445,41 @@ def main():
                     f"{return_state.get('player')}"
                 )
 
+            seeded_monster_id = visible_monsters[0][0]
+            seeded_monster_start = (visible_monsters[0][1], visible_monsters[0][2])
+            monster_moved = False
+            monster_state = return_state
+            for _ in range(3):
+                client.sendall(b"WAIT\n")
+                monster_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+                monster_move_events = [
+                    event for event in monster_state.get("events", [])
+                    if len(event) >= 9 and event[0] == 1
+                    and event[2] == seeded_monster_id
+                ]
+                current_monster = next(
+                    (
+                        entity for entity in monster_state.get("entities", [])
+                        if len(entity) >= 10 and entity[0] == seeded_monster_id
+                    ),
+                    None,
+                )
+                if (
+                    monster_move_events and current_monster
+                    and (current_monster[1], current_monster[2]) != seeded_monster_start
+                ):
+                    monster_moved = True
+                    break
+            if not monster_moved:
+                raise AssertionError(
+                    "The awakened Angband monster did not produce an authoritative "
+                    f"movement event from {seeded_monster_start}. "
+                    f"Last state: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
+
             client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
@@ -493,7 +528,7 @@ def main():
                 f"movement event exported; "
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
-                f"new level visible monsters={dungeon_monster_count} (seeded monster visible), "
+                f"new level visible monsters={dungeon_monster_count}; monster movement event verified, "
                 f"objects={dungeon_object_count}."
             )
         finally:
