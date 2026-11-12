@@ -211,6 +211,9 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
         Entity.HitPoints = ReadInt(Row[7]);
         Entity.MaxHitPoints = ReadInt(Row[8]);
         Entity.Quantity = ReadInt(Row[9]);
+        if (Row.Num() > 10 && Row[10].IsValid() &&
+            Row[10]->Type == EJson::String)
+            Entity.Name = Row[10]->AsString();
         Snapshot.Entities.Add(Entity);
     }
 
