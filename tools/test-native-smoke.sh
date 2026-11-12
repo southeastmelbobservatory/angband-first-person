@@ -9,8 +9,12 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-# Exercise the real linked executable and startup/data-path initialization
-# without requiring an interactive ncurses terminal.
-"$BIN" -l
+# Angband expects a writable per-user directory even for its save-list query.
+# Keep smoke-test state isolated from the runner account and repository.
+TMP_HOME="$(mktemp -d)"
+trap 'rm -rf "$TMP_HOME"' EXIT
+mkdir -p "$TMP_HOME/user"
+
+HOME="$TMP_HOME" "$BIN" "-duser=$TMP_HOME/user" -l
 
 echo "ABFP native Angband executable smoke test passed."
