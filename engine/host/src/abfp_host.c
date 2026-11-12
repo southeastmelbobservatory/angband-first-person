@@ -4,8 +4,10 @@
 #include "abfp_frontend.h"
 #include "abfp_transport.h"
 #include "abfp_host.h"
+#include <stdlib.h>
 
 static bool bridge_registered;
+static bool initial_state_sent;
 
 static errr abfp_host_get_command(cmd_context context)
 {
@@ -20,6 +22,10 @@ static errr abfp_host_get_command(cmd_context context)
     }
 
     while (abfp_transport_wait_command(&command)) {
+        if (!initial_state_sent) {
+            abfp_host_publish_state();
+            initial_state_sent = true;
+        }
         if (abfp_frontend_submit_command(command)) return 0;
     }
     return -1;
@@ -32,12 +38,33 @@ bool abfp_host_install(uint16_t port)
     return true;
 }
 
+void abfp_host_publish_state(void)
+{
+    const abfp_snapshot *snapshot = abfp_frontend_snapshot();
+    size_t count = abfp_bridge_event_count();
+    abfp_event *events = count ? (abfp_event *)malloc(count * sizeof(*events)) : NULL;
+    size_t i;
+
+    if (count && !events) {
+        abfp_bridge_clear_events();
+        return;
+    }
+    for (i = 0; i < count; ++i) {
+        const abfp_event *event = abfp_bridge_event_at(i);
+        if (event) events[i] = *event;
+    }
+    (void)abfp_transport_publish_state(snapshot, events, count);
+    free(events);
+    abfp_bridge_clear_events();
+}
+
 void abfp_host_game_closed(void)
 {
     if (bridge_registered) {
         abfp_bridge_shutdown();
         bridge_registered = false;
     }
+    initial_state_sent = false;
 }
 
 void abfp_host_shutdown(void)
