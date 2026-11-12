@@ -3,6 +3,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 AABFPItemActor::AABFPItemActor()
 {
@@ -33,6 +34,19 @@ AABFPItemActor::AABFPItemActor()
     Core = MakePart(TEXT("Core"), Sphere, FVector(0, 0, 35), FVector(0.22f, 0.22f, 0.22f));
     ShardA = MakePart(TEXT("ShardA"), Cone, FVector(0, -16, 43), FVector(0.10f, 0.10f, 0.20f));
     ShardB = MakePart(TEXT("ShardB"), Cone, FVector(0, 16, 43), FVector(0.10f, 0.10f, 0.20f));
+
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    if (BasicMaterial.Succeeded())
+    {
+        UMaterialInstanceDynamic* CoreMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* ShardMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        CoreMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.08f, 0.52f, 0.72f));
+        ShardMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.28f, 0.82f, 0.94f));
+        Core->SetMaterial(0, CoreMaterial);
+        ShardA->SetMaterial(0, ShardMaterial);
+        ShardB->SetMaterial(0, ShardMaterial);
+    }
 }
 
 void AABFPItemActor::Tick(float DeltaSeconds)
