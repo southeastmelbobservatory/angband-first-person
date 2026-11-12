@@ -61,7 +61,6 @@ struct FABFPEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Type = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Turn = 0;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bInitialState = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 SubjectId = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 TargetId = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 FromX = 0;
@@ -77,6 +76,7 @@ struct FABFPSnapshot
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Turn = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bInitialState = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 DungeonDepth = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerX = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerY = 0;
