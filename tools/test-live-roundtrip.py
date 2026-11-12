@@ -584,6 +584,34 @@ def main():
                     f"got {up_state.get('depth')} after descending to {depth_after_down}"
                 )
 
+            # Drop the presentation socket and reconnect while the same
+            # Angband character remains in the game. The host must publish a
+            # fresh initial snapshot to the replacement client.
+            client.close()
+            client = None
+            reconnect_deadline = time.monotonic() + 10
+            while time.monotonic() < reconnect_deadline:
+                try:
+                    client = socket.create_connection(("127.0.0.1", PORT), timeout=1)
+                    break
+                except OSError:
+                    time.sleep(0.1)
+            if client is None:
+                raise AssertionError("Native host did not accept a reconnect")
+            reconnected_state, buffer = receive_state(
+                client, b"", timeout=15, master=master, output=output
+            )
+            if not reconnected_state.get("initial"):
+                raise AssertionError(
+                    "Reconnect did not receive a fresh initial state snapshot: "
+                    f"{reconnected_state!r}"
+                )
+            if reconnected_state.get("depth") != starting_depth:
+                raise AssertionError(
+                    "Reconnect changed the live character's dungeon depth: "
+                    f"{reconnected_state.get('depth')} != {starting_depth}"
+                )
+
             dungeon_object_count = sum(
                 1 for entity in stair_state.get("entities", [])
                 if len(entity) >= 10 and entity[3] == 2
@@ -610,7 +638,7 @@ def main():
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
                 f"new level objects={dungeon_object_count}; "
-                f"monster visibility/player damage; player attack damage and death event verified."
+                f"monster visibility/player damage; player attack damage/death and client reconnect verified."
             )
         finally:
             if client is not None:
