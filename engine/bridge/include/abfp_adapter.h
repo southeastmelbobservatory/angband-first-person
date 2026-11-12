@@ -16,6 +16,7 @@ extern "C" {
 bool abfp_adapter_init(void);
 bool abfp_adapter_execute(abfp_command_type command);
 bool abfp_adapter_refresh_snapshot(void);
+void abfp_adapter_sync_after_game_loop(void);
 
 #ifdef __cplusplus
 }
