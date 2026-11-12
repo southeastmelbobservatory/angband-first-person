@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "ABFPProtocol.h"
+#include "ABFPNetworkClient.h"
 #include "ABFPFirstPersonPawn.generated.h"
 
 class UCameraComponent;
@@ -21,6 +22,7 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
@@ -41,4 +43,8 @@ private:
     FABFPSnapshot DemoSnapshot;
     FVector TargetPawnLocation = FVector::ZeroVector;
     bool bInterpolatingMove = false;
+    bool bLiveMode = false;
+    bool bAwaitingServerTurn = false;
+    bool bHaveAuthoritativeState = false;
+    FABFPNetworkClient NetworkClient;
 };
