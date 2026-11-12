@@ -42,18 +42,34 @@ static bool abfp_host_seed_test_floor_item(void)
     kind = lookup_kind(TV_FOOD, sval);
     if (!kind) return false;
 
+    /*
+     * Prefer a naturally open adjacent floor square. If the generated
+     * arrival tile is completely enclosed, reserve one adjacent in-bounds
+     * square as floor for this CI-only ration fixture rather than failing
+     * the entire first dungeon snapshot.
+     */
     for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
         struct loc candidate = loc(player->grid.x + dx[direction],
             player->grid.y + dy[direction]);
         if (!square_in_bounds_fully(cave, candidate) ||
-            !square_isobjectholding(cave, candidate) ||
-            !square_ispassable(cave, candidate) ||
             square_isoccupied(cave, candidate)) continue;
-        item_grid = candidate;
-        found_grid = true;
-        break;
+        if (!found_grid) {
+            item_grid = candidate;
+            found_grid = true;
+        }
+        if (square_isobjectholding(cave, candidate) &&
+            square_ispassable(cave, candidate)) {
+            item_grid = candidate;
+            break;
+        }
     }
     if (!found_grid) return false;
+    if (!square_isobjectholding(cave, item_grid) ||
+        !square_ispassable(cave, item_grid)) {
+        square_set_feat(cave, item_grid, FEAT_FLOOR);
+        square_memorize(cave, item_grid);
+        square_light_spot(cave, item_grid);
+    }
 
     object = object_new();
     known = object_new();
