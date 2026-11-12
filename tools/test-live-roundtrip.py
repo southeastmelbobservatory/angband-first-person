@@ -443,9 +443,34 @@ def main():
                     f"{return_state.get('player')}"
                 )
 
-            # Move away from the ration tile. The host seeds the mouse
-            # immediately before this action, so Angband's monster phase
-            # must pursue the player and the bridge must export its movement.
+            # Seed and observe the adjacent mouse while the player is still
+            # on the stair. The host snapshots this baseline before resolving
+            # the WAIT turn.
+            client.sendall(b"WAIT\\n")
+            monster_state, buffer = receive_state(
+                client, buffer, timeout=15, master=master, output=output
+            )
+            visible_monsters = [
+                entity for entity in monster_state.get("entities", [])
+                if len(entity) >= 11 and entity[3] == 1
+                and "giant white mouse" in entity[10].lower()
+                and entity[7] > 0
+            ]
+            if not visible_monsters:
+                raise AssertionError(
+                    "Seeded mouse was not visible after fixture creation: "
+                    f"{monster_state.get('entities')!r}"
+                )
+            seeded_monster_id = str(visible_monsters[0][0])
+            monster_movement_verified = False
+            monster_damaged_player = any(
+                len(event) >= 9 and event[0] == 3
+                and event[3] == "1" and event[8] > 0
+                for event in monster_state.get("events", [])
+            )
+
+            # Step to a visible floor tile on the far side of the mouse. The
+            # host prepares open adjacent floor in this test-only fixture.
             away_candidates = []
             preferred_away = (-item_delta[0], -item_delta[1])
             if preferred_away in movement_by_delta:
@@ -454,14 +479,12 @@ def main():
                 if candidate_delta not in away_candidates:
                     away_candidates.append(candidate_delta)
 
+            player_before_away = tuple(monster_state.get("player", []))
             away_move = None
             for dx, dy in away_candidates:
-                target_xy = (
-                    dungeon_player_xy[0] + dx,
-                    dungeon_player_xy[1] + dy,
-                )
+                target_xy = (player_before_away[0] + dx, player_before_away[1] + dy)
                 cell = next((
-                    row for row in return_state.get("cells", [])
+                    row for row in monster_state.get("cells", [])
                     if (row[0], row[1]) == target_xy
                 ), None)
                 if (cell and cell[2] == 1 and cell[3] and not cell[5]
@@ -477,7 +500,7 @@ def main():
 
             away_delta, away_xy = away_move
             client.sendall(
-                (movement_by_delta[away_delta] + "\n").encode("ascii")
+                (movement_by_delta[away_delta] + "\\n").encode("ascii")
             )
             monster_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
@@ -488,34 +511,24 @@ def main():
                     f"!= {monster_state.get('player')}"
                 )
 
-            visible_monsters = [
-                entity for entity in monster_state.get("entities", [])
-                if len(entity) >= 11 and entity[3] == 1
-                and "giant white mouse" in entity[10].lower()
-                and entity[7] > 0
-            ]
-            if not visible_monsters:
-                raise AssertionError(
-                    "Seeded mouse was not visible after the player moved away: "
-                    f"{monster_state.get('entities')!r}"
-                )
-            seeded_monster_id = str(visible_monsters[0][0])
-            monster_movement_verified = any(
+            if any(
                 len(event) >= 9 and event[0] == 1
                 and event[2] == seeded_monster_id
                 and event[4] == item_xy[0] and event[5] == item_xy[1]
                 and (event[4] != event[6] or event[5] != event[7])
                 for event in monster_state.get("events", [])
-            )
-            monster_damaged_player = any(
+            ):
+                monster_movement_verified = True
+            monster_damaged_player = monster_damaged_player or any(
                 len(event) >= 9 and event[0] == 3
                 and event[3] == "1" and event[8] > 0
                 for event in monster_state.get("events", [])
             )
+
             for _ in range(5):
                 if monster_damaged_player and monster_movement_verified:
                     break
-                client.sendall(b"WAIT\n")
+                client.sendall(b"WAIT\\n")
                 monster_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
@@ -532,13 +545,13 @@ def main():
                     for event in monster_state.get("events", [])
                 ):
                     monster_movement_verified = True
-                player_damage_events = [
-                    event for event in monster_state.get("events", [])
-                    if len(event) >= 9 and event[0] == 3
+                if any(
+                    len(event) >= 9 and event[0] == 3
                     and event[3] == "1" and event[8] > 0
-                ]
-                if visible_monsters and player_damage_events:
+                    for event in monster_state.get("events", [])
+                ):
                     monster_damaged_player = True
+
             if not monster_movement_verified:
                 raise AssertionError(
                     "The seeded mouse did not export an authoritative movement "
