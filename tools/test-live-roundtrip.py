@@ -372,7 +372,9 @@ def main():
                 f"{len(initial['cells'])} snapshot cells; "
                 f"player {initial['player']} -> {updated['player']} -> "
                 f"{moved['player']} via {move_command}; "
-                f"movement event exported."
+                f"movement event exported; "
+                f"autopickup removed {len(removed_objects)} floor objects; "
+                f"stairs depth {depth_before_up}->{up_state['depth']}->{down_state['depth']}."
             )
         finally:
             if client is not None:
