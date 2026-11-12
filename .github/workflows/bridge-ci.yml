@@ -6,6 +6,9 @@ on:
     paths:
       - 'CMakeLists.txt'
       - 'engine/bridge/**'
+      - 'engine/host/**'
+      - 'engine/upstream/patches/**'
+      - 'tools/bootstrap-angband.sh'
       - 'protocol/**'
       - 'tests/**'
       - '.github/workflows/bridge-ci.yml'
@@ -41,6 +44,10 @@ jobs:
           repository: angband/angband
           ref: f3082213b73f3e463e3d0d60bff4b00462beae6e
           path: engine/upstream/angband
+      - name: Apply pinned Angband frontend patch
+        run: |
+          git -C engine/upstream/angband apply --check "$GITHUB_WORKSPACE/engine/upstream/patches/angband-4.2.6-abfp.patch"
+          git -C engine/upstream/angband apply "$GITHUB_WORKSPACE/engine/upstream/patches/angband-4.2.6-abfp.patch"
       - name: Configure bridge with real upstream headers
         run: >-
           cmake -S . -B build-upstream
