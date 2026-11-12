@@ -5,6 +5,7 @@
 - [x] Compile the adapter translation unit against the exact pinned Angband 4.2.6 headers in CI.
 - [ ] Link the bridge into a real Angband host and run the game.
 - [ ] Bootstrap exact revision and build unchanged.
+- [ ] Build the patched host and verify save/load, birth, death, quit, and restart paths.
 - [ ] Record local build/test result.
 
 ## Frontend integration
@@ -12,7 +13,10 @@
 - [x] Implement command translation for movement and wait.
 - [x] Register player-moved event handler.
 - [x] Add explicit host sync callback after run_game_loop returns.
-- [ ] Connect callback to a host that owns Angband's normal game loop.
+- [x] Trace the pinned text frontend lifecycle and identify the supported command-hook seam (`cmd_get_hook`) plus required post-loop sync point in `play_game()`.
+- [ ] Add a revision-checked patch to `ui-game.c` that preserves `start_game()`, `pre_turn_refresh()`, `close_game()`, and the normal `play_game()` lifecycle while synchronizing after `run_game_loop()`.
+- [ ] Implement the ABFP command hook and thread-safe transport queue; only the game thread may submit bridge commands or read Angband state.
+- [ ] Link the bridge into a real Angband host and run the game.
 
 ## Snapshot
 - [x] Export 21x21 player-centred terrain window.
