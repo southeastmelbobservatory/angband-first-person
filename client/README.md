@@ -30,6 +30,25 @@ ABFP_BIND_ADDRESS=192.168.0.120 bash tools/run-native-demo.sh
 
 Then set the pawn Blueprint's HostAddress to `192.168.0.120` and HostPort to `47652`. Allow inbound TCP port 47652 in the host firewall. Binding to `0.0.0.0` is also supported but exposes the listener on every IPv4 interface. The protocol currently has no authentication or encryption: only expose it to a trusted private LAN, never directly to the internet.
 
+## Build the Windows editor target
+
+From the repository root in PowerShell, with Unreal Engine 5 installed:
+
+```powershell
+# Optional if the script cannot auto-detect your engine installation:
+$env:UE_5_ROOT = "C:\Program Files\Epic Games\UE_5.6"
+
+.\tools\build-unreal-client.ps1
+```
+
+The script builds the `AngbandFirstPersonEditor` Win64 Development target. You can also pass the engine installation directory explicitly:
+
+```powershell
+.\tools\build-unreal-client.ps1 -EngineRoot "C:\Program Files\Epic Games\UE_5.6"
+```
+
+A successful build only confirms the C++ editor target compiles. Open `client/AngbandFirstPerson.uproject`, press Play, and connect it to the native host to verify the actual rendered game loop.
+
 ## Open the project
 
 Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. W/A/S/D move one grid cell relative to the camera; Space waits one turn; mouse movement looks around.
