@@ -8,9 +8,9 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 - Snapshot and event structs matching the bridge protocol.
 - Loopback TCP client with newline-delimited JSON decoding and lossless 64-bit entity IDs.
 - Live movement command submission; the pawn waits for authoritative post-turn snapshots before accepting another move.
-- Instanced floor, wall and door geometry with separate stone/bronze materials.
+- Instanced floor, wall and door geometry with separate stone/bronze materials.\n- Distinct 3D up/down staircases, rubble piles and shop entrance geometry driven by Angband terrain snapshots.
 - Dungeon fog, ambient skylight and a warm player lantern.
-- Persistent 3D entity actors keyed by bridge entity ID.
+- Persistent 3D entity actors keyed by bridge entity ID.\n- Visible monsters interpolate between authoritative grid positions; damage events trigger creature hit reactions.
 - In-world status readout showing authoritative depth, turn, HP, level and gold.
 - Procedural articulated creature actor with idle motion (not a billboard).
 - Procedural floating item actor.
