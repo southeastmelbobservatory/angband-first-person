@@ -11,5 +11,6 @@ typedef enum abfp_command_type {
     ABFP_COMMAND_MOVE_SOUTH_WEST,
     ABFP_COMMAND_MOVE_SOUTH_EAST,
     ABFP_COMMAND_GO_UP,
-    ABFP_COMMAND_GO_DOWN
+    ABFP_COMMAND_GO_DOWN,
+    ABFP_COMMAND_AUTOPICKUP
 } abfp_command_type;
