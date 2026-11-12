@@ -14,6 +14,7 @@ static pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
 static abfp_command_type queue[ABFP_QUEUE_CAPACITY];
 static size_t head, count;
 static int listen_fd = -1;
+static int active_fd = -1;
 static pthread_t worker;
 static bool running, worker_started;
 
@@ -82,7 +83,9 @@ static void *worker_main(void *unused)
     while (1) {
         int fd = accept(listen_fd, NULL, NULL);
         if (fd < 0) { if (errno == EINTR) continue; break; }
+        pthread_mutex_lock(&mutex); active_fd = fd; pthread_mutex_unlock(&mutex);
         serve_client(fd); close(fd);
+        pthread_mutex_lock(&mutex); active_fd = -1; pthread_mutex_unlock(&mutex);
         pthread_mutex_lock(&mutex);
         if (!running) { pthread_mutex_unlock(&mutex); break; }
         pthread_mutex_unlock(&mutex);
@@ -128,6 +131,7 @@ bool abfp_transport_wait_command(abfp_command_type *out)
 void abfp_transport_stop(void)
 {
     pthread_mutex_lock(&mutex); running = false; pthread_cond_broadcast(&ready); pthread_mutex_unlock(&mutex);
+    if (active_fd >= 0) shutdown(active_fd, SHUT_RDWR);
     if (listen_fd >= 0) { shutdown(listen_fd, SHUT_RDWR); close(listen_fd); listen_fd = -1; }
     if (worker_started) { pthread_join(worker, NULL); worker_started = false; }
 }
