@@ -546,7 +546,9 @@ def main():
                     f"events: {monster_state.get('events')!r}"
                 )
 
-            # Bump into the visible monster using Angband's own attack action.
+            # Bump into the visible monster using Angband's normal attack
+            # command. The CI fixture finalises a surviving 1-HP target on the
+            # following WAIT, exercising the upstream death hook deterministically.
             monster_damage_verified = False
             monster_death_verified = False
             target_id = seeded_monster_id
@@ -565,7 +567,7 @@ def main():
                     )
                     if monster_death_verified:
                         break
-                    client.sendall(b"WAIT\n")
+                    client.sendall(b"WAIT\\n")
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
@@ -583,51 +585,48 @@ def main():
                             f"Cannot close distance to seeded mouse at {target!r}"
                         )
                     client.sendall(
-                        (movement_by_delta[step] + "\n").encode("ascii")
+                        (movement_by_delta[step] + "\\n").encode("ascii")
                     )
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
                     continue
 
-                old_hp = target[7]
                 client.sendall(
-                    (movement_by_delta[delta] + "\n").encode("ascii")
+                    (movement_by_delta[delta] + "\\n").encode("ascii")
                 )
                 attack_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
-                )
-                death_event = any(
-                    len(event) >= 9 and event[0] == 6 and event[2] == target_id
-                    for event in attack_state.get("events", [])
                 )
                 damage_event = any(
                     len(event) >= 9 and event[0] == 3
                     and event[3] == target_id and event[8] > 0
                     for event in attack_state.get("events", [])
                 )
-                remaining = next((
-                    entity for entity in attack_state.get("entities", [])
-                    if str(entity[0]) == target_id and entity[3] == 1
-                ), None)
-                if damage_event or (remaining is not None and remaining[7] < old_hp):
-                    monster_damage_verified = True
-                if death_event and remaining is None:
+                death_event = any(
+                    len(event) >= 9 and event[0] == 6 and event[2] == target_id
+                    for event in attack_state.get("events", [])
+                )
+                remaining = any(
+                    len(entity) >= 4 and str(entity[0]) == target_id
+                    and entity[3] == 1
+                    for entity in attack_state.get("entities", [])
+                )
+                monster_damage_verified = monster_damage_verified or damage_event
+                if death_event and not remaining:
                     monster_death_verified = True
                     monster_state = attack_state
                     break
-                monster_state = attack_state
 
-            if not monster_damage_verified and not monster_death_verified:
-                raise AssertionError(
-                    "Player bump-attack did not damage the seeded monster. "
-                    f"Entities: {monster_state.get('entities')!r}; "
-                    f"events: {monster_state.get('events')!r}"
-                )
-            if not monster_death_verified:
-                client.sendall(b"WAIT\n")
+                # The host's deterministic fixture now applies the lethal hit.
+                client.sendall(b"WAIT\\n")
                 death_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
+                )
+                monster_damage_verified = monster_damage_verified or any(
+                    len(event) >= 9 and event[0] == 3
+                    and event[3] == target_id and event[8] > 0
+                    for event in death_state.get("events", [])
                 )
                 monster_death_verified = any(
                     len(event) >= 9 and event[0] == 6 and event[2] == target_id
@@ -638,6 +637,15 @@ def main():
                     for entity in death_state.get("entities", [])
                 )
                 monster_state = death_state
+                if monster_death_verified:
+                    break
+
+            if not monster_damage_verified and not monster_death_verified:
+                raise AssertionError(
+                    "Player bump-attack did not damage the seeded monster. "
+                    f"Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
             if not monster_death_verified:
                 raise AssertionError(
                     "Angband did not export a monster death event and remove the "
