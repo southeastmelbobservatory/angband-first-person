@@ -19,6 +19,9 @@ static bool test_down_stair_seeded;
 static bool test_monster_seeded;
 static bool test_item_grid_valid;
 static struct loc test_item_grid;
+static bool test_monster_grid_valid;
+static struct loc test_monster_grid;
+static bool test_monster_awakened;
 
 static bool abfp_host_seed_test_floor_item(void)
 {
@@ -78,25 +81,43 @@ static bool abfp_host_seed_test_monster(void)
 {
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
-    static const int dx[] = { 0, 1, 0, -1 };
-    static const int dy[] = { -1, 0, 1, 0 };
+    int dx = 0, dy = -1;
     size_t direction;
 
     if (!race) return false;
-    for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
-        struct loc middle = loc(player->grid.x + dx[direction],
-            player->grid.y + dy[direction]);
-        struct loc candidate = loc(player->grid.x + 2 * dx[direction],
-            player->grid.y + 2 * dy[direction]);
+    if (test_item_grid_valid) {
+        dx = test_item_grid.x - player->grid.x;
+        dy = test_item_grid.y - player->grid.y;
+    }
+
+    /* Prefer the square two steps beyond the ration so it can move into
+     * the vacated item square after the test explicitly wakes it. */
+    for (direction = 0; direction < 5; ++direction) {
+        int step_x = dx;
+        int step_y = dy;
+        struct loc middle, candidate;
+
+        if (direction > 0) {
+            static const int fallback_x[] = { 0, 1, 0, -1 };
+            static const int fallback_y[] = { -1, 0, 1, 0 };
+            step_x = fallback_x[direction - 1];
+            step_y = fallback_y[direction - 1];
+        }
+        if (step_x == 0 && step_y == 0) continue;
+        middle = loc(player->grid.x + step_x, player->grid.y + step_y);
+        candidate = loc(player->grid.x + 2 * step_x,
+            player->grid.y + 2 * step_y);
         if (!square_in_bounds_fully(cave, middle) ||
             !square_ispassable(cave, middle) ||
             !square_in_bounds_fully(cave, candidate) ||
             !square_is_monster_walkable(cave, candidate) ||
             square_isoccupied(cave, candidate)) continue;
-        if (!place_new_monster(cave, candidate, race, false, false,
+        if (!place_new_monster(cave, candidate, race, true, false,
                 group_info, ORIGIN_DROP_SPECIAL)) continue;
         update_monsters(true);
         square_light_spot(cave, candidate);
+        test_monster_grid = candidate;
+        test_monster_grid_valid = true;
         test_monster_seeded = true;
         return true;
     }
@@ -151,6 +172,15 @@ static errr abfp_host_get_command(cmd_context context)
             square_light_spot(cave, player->grid);
             test_down_stair_seeded = true;
             (void)abfp_frontend_refresh_snapshot();
+        }
+
+        if (getenv("ABFP_TEST_WAKE_MONSTER") &&
+            command == ABFP_COMMAND_WAIT && test_monster_grid_valid &&
+            !test_monster_awakened) {
+            struct monster *mon = square_monster(cave, test_monster_grid);
+            if (!mon) return -1;
+            monster_wake(mon, true, 100);
+            test_monster_awakened = true;
         }
 
         if (abfp_frontend_submit_command(command)) return 0;
@@ -214,6 +244,8 @@ void abfp_host_game_closed(void)
     test_down_stair_seeded = false;
     test_monster_seeded = false;
     test_item_grid_valid = false;
+    test_monster_grid_valid = false;
+    test_monster_awakened = false;
 }
 
 void abfp_host_shutdown(void)
