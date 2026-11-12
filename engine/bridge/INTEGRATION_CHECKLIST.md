@@ -3,27 +3,26 @@
 ## Upstream
 - [x] Pin official Angband 4.2.6 release commit.
 - [x] Compile the adapter translation unit against the exact pinned Angband 4.2.6 headers in CI.
-- [x] Link the bridge, adapter, host hook and loopback transport into the patched Angband CMake executable (CI build verified).
-- [ ] Run the host interactively and verify save/load, birth, death, quit, and restart paths.
-- [ ] Bootstrap exact revision and build unchanged.
-- [x] Build the patched Angband host executable in CI.
-- [ ] Verify save/load, birth, death, quit, and restart paths at runtime.
+- [x] Link the bridge, adapter, host hook and loopback transport into the patched Angband CMake executable.
+- [x] Build the patched Angband host executable in GitHub Actions.
+- [ ] Confirm a clean local bootstrap/build on the target Linux host.
+- [ ] Run the host interactively and verify save/load, birth, death, quit and restart paths.
 - [ ] Record local build/test result.
 
 ## Frontend integration
 - [x] Locate command queue API and movement event.
 - [x] Implement command translation for movement and wait.
 - [x] Register player-moved event handler.
-- [x] Add explicit host sync callback after run_game_loop returns.
+- [x] Add explicit host sync callback after `run_game_loop()` returns.
 - [x] Trace the pinned text frontend lifecycle and identify the supported command-hook seam (`cmd_get_hook`) plus required post-loop sync point in `play_game()`.
-- [x] Add a revision-checked patch to `main.c`, `ui-game.c`, and Angband's CMake build while preserving the normal `play_game()` lifecycle.
-- [x] Implement a bounded, thread-safe loopback TCP command ingress queue and strict command-line parser (transport worker does not call Angband).
-- [x] Wire the game-thread `cmd_get_hook` to wait for one transport command and submit it through the bridge.
-- [x] Serialize the authoritative snapshot and queued events as newline-delimited JSON after each Angband game loop.
-- [x] Implement the Unreal TCP client, command sender, and JSON snapshot/event decoder.
+- [x] Add a revision-checked patch to `main.c`, `ui-game.c` and Angband's CMake build while preserving the normal `play_game()` lifecycle.
+- [x] Implement bounded, thread-safe loopback TCP command ingress; the transport worker never calls Angband.
+- [x] Consume one presentation command on the Angband game thread and submit it through Angband's normal command queue.
+- [x] Publish the initial snapshot on client connection and publish refreshed snapshots/events after each completed game loop.
+- [x] Retain queued events when snapshot delivery fails; clear them only after successful delivery.
+- [x] Add CI jobs for standalone bridge tests and the complete pinned Angband host build.
+- [ ] Execute a live interactive host/client session and verify turn processing.
 - [ ] Compile the Unreal project and verify the live host/client connection.
-- [x] Compile and link the patched host executable in CI.
-- [ ] Run a live game and verify movement/turn behaviour end to end.
 
 ## Snapshot
 - [x] Export 21x21 player-centred terrain window.
@@ -34,19 +33,21 @@
 - [x] Export visible floor objects with unidentified-item privacy.
 - [x] Distinguish rubble and shops from generic walls.
 - [ ] Add complete terrain feature identifiers (door states, traps, mineral veins, webs, etc.).
+- [ ] Export player statistics, status effects and equipment summary.
 
 ## Movement proof
 - [x] Capture authoritative player coordinates before movement.
 - [x] Emit movement only after the host sync boundary.
 - [x] Clear pending command state for blocked and successful moves.
 - [x] Refresh snapshot after host sync.
-- [ ] Verify blocked movement, diagonal movement, and monster interruption in a running build.
+- [ ] Verify blocked movement, diagonal movement and monster interruption in a running build.
+- [ ] Verify one submitted movement command corresponds to exactly one Angband turn.
 
 ## Renderer
 - [x] Create Unreal Engine 5 C++ project scaffold.
 - [x] Render floor, wall and door blockout geometry from snapshots.
 - [x] Render persistent 3D creature and item actors.
 - [x] Add first-person look and interpolated grid movement in the mock scene.
-- [ ] Connect Unreal input to the live C bridge.
+- [ ] Connect Unreal input to the live host protocol.
 - [ ] Verify authoritative turn timing in a running Angband host.
 - [ ] Replace placeholder meshes with production art, materials and creature-specific rigs.
