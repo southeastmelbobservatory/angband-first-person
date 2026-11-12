@@ -83,6 +83,12 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 
     if (!NetworkClient.IsConnected())
     {
+        if (bLiveMode && bHaveAuthoritativeState)
+        {
+            bHaveAuthoritativeState = false;
+            bAwaitingServerTurn = false;
+            UpdateStatusReadout();
+        }
         ReconnectRetrySeconds -= DeltaSeconds;
         if (ReconnectRetrySeconds <= 0.0f)
         {
