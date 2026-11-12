@@ -9,4 +9,4 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-python3 "$ROOT/tools/test-host-listener.py" "$BIN"
+python3 "$ROOT/tools/test-live-roundtrip.py" "$BIN"
