@@ -728,7 +728,7 @@ def main():
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
                 f"new level objects={dungeon_object_count}; "
-                f"monster movement/player damage; player attack damage/death and client reconnect verified."
+                f"monster/player damage; player attack damage/death and client reconnect verified."
             )
         finally:
             if client is not None:
