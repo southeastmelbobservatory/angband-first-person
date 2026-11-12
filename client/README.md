@@ -70,7 +70,7 @@ Allow TCP port `47652` through the host firewall on the private LAN only. The br
 
 ## Open the project
 
-Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. W/A/S/D move one grid cell relative to the camera; Space waits one turn; mouse movement looks around.
+Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. W/A/S/D move one grid cell relative to the camera; simultaneous keys produce diagonal moves. Space waits one turn; mouse movement looks around.
 
 ## Next integration
 
