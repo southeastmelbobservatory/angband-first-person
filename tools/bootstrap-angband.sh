@@ -16,3 +16,15 @@ git -C "$DEST" checkout --detach "$UPSTREAM_COMMIT"
 test "$(git -C "$DEST" rev-parse HEAD)" = "$UPSTREAM_COMMIT"
 
 echo "Angband 4.2.6 pinned at: $(git -C "$DEST" rev-parse HEAD)"
+
+PATCH="engine/upstream/patches/angband-4.2.6-abfp.patch"
+if git -C "$DEST" apply --check "$PATCH"; then
+  git -C "$DEST" apply "$PATCH"
+elif git -C "$DEST" apply --reverse --check "$PATCH"; then
+  echo "ABFP Angband frontend patch already applied"
+else
+  echo "ABFP patch does not apply cleanly to the pinned Angband revision" >&2
+  exit 1
+fi
+
+echo "Applied ABFP frontend integration patch"
