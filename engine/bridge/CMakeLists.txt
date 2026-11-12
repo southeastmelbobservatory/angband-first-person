@@ -5,6 +5,7 @@ option(ABFP_WITH_ANGBAND "Build the real pinned Angband adapter" OFF)
 set(ABFP_BRIDGE_SOURCES
     src/abfp_bridge.c
     src/abfp_adapter.c
+    src/abfp_frontend.c
 )
 
 if(ABFP_WITH_ANGBAND)
