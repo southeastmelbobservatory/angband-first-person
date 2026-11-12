@@ -9,7 +9,8 @@
 - [x] Locate command queue API and movement event.
 - [x] Implement command translation for movement and wait.
 - [x] Register player-moved event handler.
-- [ ] Connect to a host that owns Angband's normal game loop.
+- [x] Add explicit host sync callback after run_game_loop returns.
+- [ ] Connect callback to a host that owns Angband's normal game loop.
 
 ## Snapshot
 - [x] Export 21x21 player-centred terrain window.
@@ -23,12 +24,16 @@
 
 ## Movement proof
 - [x] Capture authoritative player coordinates before movement.
-- [x] Emit from/to coordinates on EVENT_PLAYERMOVED.
-- [x] Refresh snapshot after movement.
+- [x] Emit movement only after the host sync boundary.
+- [x] Clear pending command state for blocked and successful moves.
+- [x] Refresh snapshot after host sync.
 - [ ] Verify blocked movement, diagonal movement, and monster interruption in a running build.
 
-## Entity/rendering integration
-- [x] Define protocol-level monster/object entity types and data IDs.
-- [ ] Map Angband race and object-kind IDs to renderer assets.
-- [ ] Add animated 3D creature rigs and object meshes.
-- [ ] Verify entity lifetime/copy semantics in the host.
+## Renderer
+- [x] Create Unreal Engine 5 C++ project scaffold.
+- [x] Render floor, wall and door blockout geometry from snapshots.
+- [x] Render persistent 3D creature and item actors.
+- [x] Add first-person look and interpolated grid movement in the mock scene.
+- [ ] Connect Unreal input to the live C bridge.
+- [ ] Verify authoritative turn timing in a running Angband host.
+- [ ] Replace placeholder meshes with production art, materials and creature-specific rigs.
