@@ -182,7 +182,7 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
     for (const TSharedPtr<FJsonValue>& Value : *Entities)
     {
         TArray<TSharedPtr<FJsonValue>> Row;
-        if (!ReadRow(Value, Row) || Row.Num() < 11) return false;
+        if (!ReadRow(Value, Row) || Row.Num() < 10) return false;
         FABFPEntity Entity;
         Entity.Id = ReadId(Row[0]);
         Entity.X = ReadInt(Row[1]);
