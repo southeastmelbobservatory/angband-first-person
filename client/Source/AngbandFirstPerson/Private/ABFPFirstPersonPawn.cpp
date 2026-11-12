@@ -149,6 +149,9 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         }
     }
 
+    if (!bInterpolatingMove && !PendingMoveInput.IsNearlyZero())
+        MoveRelative(PendingMoveInput);
+
     if (Lantern)
         Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
             FLinearColor(1.0f, 0.045f, 0.025f) :
@@ -178,10 +181,8 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-    PlayerInputComponent->BindAction("MoveForward", IE_Pressed, this, &AABFPFirstPersonPawn::MoveForward);
-    PlayerInputComponent->BindAction("MoveBackward", IE_Pressed, this, &AABFPFirstPersonPawn::MoveBackward);
-    PlayerInputComponent->BindAction("MoveLeft", IE_Pressed, this, &AABFPFirstPersonPawn::MoveLeft);
-    PlayerInputComponent->BindAction("MoveRight", IE_Pressed, this, &AABFPFirstPersonPawn::MoveRight);
+    PlayerInputComponent->BindAxis("MoveForward", this, &AABFPFirstPersonPawn::MoveForwardAxis);
+    PlayerInputComponent->BindAxis("MoveRight", this, &AABFPFirstPersonPawn::MoveRightAxis);
     PlayerInputComponent->BindAction("WaitTurn", IE_Pressed, this, &AABFPFirstPersonPawn::WaitTurn);
     PlayerInputComponent->BindAction("GoUp", IE_Pressed, this, &AABFPFirstPersonPawn::GoUp);
     PlayerInputComponent->BindAction("GoDown", IE_Pressed, this, &AABFPFirstPersonPawn::GoDown);
@@ -190,10 +191,15 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAxis("LookUp", this, &AABFPFirstPersonPawn::LookUp);
 }
 
-void AABFPFirstPersonPawn::MoveForward() { MoveRelative(FVector2D(1, 0)); }
-void AABFPFirstPersonPawn::MoveBackward() { MoveRelative(FVector2D(-1, 0)); }
-void AABFPFirstPersonPawn::MoveLeft() { MoveRelative(FVector2D(0, -1)); }
-void AABFPFirstPersonPawn::MoveRight() { MoveRelative(FVector2D(0, 1)); }
+void AABFPFirstPersonPawn::MoveForwardAxis(float Value)
+{
+    PendingMoveInput.X = FMath::Clamp(Value, -1.0f, 1.0f);
+}
+
+void AABFPFirstPersonPawn::MoveRightAxis(float Value)
+{
+    PendingMoveInput.Y = FMath::Clamp(Value, -1.0f, 1.0f);
+}
 
 void AABFPFirstPersonPawn::SendSimpleCommand(const FString& Command)
 {
