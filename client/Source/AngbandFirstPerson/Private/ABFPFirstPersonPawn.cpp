@@ -60,7 +60,7 @@ void AABFPFirstPersonPawn::BeginPlay()
     {
         if (GEngine)
             GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::Green,
-                *FString::Printf(TEXT("Connected to Angband host %s:%d. Waiting for state..."), *HostAddress, HostPort));
+                FString::Printf(TEXT("Connected to Angband host %s:%d. Waiting for state..."), *HostAddress, HostPort));
     }
     else
     {
@@ -73,7 +73,7 @@ void AABFPFirstPersonPawn::BeginPlay()
         UpdateStatusReadout();
         if (GEngine)
             GEngine->AddOnScreenDebugMessage(-1, 12.0f, FColor::Yellow,
-                *FString::Printf(TEXT("No Angband host at %s:%d — running local renderer demo"), *HostAddress, HostPort));
+                FString::Printf(TEXT("No Angband host at %s:%d — running local renderer demo"), *HostAddress, HostPort));
     }
 }
 
@@ -81,23 +81,28 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-    if (bLiveMode)
+    if (!NetworkClient.IsConnected())
     {
-        if (!NetworkClient.IsConnected())
+        ReconnectRetrySeconds -= DeltaSeconds;
+        if (ReconnectRetrySeconds <= 0.0f)
         {
-            ReconnectRetrySeconds -= DeltaSeconds;
-            if (ReconnectRetrySeconds <= 0.0f)
+            ReconnectRetrySeconds = 2.0f;
+            if (NetworkClient.Connect(HostAddress, HostPort))
             {
-                ReconnectRetrySeconds = 2.0f;
-                if (NetworkClient.Connect(HostAddress, HostPort))
-                {
-                    bHaveAuthoritativeState = false;
-                    bAwaitingServerTurn = false;
-                    bInterpolatingMove = false;
-                }
+                bLiveMode = true;
+                bHaveAuthoritativeState = false;
+                bAwaitingServerTurn = false;
+                bInterpolatingMove = false;
+                if (GEngine)
+                    GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green,
+                        FString::Printf(TEXT("Connected to Angband host %s:%d"),
+                            *HostAddress, HostPort));
             }
         }
-
+    }
+    else
+    {
+        bLiveMode = true;
         FABFPSnapshot AuthoritativeSnapshot;
         if (NetworkClient.PollSnapshot(AuthoritativeSnapshot))
         {
@@ -350,7 +355,7 @@ void AABFPFirstPersonPawn::UpdateStatusReadout()
 {
     if (!StatusReadout) return;
 
-    const FString Mode = bLiveMode ? TEXT("ANGBAND LIVE") : TEXT("RENDERER DEMO");
+    const FString Mode = bLiveMode ? (bHaveAuthoritativeState ? TEXT("ANGBAND LIVE") : TEXT("CONNECTING TO ANGBAND")) : TEXT("RENDERER DEMO");
     const FString Health = DemoSnapshot.PlayerMaxHitPoints > 0 ?
         FString::Printf(TEXT("HP %d/%d"), DemoSnapshot.PlayerHitPoints,
             DemoSnapshot.PlayerMaxHitPoints) : TEXT("HP --");
