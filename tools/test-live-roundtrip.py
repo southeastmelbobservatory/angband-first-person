@@ -127,6 +127,9 @@ def main():
             )
             os.write(master, b"@")
             wait_for_terminal_text(master, output, b"any other key to continue", 20, pid)
+            # Wait for the terminal refresh to finish before answering the
+            # final birth prompt; otherwise a PTY write can race the UI read.
+            time.sleep(0.25)
             os.write(master, b"x")
 
             # The host publishes its first real dungeon snapshot at CTX_GAME.
@@ -134,6 +137,15 @@ def main():
             try:
                 initial, buffer = receive_state(client, buffer)
             except (TimeoutError, ConnectionError) as error:
+                # Drain any output produced after the confirmation key.
+                drain_deadline = time.monotonic() + 1
+                while time.monotonic() < drain_deadline:
+                    readable, _, _ = select.select([master], [], [], 0.1)
+                    if readable:
+                        try:
+                            output.extend(os.read(master, 8192))
+                        except OSError:
+                            break
                 raise RuntimeError(
                     "No initial state after character confirmation. Captured terminal output:\n"
                     + terminal_text(output)[-5000:]
