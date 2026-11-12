@@ -51,7 +51,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 0000000..0000000 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -379,3 +379,18 @@
+@@ -379,3 +379,19 @@
  set_target_properties(OurCoreLib PROPERTIES C_STANDARD 99)
 +find_package(Threads REQUIRED)
 +target_sources(OurCoreLib PRIVATE
@@ -63,6 +63,7 @@ index 0000000..0000000 100644
 +    "${CMAKE_CURRENT_SOURCE_DIR}/../../host/src/abfp_transport.c"
 +)
 +target_include_directories(OurCoreLib PRIVATE
++    "${CMAKE_CURRENT_SOURCE_DIR}/src"
 +    "${CMAKE_CURRENT_SOURCE_DIR}/../../bridge/include"
 +    "${CMAKE_CURRENT_SOURCE_DIR}/../../../protocol"
 +    "${CMAKE_CURRENT_SOURCE_DIR}/../../host/include"
