@@ -95,7 +95,7 @@ This client receives the same authoritative snapshots and can submit movement an
 
 Native host run #249 verifies the complete pinned Angband build, real character creation, authoritative snapshots, wait and movement, blocked movement, stair descent/ascent, floor-item pickup, visible monster state and AI movement events, monster-to-player damage, player-initiated attack damage, native monster death events and host-side client reconnect. Remaining gates are:
 
-1. verify diagonal movement and monster interruption in the live host;
+1. verify diagonal movement in the live host (player bump-attacks and monster interruption are now covered);
 2. verify longer play sessions and repeated reconnects;
 3. clean local bootstrap/build and interactive save/load/death/quit/restart paths on the target Linux host;
 4. compile the Unreal project in Unreal Engine 5 and connect its live input/rendering path to the native host;
