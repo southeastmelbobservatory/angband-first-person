@@ -14,7 +14,7 @@ VALID = {
     "n": "MOVE_NORTH", "s": "MOVE_SOUTH", "w": "MOVE_WEST", "e": "MOVE_EAST",
     "nw": "MOVE_NORTH_WEST", "ne": "MOVE_NORTH_EAST",
     "sw": "MOVE_SOUTH_WEST", "se": "MOVE_SOUTH_EAST", ".": "WAIT",
-    "<": "GO_UP", ">": "GO_DOWN",
+    "<": "GO_UP", ">": "GO_DOWN", "g": "AUTOPICKUP",
 }
 
 def receive_line(sock, buffer):
@@ -48,7 +48,7 @@ def main():
         line, buffer = receive_line(sock, buffer)
         state = json.loads(line)
         describe(state)
-        print("Commands: n s e w ne nw se sw . < >  (q quits client)")
+        print("Commands: n s e w ne nw se sw . < > g  (q quits client)")
 
         for raw in sys.stdin:
             key = raw.strip().lower()
