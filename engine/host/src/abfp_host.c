@@ -1,7 +1,6 @@
 #include "angband.h"
 #include "cmd-core.h"
 #include "option.h"
-#include "list-tvals.h"
 #include "obj-make.h"
 #include "obj-pile.h"
 #include "obj-util.h"
