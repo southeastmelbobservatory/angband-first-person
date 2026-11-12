@@ -500,7 +500,7 @@ def main():
 
             away_delta, away_xy = away_move
             client.sendall(
-                (movement_by_delta[away_delta] + "\\n").encode("ascii")
+                (movement_by_delta[away_delta] + "\n").encode("ascii")
             )
             monster_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
