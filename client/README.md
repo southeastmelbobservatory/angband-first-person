@@ -12,7 +12,7 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 - Distinct 3D up/down staircases, rubble piles and shop entrance geometry driven by Angband terrain snapshots.
 - Dungeon fog, ambient skylight and a warm player lantern.
 - Persistent 3D entity actors keyed by bridge entity ID.
-- Visible monsters interpolate between authoritative grid positions; race and object-kind names drive the procedural appearance, and damage events trigger creature hit reactions.
+- Visible monsters interpolate between authoritative grid positions; race and object-kind names drive the procedural appearance, damage events trigger hit reactions, and death events play a short creature death animation.
 - In-world status readout showing authoritative depth, turn, HP, level and gold.
 - Procedural articulated creature actor with idle motion (not a billboard).
 - Procedural floating item actor.
@@ -55,6 +55,6 @@ Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ mod
 
 ## Next integration
 
-The basic TCP command/state path is now wired, including authoritative player status. Remaining work is to compile and run the Unreal project, verify all eight movement directions and blocked moves, reconnect handling, event-driven animations, and gameplay lifecycle. Do not predict movement or locally move monsters in live mode.
+The basic TCP command/state path is wired, including authoritative player status, combat damage and death reactions. The native host CI verifies all eight directional command mappings, blocked movement, real Angband combat, death events and host-side reconnect. Remaining work is to compile and run the Unreal project, verify its live socket reconnect behaviour and event-driven animations in-editor, and exercise the complete gameplay lifecycle. Do not predict movement or locally move monsters in live mode.
 
 The Unreal project has not yet been compiled or run in an Unreal Editor environment. It currently uses Unreal's built-in basic meshes as procedural placeholders. Production art, materials, creature-specific rigs, animation blueprints, audio, dungeon set dressing and collision are later art/engineering passes.
