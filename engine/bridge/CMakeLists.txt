@@ -9,7 +9,10 @@ set(ABFP_BRIDGE_SOURCES
 )
 
 if(ABFP_WITH_ANGBAND)
-    list(APPEND ABFP_BRIDGE_SOURCES src/abfp_upstream_adapter.c)
+    list(APPEND ABFP_BRIDGE_SOURCES
+        src/abfp_upstream_adapter.c
+        "${CMAKE_CURRENT_LIST_DIR}/../host/src/abfp_host.c"
+    )
 endif()
 
 add_library(abfp_bridge STATIC ${ABFP_BRIDGE_SOURCES})
