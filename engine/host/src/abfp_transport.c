@@ -2,6 +2,11 @@
 #include "abfp_transport.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <string.h>
@@ -10,6 +15,7 @@
 #define ABFP_QUEUE_CAPACITY 64
 #define ABFP_LINE_CAPACITY 64
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t send_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
 static abfp_command_type queue[ABFP_QUEUE_CAPACITY];
 static size_t head, count;
@@ -99,8 +105,12 @@ static void *worker_main(void *unused)
         serve = running;
         if (!serve) shutdown(fd, SHUT_RDWR);
         pthread_mutex_unlock(&mutex);
+        { struct timeval timeout = {0, 200000};
+          (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)); }
         if (serve) serve_client(fd);
+        pthread_mutex_lock(&send_mutex);
         close(fd);
+        pthread_mutex_unlock(&send_mutex);
         pthread_mutex_lock(&mutex); active_fd = -1; pthread_mutex_unlock(&mutex);
         pthread_mutex_lock(&mutex);
         if (!running) { pthread_mutex_unlock(&mutex); break; }
@@ -157,4 +167,103 @@ void abfp_transport_stop(void)
     pthread_mutex_unlock(&mutex);
     if (fd >= 0) close(fd);
     if (worker_started) { pthread_join(worker, NULL); worker_started = false; }
+}
+
+
+static bool append_json(char **cursor, size_t *remaining, const char *format, ...)
+{
+    va_list args;
+    int written;
+    va_start(args, format);
+    written = vsnprintf(*cursor, *remaining, format, args);
+    va_end(args);
+    if (written < 0 || (size_t)written >= *remaining) return false;
+    *cursor += written;
+    *remaining -= (size_t)written;
+    return true;
+}
+
+static bool send_all(int fd, const char *data, size_t length)
+{
+    while (length) {
+#ifdef MSG_NOSIGNAL
+        ssize_t sent = send(fd, data, length, MSG_NOSIGNAL);
+#else
+        ssize_t sent = send(fd, data, length, 0);
+#endif
+        if (sent < 0 && errno == EINTR) continue;
+        if (sent <= 0) return false;
+        data += sent;
+        length -= (size_t)sent;
+    }
+    return true;
+}
+
+bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
+    const abfp_event *events, size_t event_count)
+{
+    size_t capacity, remaining, i;
+    char *buffer, *cursor;
+    int fd;
+    bool sent = false;
+
+    if (!snapshot || (snapshot->cell_count && !snapshot->cells) ||
+        (snapshot->entity_count && !snapshot->entities) ||
+        (event_count && !events) || event_count > 4096) return false;
+    capacity = 512 + (size_t)snapshot->cell_count * 96 +
+        (size_t)snapshot->entity_count * 192 + event_count * 192;
+    buffer = (char *)malloc(capacity);
+    if (!buffer) return false;
+    cursor = buffer;
+    remaining = capacity;
+
+    if (!append_json(&cursor, &remaining,
+        "{\"type\":\"state\",\"turn\":%" PRIu64
+        ",\"depth\":%d,\"player\":[%d,%d],\"cells\":[",
+        snapshot->turn, snapshot->dungeon_depth,
+        snapshot->player_x, snapshot->player_y)) goto done;
+
+    for (i = 0; i < snapshot->cell_count; ++i) {
+        const abfp_cell *cell = &snapshot->cells[i];
+        if (!append_json(&cursor, &remaining,
+            "%s[%d,%d,%d,%u,%u,%u,%u]",
+            i ? "," : "", cell->x, cell->y, (int)cell->terrain,
+            (unsigned)cell->visible, (unsigned)cell->lit,
+            (unsigned)cell->occupied_by_monster,
+            (unsigned)cell->occupied_by_object)) goto done;
+    }
+    if (!append_json(&cursor, &remaining, "],\"entities\":[")) goto done;
+    for (i = 0; i < snapshot->entity_count; ++i) {
+        const abfp_entity_state *entity = &snapshot->entities[i];
+        if (!append_json(&cursor, &remaining,
+            "%s[%" PRIu64 ",%d,%d,%d,%d,%d,%d,%d,%d,%d]",
+            i ? "," : "", entity->id, entity->x, entity->y,
+            (int)entity->type, entity->kind_id, entity->category_id,
+            entity->variant_id, entity->hitpoints, entity->max_hitpoints,
+            entity->quantity)) goto done;
+    }
+    if (!append_json(&cursor, &remaining, "],\"events\":[")) goto done;
+    for (i = 0; i < event_count; ++i) {
+        const abfp_event *event = &events[i];
+        if (!append_json(&cursor, &remaining,
+            "%s[%d,%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%d,%d,%d,%d,%d]",
+            i ? "," : "", (int)event->type, event->turn,
+            event->subject_id, event->target_id, event->from_x,
+            event->from_y, event->to_x, event->to_y, event->value)) goto done;
+    }
+    if (!append_json(&cursor, &remaining, "]}\n")) goto done;
+
+    pthread_mutex_lock(&send_mutex);
+    pthread_mutex_lock(&mutex);
+    fd = active_fd;
+    pthread_mutex_unlock(&mutex);
+    if (fd >= 0) {
+        sent = send_all(fd, buffer, (size_t)(cursor - buffer));
+        if (!sent) shutdown(fd, SHUT_RDWR);
+    }
+    pthread_mutex_unlock(&send_mutex);
+
+done:
+    free(buffer);
+    return sent;
 }
