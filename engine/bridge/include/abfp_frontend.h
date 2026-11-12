@@ -15,6 +15,7 @@ bool abfp_frontend_submit_command(abfp_command_type command);
 
 /* Read the latest bridge snapshot. Copy its arrays before the next sync. */
 const abfp_snapshot *abfp_frontend_snapshot(void);
+bool abfp_frontend_refresh_snapshot(void);
 
 /* Call immediately after Angband's run_game_loop() returns. */
 void abfp_frontend_after_game_loop(void);
