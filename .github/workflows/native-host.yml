@@ -37,3 +37,5 @@ jobs:
         run: bash tools/build-angband-host.sh
       - name: Verify executable was linked
         run: test -x build-angband/game/angband
+      - name: Runtime startup smoke test
+        run: bash tools/test-native-smoke.sh
