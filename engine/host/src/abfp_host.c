@@ -53,7 +53,8 @@ static bool abfp_host_seed_test_floor_item(void)
         struct loc candidate = loc(player->grid.x + dx[direction],
             player->grid.y + dy[direction]);
         if (!square_in_bounds_fully(cave, candidate) ||
-            square_isoccupied(cave, candidate)) continue;
+            square_isoccupied(cave, candidate) ||
+            square_object(cave, candidate)) continue;
         if (!found_grid) {
             item_grid = candidate;
             found_grid = true;
