@@ -403,7 +403,9 @@ def main():
             if tuple(item_state.get("player", [])) != item_xy:
                 raise AssertionError(
                     f"Player did not move onto seeded item at {item_xy}: "
-                    f"{item_state.get('player')}"
+                    f"{item_state.get('player')}. "
+                    f"Seeded entity: {seeded_item_row!r}. "
+                    f"Angband terminal: {terminal_text(output)[-2200:]}"
                 )
 
             dungeon_floor_items_after = {
