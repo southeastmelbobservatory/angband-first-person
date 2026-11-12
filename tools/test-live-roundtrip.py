@@ -613,10 +613,23 @@ def main():
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    client.sendall(b"WAIT\n")
-                    monster_state, buffer = receive_state(
-                        client, buffer, timeout=15, master=master, output=output
-                    )
+                    client.sendall(b"WAIT\\n")
+                    try:
+                        monster_state, buffer = receive_state(
+                            client, buffer, timeout=15, master=master, output=output
+                        )
+                    except TimeoutError as error:
+                        readable, _, _ = select.select([master], [], [], 0.2)
+                        if readable:
+                            try:
+                                output.extend(os.read(master, 8192))
+                            except OSError:
+                                pass
+                        raise AssertionError(
+                            "No state returned while waiting for the mouse to "
+                            f"approach. Target: {target!r}; player: {player_xy!r}; "
+                            f"terminal: {terminal_text(output)[-2400:]}"
+                        ) from error
                     continue
 
                 old_hp = target[7]
