@@ -104,6 +104,7 @@ def main():
                 "ABFP_TEST_FORCE_STAIRS": "1",
                 "ABFP_TEST_FLOOR_ITEM": "1",
                 "ABFP_TEST_MONSTER": "1",
+                "ABFP_TEST_WAKE_MONSTER": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
@@ -370,7 +371,7 @@ def main():
                 and max(
                     abs(entity[1] - dungeon_player_xy[0]),
                     abs(entity[2] - dungeon_player_xy[1])
-                ) <= 2
+                ) == 2
             ]
             if not visible_monsters or visible_monsters[0][7] <= 0:
                 raise AssertionError(
