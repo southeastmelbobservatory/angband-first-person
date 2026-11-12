@@ -80,6 +80,8 @@ void AABFPFirstPersonPawn::BeginPlay()
 void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    PlayerDamageFlashSeconds = FMath::Max(0.0f,
+        PlayerDamageFlashSeconds - DeltaSeconds);
 
     if (!NetworkClient.IsConnected())
     {
@@ -112,6 +114,16 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         FABFPSnapshot AuthoritativeSnapshot;
         if (NetworkClient.PollSnapshot(AuthoritativeSnapshot))
         {
+            for (const FABFPEvent& Event : AuthoritativeSnapshot.Events)
+            {
+                if (Event.Type == EABFPEventType::Damage && Event.TargetId == 1)
+                {
+                    PlayerDamageFlashSeconds = 0.35f;
+                    if (GEngine)
+                        GEngine->AddOnScreenDebugMessage(-1, 1.2f, FColor::Red,
+                            FString::Printf(TEXT("You take %d damage"), Event.Value));
+                }
+            }
             const bool bFirstState = !bHaveAuthoritativeState;
             const bool bLevelChanged = bHaveAuthoritativeState &&
                 AuthoritativeSnapshot.DungeonDepth != DemoSnapshot.DungeonDepth;
@@ -136,6 +148,14 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
             UpdateStatusReadout();
         }
     }
+
+    if (Lantern)
+        Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
+            FLinearColor(1.0f, 0.045f, 0.025f) :
+            FLinearColor(1.0f, 0.78f, 0.52f));
+    if (StatusReadout)
+        StatusReadout->SetTextRenderColor(PlayerDamageFlashSeconds > 0.0f ?
+            FColor(255, 75, 55) : FColor(232, 211, 160));
 
     if (!bInterpolatingMove) return;
     const FVector Current = FMath::VInterpTo(GetActorLocation(),
