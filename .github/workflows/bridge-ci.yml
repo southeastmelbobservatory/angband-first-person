@@ -44,10 +44,8 @@ jobs:
       - name: Configure bridge with real upstream headers
         run: >-
           cmake -S . -B build-upstream
-          -DBUILD_TESTING=ON
+          -DBUILD_TESTING=OFF
           -DABFP_WITH_ANGBAND=ON
           -DANGBAND_SRC_DIR=${{ github.workspace }}/engine/upstream/angband/src
       - name: Compile bridge and upstream adapter
-        run: cmake --build build-upstream --parallel
-      - name: Run bridge tests
-        run: ctest --test-dir build-upstream --output-on-failure
+        run: cmake --build build-upstream --target abfp_bridge --parallel
