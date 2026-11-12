@@ -20,6 +20,11 @@ const abfp_snapshot *abfp_frontend_snapshot(void)
     return abfp_bridge_snapshot();
 }
 
+bool abfp_frontend_refresh_snapshot(void)
+{
+    return abfp_adapter_refresh_snapshot();
+}
+
 void abfp_frontend_after_game_loop(void)
 {
     abfp_adapter_sync_after_game_loop();
