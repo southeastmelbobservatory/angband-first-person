@@ -74,7 +74,8 @@ void FABFPNetworkClient::Disconnect()
 
 bool FABFPNetworkClient::IsConnected() const
 {
-    return Socket != nullptr;
+    return Socket != nullptr &&
+        Socket->GetConnectionState() == ESocketConnectionState::SCS_Connected;
 }
 
 bool FABFPNetworkClient::SendCommand(const FString& Command)
