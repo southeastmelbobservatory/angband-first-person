@@ -176,4 +176,14 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             It.RemoveCurrent();
         }
     }
+
+    for (const FABFPEvent& Event : Snapshot.Events)
+    {
+        if (Event.Type != 3) continue; // ABFP_EVENT_DAMAGE
+        if (TObjectPtr<AActor>* Target = SpawnedEntities.Find(Event.TargetId))
+        {
+            if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Target->Get()))
+                Creature->PlayHitReaction(Event.Value);
+        }
+    }
 }
