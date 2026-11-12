@@ -139,7 +139,7 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
     bool bUpdated = false;
     while (true)
     {
-        const int32 Newline = ReceiveBuffer.Find(TEXT("\\n"));
+        const int32 Newline = ReceiveBuffer.Find(TEXT("\n"));
         if (Newline == INDEX_NONE) break;
         const FString Line = ReceiveBuffer.Left(Newline);
         ReceiveBuffer = ReceiveBuffer.Mid(Newline + 1);
