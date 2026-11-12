@@ -6,7 +6,8 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 
 - Unreal C++ project/module scaffold.
 - Snapshot structs matching the bridge protocol.
-- Instanced floor, wall and door geometry.
+- Instanced floor, wall and door geometry with separate stone/bronze materials.
+- Dungeon fog, ambient skylight and a warm player lantern.
 - Persistent 3D entity actors keyed by bridge entity ID.
 - Procedural articulated creature actor with idle motion (not a billboard).
 - Procedural floating item actor.
@@ -22,4 +23,4 @@ Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ mod
 
 Replace the pawn's TryDemoStep path with command submission through the C bridge. The pawn must wait for a new authoritative snapshot before recentering the world. Do not predict movement or locally move monsters in live mode.
 
-The project currently uses Unreal's built-in basic meshes as procedural placeholders. Production art, materials, creature-specific rigs, animation blueprints, audio, dungeon set dressing and collision are later art/engineering passes.
+The Unreal project has not yet been compiled or run in an Unreal Editor environment. It currently uses Unreal's built-in basic meshes as procedural placeholders. Production art, materials, creature-specific rigs, animation blueprints, audio, dungeon set dressing and collision are later art/engineering passes.
