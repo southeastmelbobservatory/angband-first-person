@@ -152,7 +152,8 @@ static bool abfp_host_seed_test_monster(void)
             test_stair_grid.y + dy[direction]);
         if (!square_in_bounds_fully(cave, approach) ||
             loc_eq(approach, test_item_grid) ||
-            !square_isempty(cave, approach)) continue;
+            square_isoccupied(cave, approach) ||
+            square_object(cave, approach)) continue;
         square_remove_all_traps(cave, approach);
         square_set_feat(cave, approach, FEAT_FLOOR);
         square_memorize(cave, approach);
