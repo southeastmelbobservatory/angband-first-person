@@ -54,12 +54,25 @@ struct FABFPEntity
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Quantity = 1;
 };
 
+UENUM(BlueprintType)
+enum class EABFPEventType : uint8
+{
+    None,
+    EntityMoved,
+    Attack,
+    Damage,
+    Spell,
+    Pickup,
+    Death,
+    TerrainChanged
+};
+
 USTRUCT(BlueprintType)
 struct FABFPEvent
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Type = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) EABFPEventType Type = EABFPEventType::None;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Turn = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 SubjectId = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 TargetId = 0;
