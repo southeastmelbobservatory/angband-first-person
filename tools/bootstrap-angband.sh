@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
 UPSTREAM_URL="https://github.com/angband/angband.git"
 UPSTREAM_COMMIT="f3082213b73f3e463e3d0d60bff4b00462beae6e"
 DEST="engine/upstream/angband"
@@ -17,7 +20,6 @@ test "$(git -C "$DEST" rev-parse HEAD)" = "$UPSTREAM_COMMIT"
 
 echo "Angband 4.2.6 pinned at: $(git -C "$DEST" rev-parse HEAD)"
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PATCH="$REPO_ROOT/engine/upstream/patches/angband-4.2.6-abfp.patch"
 if git -C "$DEST" apply --check "$PATCH"; then
   git -C "$DEST" apply "$PATCH"
