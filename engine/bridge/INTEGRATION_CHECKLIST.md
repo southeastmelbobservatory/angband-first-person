@@ -51,7 +51,9 @@
 - [x] Verify successful down/up stair traversal and an actual floor-item pickup event in the live Angband host (CI fixture uses real Angband terrain and object APIs).
 - [x] Emit authoritative pickup events for floor objects removed by autopickup.
 - [x] Verify blocked movement returns a snapshot without moving or consuming a turn in the live CI build.
-- [ ] Verify diagonal movement and monster interruption in a running build.
+- [x] Verify player bump-attacks use Angband combat, export monster HP damage and emit a death event when the monster is killed.
+- [ ] Verify visible monster movement events, diagonal movement and monster interruption in a running build.
+- [ ] Verify client disconnect/reconnect and long-running play sessions.
 - [x] Verify one successful movement command advances exactly one Angband turn; blocked movement advances none.
 
 ## Renderer
@@ -62,5 +64,6 @@
 - [x] Add first-person look and interpolated grid movement in the mock scene.
 - [ ] Connect Unreal input to the live host protocol.
 - [x] Wire authoritative damage events to visible creature hit reactions.
+- [x] Wire authoritative death events to visible creature death reactions.
 - [ ] Verify authoritative turn timing in a running Angband host and Unreal client.
 - [ ] Replace placeholder meshes with production art, materials and creature-specific rigs.
