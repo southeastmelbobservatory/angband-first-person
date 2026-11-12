@@ -187,7 +187,22 @@ def main():
 
             move_command, expected_position = movement
             client.sendall((move_command + "\n").encode("ascii"))
-            moved, buffer = receive_state(client, buffer)
+            try:
+                moved, buffer = receive_state(client, buffer)
+            except TimeoutError as error:
+                # Preserve terminal output; it can reveal whether Angband
+                # rejected the command or is waiting for additional input.
+                readable, _, _ = select.select([master], [], [], 0.2)
+                if readable:
+                    try:
+                        output.extend(os.read(master, 8192))
+                    except OSError:
+                        pass
+                raise AssertionError(
+                    f"No state returned after {move_command} toward "
+                    f"{expected_position}. Angband terminal: "
+                    f"{terminal_text(output)[-2500:]}"
+                ) from error
             if moved.get("type") != "state":
                 raise AssertionError(f"Expected movement state, got: {moved!r}")
             if moved.get("turn", 0) <= updated.get("turn", -1):
