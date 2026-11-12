@@ -10,7 +10,11 @@ public class AngbandFirstPerson : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
-            "InputCore"
+            "InputCore",
+            "Sockets",
+            "Networking",
+            "Json",
+            "JsonUtilities"
         });
     }
 }
