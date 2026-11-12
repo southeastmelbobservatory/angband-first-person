@@ -346,9 +346,22 @@ def main():
 
             depth_before_down = up_state.get("depth")
             client.sendall(b"GO_DOWN\n")
-            down_state, buffer = receive_state(
-                client, buffer, master=master, output=output
-            )
+            try:
+                down_state, buffer = receive_state(
+                    client, buffer, master=master, output=output
+                )
+            except TimeoutError as error:
+                readable, _, _ = select.select([master], [], [], 0.2)
+                if readable:
+                    try:
+                        output.extend(os.read(master, 8192))
+                    except OSError:
+                        pass
+                raise AssertionError(
+                    "No state returned after GO_DOWN. "
+                    f"Depth before={depth_before_down}, after GO_UP={up_state.get('depth')}. "
+                    f"Angband terminal: {terminal_text(output)[-3500:]}"
+                ) from error
             if down_state.get("depth", depth_before_down) < depth_before_down:
                 raise AssertionError("GO_DOWN decreased dungeon depth")
 
