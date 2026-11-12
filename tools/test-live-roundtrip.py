@@ -340,9 +340,21 @@ def main():
             # Only the fixture is synthetic; Angband performs the transition.
             starting_depth = pickup_state.get("depth")
             client.sendall(b"GO_DOWN\n")
-            stair_state, buffer = receive_state(
-                client, buffer, timeout=15, master=master, output=output
-            )
+            try:
+                stair_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+            except TimeoutError as error:
+                readable, _, _ = select.select([master], [], [], 0.2)
+                if readable:
+                    try:
+                        output.extend(os.read(master, 8192))
+                    except OSError:
+                        pass
+                raise AssertionError(
+                    "No state returned after forced GO_DOWN. "
+                    f"Angband terminal: {terminal_text(output)[-3500:]}"
+                ) from error
             if stair_state.get("depth") != starting_depth + 1:
                 raise AssertionError(
                     f"GO_DOWN did not descend one level: "
