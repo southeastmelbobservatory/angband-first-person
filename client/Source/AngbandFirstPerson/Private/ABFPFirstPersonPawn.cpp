@@ -55,12 +55,12 @@ void AABFPFirstPersonPawn::BeginPlay()
         AABFPDungeonActor::StaticClass(), FVector::ZeroVector,
         FRotator::ZeroRotator, Params);
 
-    bLiveMode = NetworkClient.Connect(TEXT("127.0.0.1"), 47652);
+    bLiveMode = NetworkClient.Connect(HostAddress, HostPort);
     if (bLiveMode)
     {
         if (GEngine)
             GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::Green,
-                TEXT("Connected to local Angband host. Waiting for authoritative state..."));
+                *FString::Printf(TEXT("Connected to Angband host %s:%d. Waiting for state..."), *HostAddress, HostPort));
     }
     else
     {
@@ -73,7 +73,7 @@ void AABFPFirstPersonPawn::BeginPlay()
         UpdateStatusReadout();
         if (GEngine)
             GEngine->AddOnScreenDebugMessage(-1, 12.0f, FColor::Yellow,
-                TEXT("No Angband host at 127.0.0.1:47652 — running local renderer demo"));
+                *FString::Printf(TEXT("No Angband host at %s:%d — running local renderer demo"), *HostAddress, HostPort));
     }
 }
 
@@ -89,7 +89,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
             if (ReconnectRetrySeconds <= 0.0f)
             {
                 ReconnectRetrySeconds = 2.0f;
-                if (NetworkClient.Connect(TEXT("127.0.0.1"), 47652))
+                if (NetworkClient.Connect(HostAddress, HostPort))
                 {
                     bHaveAuthoritativeState = false;
                     bAwaitingServerTurn = false;
