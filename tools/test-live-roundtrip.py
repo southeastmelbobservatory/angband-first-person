@@ -443,6 +443,8 @@ def main():
 
             monster_state = return_state
             monster_damaged_player = False
+            monster_movement_verified = False
+            seeded_monster_id = None
             for _ in range(5):
                 client.sendall(b"WAIT\n")
                 monster_state, buffer = receive_state(
@@ -452,6 +454,20 @@ def main():
                     entity for entity in monster_state.get("entities", [])
                     if len(entity) >= 10 and entity[3] == 1 and entity[7] > 0
                 ]
+                seeded_mouse = next((
+                    entity for entity in visible_monsters
+                    if len(entity) > 10 and "giant white mouse" in entity[10].lower()
+                ), None)
+                if seeded_mouse is not None:
+                    seeded_monster_id = str(seeded_mouse[0])
+                    if any(
+                        len(event) >= 9 and event[0] == 1
+                        and event[2] == seeded_monster_id
+                        and (event[4] != event[6] or event[5] != event[7])
+                        for event in monster_state.get("events", [])
+                    ):
+                        monster_movement_verified = True
+
                 player_damage_events = [
                     event for event in monster_state.get("events", [])
                     if len(event) >= 9 and event[0] == 3
@@ -460,6 +476,12 @@ def main():
                 if visible_monsters and player_damage_events:
                     monster_damaged_player = True
                     break
+            if not monster_movement_verified:
+                raise AssertionError(
+                    "The seeded monster did not export an authoritative movement event. "
+                    f"Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
             if not monster_damaged_player:
                 raise AssertionError(
                     "The seeded awake Angband monster did not become visible "
@@ -638,7 +660,7 @@ def main():
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
                 f"new level objects={dungeon_object_count}; "
-                f"monster visibility/player damage; player attack damage/death and client reconnect verified."
+                f"monster movement/player damage; player attack damage/death and client reconnect verified."
             )
         finally:
             if client is not None:
