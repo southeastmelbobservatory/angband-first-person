@@ -113,6 +113,7 @@ static void *worker_main(void *unused)
         close(fd);
         pthread_mutex_lock(&mutex);
         active_fd = -1;
+        pthread_cond_broadcast(&ready);
         pthread_mutex_unlock(&mutex);
         pthread_mutex_unlock(&send_mutex);
         pthread_mutex_lock(&mutex);
@@ -161,7 +162,7 @@ bool abfp_transport_wait_command(abfp_command_type *out)
 {
     if (!out) return false;
     pthread_mutex_lock(&mutex);
-    while (running && count == 0) pthread_cond_wait(&ready, &mutex);
+    while (running && count == 0 && active_fd >= 0) pthread_cond_wait(&ready, &mutex);
     if (count == 0) { pthread_mutex_unlock(&mutex); return false; }
     *out = queue[head]; head = (head + 1) % ABFP_QUEUE_CAPACITY; --count;
     pthread_mutex_unlock(&mutex); return true;
