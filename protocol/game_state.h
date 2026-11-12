@@ -11,8 +11,15 @@ typedef enum abfp_terrain_type {
     ABFP_TERRAIN_WALL,
     ABFP_TERRAIN_DOOR,
     ABFP_TERRAIN_STAIRS_UP,
-    ABFP_TERRAIN_STAIRS_DOWN
+    ABFP_TERRAIN_STAIRS_DOWN,
+    ABFP_TERRAIN_RUBBLE,
+    ABFP_TERRAIN_SHOP
 } abfp_terrain_type;
+
+typedef enum abfp_entity_type {
+    ABFP_ENTITY_MONSTER = 1,
+    ABFP_ENTITY_OBJECT = 2
+} abfp_entity_type;
 
 typedef struct abfp_cell {
     int32_t x, y;
@@ -21,11 +28,18 @@ typedef struct abfp_cell {
     uint8_t occupied_by_monster, occupied_by_object;
 } abfp_cell;
 
+/* kind_id is an Angband race index or known object-kind index.
+ * Object category/variant are tval/sval and are zero for unidentified items.
+ * The renderer maps these game IDs to its own models and animations. */
 typedef struct abfp_entity_state {
     uint64_t id;
     int32_t x, y;
-    int32_t kind;
+    abfp_entity_type type;
+    int32_t kind_id;
+    int32_t category_id;
+    int32_t variant_id;
     int32_t hitpoints, max_hitpoints;
+    int32_t quantity;
 } abfp_entity_state;
 
 typedef struct abfp_snapshot {
