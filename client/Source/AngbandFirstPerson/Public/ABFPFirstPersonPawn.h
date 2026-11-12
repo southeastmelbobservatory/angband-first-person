@@ -9,6 +9,7 @@
 class UCameraComponent;
 class USceneComponent;
 class UPointLightComponent;
+class UTextRenderComponent;
 class AABFPDungeonActor;
 
 UCLASS()
@@ -35,10 +36,12 @@ private:
     void MoveRelative(FVector2D LocalDirection);
     void BuildDemoSnapshot();
     void TryDemoStep(int32 DX, int32 DY);
+    void UpdateStatusReadout();
 
     UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPointLightComponent> Lantern;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UTextRenderComponent> StatusReadout;
     UPROPERTY() TObjectPtr<AABFPDungeonActor> Dungeon;
     FABFPSnapshot DemoSnapshot;
     FVector TargetPawnLocation = FVector::ZeroVector;
