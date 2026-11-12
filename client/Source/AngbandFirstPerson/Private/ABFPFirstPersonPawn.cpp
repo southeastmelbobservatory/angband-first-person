@@ -149,6 +149,7 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction("MoveBackward", IE_Pressed, this, &AABFPFirstPersonPawn::MoveBackward);
     PlayerInputComponent->BindAction("MoveLeft", IE_Pressed, this, &AABFPFirstPersonPawn::MoveLeft);
     PlayerInputComponent->BindAction("MoveRight", IE_Pressed, this, &AABFPFirstPersonPawn::MoveRight);
+    PlayerInputComponent->BindAction("WaitTurn", IE_Pressed, this, &AABFPFirstPersonPawn::WaitTurn);
     PlayerInputComponent->BindAxis("Turn", this, &AABFPFirstPersonPawn::Turn);
     PlayerInputComponent->BindAxis("LookUp", this, &AABFPFirstPersonPawn::LookUp);
 }
@@ -157,6 +158,20 @@ void AABFPFirstPersonPawn::MoveForward() { MoveRelative(FVector2D(1, 0)); }
 void AABFPFirstPersonPawn::MoveBackward() { MoveRelative(FVector2D(-1, 0)); }
 void AABFPFirstPersonPawn::MoveLeft() { MoveRelative(FVector2D(0, -1)); }
 void AABFPFirstPersonPawn::MoveRight() { MoveRelative(FVector2D(0, 1)); }
+
+void AABFPFirstPersonPawn::WaitTurn()
+{
+    if (bLiveMode)
+    {
+        if (!bHaveAuthoritativeState || bAwaitingServerTurn) return;
+        if (NetworkClient.SendCommand(TEXT("WAIT")))
+            bAwaitingServerTurn = true;
+        return;
+    }
+
+    ++DemoSnapshot.Turn;
+    UpdateStatusReadout();
+}
 
 void AABFPFirstPersonPawn::Turn(float Value)
 {
