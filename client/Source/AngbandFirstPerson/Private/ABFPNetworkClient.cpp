@@ -89,6 +89,7 @@ bool FABFPNetworkClient::SendCommand(const FString& Command)
         if (!Socket->Send(reinterpret_cast<const uint8*>(Utf8.Get()) + Offset,
             Utf8.Length() - Offset, Sent) || Sent <= 0)
         {
+            Disconnect();
             return false;
         }
         Offset += Sent;
@@ -107,7 +108,11 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
         TArray<uint8> Bytes;
         Bytes.SetNumUninitialized(ToRead + 1);
         int32 Read = 0;
-        if (!Socket->Recv(Bytes.GetData(), ToRead, Read) || Read <= 0) break;
+        if (!Socket->Recv(Bytes.GetData(), ToRead, Read) || Read <= 0)
+        {
+            Disconnect();
+            return false;
+        }
         Bytes[Read] = 0;
         ReceiveBuffer.Append(UTF8_TO_TCHAR(reinterpret_cast<const char*>(Bytes.GetData())));
         if (ReceiveBuffer.Len() > 4 * 1024 * 1024)
