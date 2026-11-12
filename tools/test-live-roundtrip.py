@@ -474,7 +474,7 @@ def main():
             )
 
             invalid_monsters = [
-                entity for entity in dungeon_monsters
+                entity for entity in visible_monsters
                 if entity[7] <= 0 or entity[8] < entity[7]
             ]
             if invalid_monsters:
