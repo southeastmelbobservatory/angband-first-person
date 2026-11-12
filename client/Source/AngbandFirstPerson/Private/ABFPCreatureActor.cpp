@@ -179,7 +179,7 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
         DeathSeconds += DeltaSeconds;
         const float Alpha = FMath::Clamp(DeathSeconds / 0.72f, 0.0f, 1.0f);
         const float RemainingScale = 1.0f - Alpha * 0.78f;
-        SetActorScale3D(FVector(RemainingScale));
+        SetActorScale3D(FVector(RemainingScale, RemainingScale, RemainingScale));
         AddActorLocalRotation(FRotator(0.0f, 0.0f, 190.0f * DeltaSeconds));
         if (CreatureMaterial)
             CreatureMaterial->SetVectorParameterValue(TEXT("Color"),
