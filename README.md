@@ -27,12 +27,14 @@ The renderer must never decide game outcomes.
 - Official Angband 4.2.6 source revision pinned, with a revision-checked frontend/CMake patch.
 - Native Angband host command hook that preserves Angband's character creation, save/load, and normal turn loop.
 - Loopback-only TCP command ingress with a bounded, thread-safe queue; commands are submitted only on Angband's game thread.
-- CI builds and links the patched Angband host executable against the bridge and adapter.
+- Host publishes authoritative state and event snapshots as newline-delimited JSON after each turn.
+- Unreal client has a TCP command sender and JSON snapshot/event decoder; live movement waits for authoritative state.
+- CI applies the integration patch and builds/links the patched Angband host executable.
 - 21x21 player-centred dungeon snapshot with known terrain, visibility and lighting.
 - Visibility-gated monster and floor-object records, including known game IDs and monster hit points.
 - Protocol-level unit tests for snapshot handoff and event queue growth.
 
-The patched Angband host executable now compiles and links in CI. The host currently accepts movement/wait commands, but snapshot/event delivery to Unreal and an end-to-end runtime test are still outstanding.
+The patched Angband host compiles and links in CI, and the Unreal code now has the matching TCP/JSON client path. Neither the Unreal project nor a live host/client session has yet been compiled and run together; end-to-end runtime verification remains outstanding.
 
 ## Build the Angband host (Linux)
 
