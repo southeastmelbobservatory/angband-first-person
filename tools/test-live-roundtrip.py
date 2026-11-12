@@ -126,12 +126,18 @@ def main():
                 master, output, b"finish the character with random selections", 20, pid
             )
             os.write(master, b"@")
-            wait_for_terminal_text(master, output, b"step back", 20, pid)
+            wait_for_terminal_text(master, output, b"any other key to continue", 20, pid)
             os.write(master, b"x")
 
             # The host publishes its first real dungeon snapshot at CTX_GAME.
             buffer = b""
-            initial, buffer = receive_state(client, buffer)
+            try:
+                initial, buffer = receive_state(client, buffer)
+            except (TimeoutError, ConnectionError) as error:
+                raise RuntimeError(
+                    "No initial state after character confirmation. Captured terminal output:\n"
+                    + terminal_text(output)[-5000:]
+                ) from error
             if initial.get("type") != "state" or not initial.get("initial"):
                 raise AssertionError(f"Expected initial state snapshot, got: {initial!r}")
             if not initial.get("cells") or len(initial["cells"]) < 100:
