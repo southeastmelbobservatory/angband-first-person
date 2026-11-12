@@ -5,7 +5,9 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 ## Current status
 
 - Unreal C++ project/module scaffold.
-- Snapshot structs matching the bridge protocol.
+- Snapshot and event structs matching the bridge protocol.
+- Loopback TCP client with newline-delimited JSON decoding and lossless 64-bit entity IDs.
+- Live movement command submission; the pawn waits for authoritative post-turn snapshots before accepting another move.
 - Instanced floor, wall and door geometry with separate stone/bronze materials.
 - Dungeon fog, ambient skylight and a warm player lantern.
 - Persistent 3D entity actors keyed by bridge entity ID.
@@ -13,7 +15,7 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 - Procedural floating item actor.
 - First-person camera, mouse look, warm lantern light and one-grid-step WASD controls.
 
-The current pawn runs a clearly labelled local mock snapshot so the room can be explored before the live engine host exists. Its local movement is a renderer test only and must not be mistaken for Angband gameplay.
+At startup, the pawn attempts to connect to the local Angband host at 127.0.0.1:47652. If connected, movement commands are sent to Angband and the scene updates only from authoritative snapshots. If no host is available, it falls back to a clearly labelled local mock snapshot; mock movement is a renderer test only and must not be mistaken for Angband gameplay.
 
 ## Open the project
 
@@ -21,6 +23,6 @@ Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ mod
 
 ## Next integration
 
-Replace the pawn's TryDemoStep path with command submission through the C bridge. The pawn must wait for a new authoritative snapshot before recentering the world. Do not predict movement or locally move monsters in live mode.
+The basic TCP command/state path is now wired. Remaining work is to compile and run the Unreal project, verify all eight movement directions and blocked moves, reconnect handling, event-driven animations, and gameplay lifecycle. Do not predict movement or locally move monsters in live mode.
 
 The Unreal project has not yet been compiled or run in an Unreal Editor environment. It currently uses Unreal's built-in basic meshes as procedural placeholders. Production art, materials, creature-specific rigs, animation blueprints, audio, dungeon set dressing and collision are later art/engineering passes.
