@@ -42,10 +42,17 @@ typedef struct abfp_entity_state {
     int32_t quantity;
 } abfp_entity_state;
 
+typedef struct abfp_player_state {
+    int32_t hitpoints, max_hitpoints;
+    int32_t level;
+    int32_t gold;
+} abfp_player_state;
+
 typedef struct abfp_snapshot {
     uint64_t turn;
     int32_t dungeon_depth;
     int32_t player_x, player_y;
+    abfp_player_state player;
     const abfp_cell* cells;
     uint32_t cell_count;
     const abfp_entity_state* entities;
