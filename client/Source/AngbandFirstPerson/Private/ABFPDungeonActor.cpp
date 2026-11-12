@@ -5,7 +5,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkyLightComponent.h"
-#include "Engine/ExponentialHeightFog.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -74,6 +74,10 @@ AABFPDungeonActor::AABFPDungeonActor()
     Walls->SetCastShadow(true);
     RememberedWalls->SetCastShadow(false);
     Doors->SetCastShadow(true);
+    StairsUp->SetCastShadow(true);
+    StairsDown->SetCastShadow(true);
+    Rubble->SetCastShadow(true);
+    Shops->SetCastShadow(true);
 
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -190,7 +194,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         {
             Shops->AddInstance(FTransform(FRotator::ZeroRotator,
                 Tile + FVector(0.0f, -CellSize * 0.42f, 105.0f),
-                FVector(0.14f, CellSize / 100.0f, 2.1f)));
+                FVector(0.14f, 0.14f, 2.1f)));
             Shops->AddInstance(FTransform(FRotator::ZeroRotator,
                 Tile + FVector(0.0f, CellSize * 0.42f, 105.0f),
                 FVector(0.14f, CellSize / 100.0f, 2.1f)));
