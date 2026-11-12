@@ -22,7 +22,12 @@ static errr abfp_host_get_command(cmd_context context)
      * Angband's message line. Do not block the game thread on a terminal
      * "-more-" acknowledgement after messages such as "no staircase here".
      */
-    if (player) OPT(player, auto_more) = true;
+    if (player) {
+        OPT(player, auto_more) = true;
+        /* CI-only: exercise Angband's own path-to-stairs behaviour. */
+        if (getenv("ABFP_TEST_AUTOEXPLORE_STAIRS"))
+            OPT(player, autoexplore_commands) = true;
+    }
 
     if (!bridge_registered) {
         if (!abfp_frontend_register()) {
