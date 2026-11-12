@@ -186,6 +186,57 @@ def main():
                     f"{initial.get('turn')} -> {updated.get('turn')}"
                 )
 
+            # Explicitly exercise a diagonal Angband direction before the
+            # cardinal movement check below.
+            diagonal_moves = [
+                ("MOVE_NORTH_EAST", 1, -1),
+                ("MOVE_SOUTH_EAST", 1, 1),
+                ("MOVE_SOUTH_WEST", -1, 1),
+                ("MOVE_NORTH_WEST", -1, -1),
+            ]
+            diagonal_cells = {
+                (cell[0], cell[1]): cell for cell in updated.get("cells", [])
+            }
+            diagonal_move = None
+            for command, dx, dy in diagonal_moves:
+                target = (updated["player"][0] + dx, updated["player"][1] + dy)
+                cell = diagonal_cells.get(target)
+                if cell and cell[2] == 1 and cell[3] and not cell[5]:
+                    diagonal_move = (command, target)
+                    break
+            if diagonal_move is None:
+                raise AssertionError(
+                    "No visible diagonal floor square available for the "
+                    f"diagonal movement test at {updated['player']}"
+                )
+            diagonal_command, diagonal_position = diagonal_move
+            client.sendall((diagonal_command + "\n").encode("ascii"))
+            diagonal_state, buffer = receive_state(
+                client, buffer, master=master, output=output
+            )
+            if tuple(diagonal_state.get("player", [])) != diagonal_position:
+                raise AssertionError(
+                    f"{diagonal_command} did not move to {diagonal_position}: "
+                    f"{diagonal_state.get('player')}"
+                )
+            if diagonal_state.get("turn", 0) <= updated.get("turn", -1):
+                raise AssertionError(
+                    f"{diagonal_command} did not advance the Angband turn"
+                )
+            if not any(
+                len(event) >= 9 and event[0] == 1 and event[2] == "1"
+                and event[4] == updated["player"][0]
+                and event[5] == updated["player"][1]
+                and event[6] == diagonal_position[0]
+                and event[7] == diagonal_position[1]
+                for event in diagonal_state.get("events", [])
+            ):
+                raise AssertionError(
+                    f"{diagonal_command} did not export the matching movement event: "
+                    f"{diagonal_state.get('events')!r}"
+                )
+            updated = diagonal_state
+
             # Prove that a directional command changes the authoritative player
             # position, not merely that the host can advance a turn.
             adjacent_moves = [
