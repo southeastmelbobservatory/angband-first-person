@@ -13,7 +13,7 @@ bool abfp_transport_parse_command(const char *line, abfp_command_type *out);
 bool abfp_transport_start(uint16_t port);
 bool abfp_transport_wait_command(abfp_command_type *out);
 bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
-    const abfp_event *events, size_t event_count);
+    const abfp_event *events, size_t event_count, bool initial_state);
 void abfp_transport_stop(void);
 #ifdef __cplusplus
 }
