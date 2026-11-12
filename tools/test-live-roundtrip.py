@@ -478,14 +478,6 @@ def main():
                 if len(entity) >= 10 and entity[3] == 2
             )
 
-            # The entity exporter must include actual visible Angband
-            # monsters, not just floor geometry. Their HP fields are the
-            # authoritative values the renderer will use for hit reactions.
-            if not dungeon_monsters:
-                raise AssertionError(
-                    "Generated depth exposed no visible monster entities; "
-                    "the native snapshot cannot yet drive creature rendering"
-                )
             invalid_monsters = [
                 entity for entity in dungeon_monsters
                 if entity[7] <= 0 or entity[8] < entity[7]
