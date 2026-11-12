@@ -104,6 +104,7 @@ def main():
                 "ABFP_TEST_FORCE_STAIRS": "1",
                 "ABFP_TEST_FLOOR_ITEM": "1",
                 "ABFP_TEST_MONSTER": "1",
+                "ABFP_TEST_MONSTER": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
