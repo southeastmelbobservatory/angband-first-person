@@ -462,7 +462,12 @@ def main():
                     f"{monster_state.get('entities')!r}"
                 )
             seeded_monster_id = str(visible_monsters[0][0])
-            monster_movement_verified = False
+            monster_movement_verified = any(
+                len(event) >= 9 and event[0] == 1
+                and event[2] == seeded_monster_id
+                and (event[4] != event[6] or event[5] != event[7])
+                for event in monster_state.get("events", [])
+            )
             monster_damaged_player = any(
                 len(event) >= 9 and event[0] == 3
                 and event[3] == "1" and event[8] > 0
