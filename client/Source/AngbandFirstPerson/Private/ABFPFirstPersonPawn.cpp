@@ -6,6 +6,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 
 AABFPFirstPersonPawn::AABFPFirstPersonPawn()
@@ -89,9 +90,9 @@ void AABFPFirstPersonPawn::MoveRelative(FVector2D LocalDirection)
         .TransformVector(FVector(LocalDirection.X, LocalDirection.Y, 0));
 
     const int32 DX = FMath::Abs(WorldDirection.X) > 0.35f ?
-        FMath::Sign(WorldDirection.X) : 0;
+        static_cast<int32>(FMath::Sign(WorldDirection.X)) : 0;
     const int32 DY = FMath::Abs(WorldDirection.Y) > 0.35f ?
-        FMath::Sign(WorldDirection.Y) : 0;
+        static_cast<int32>(FMath::Sign(WorldDirection.Y)) : 0;
 
     if (DX != 0 || DY != 0) TryDemoStep(DX, DY);
 }
