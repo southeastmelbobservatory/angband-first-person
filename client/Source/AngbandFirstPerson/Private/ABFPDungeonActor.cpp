@@ -123,6 +123,16 @@ FVector AABFPDungeonActor::GridToWorld(int32 X, int32 Y,
 
 void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 {
+    if (LastDepth != Snapshot.DungeonDepth)
+    {
+        for (auto& Pair : SpawnedEntities)
+        {
+            if (IsValid(Pair.Value.Get())) Pair.Value->Destroy();
+        }
+        SpawnedEntities.Empty();
+        LastDepth = Snapshot.DungeonDepth;
+    }
+
     Floors->ClearInstances();
     RememberedFloors->ClearInstances();
     Walls->ClearInstances();
