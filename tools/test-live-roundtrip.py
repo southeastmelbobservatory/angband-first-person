@@ -53,13 +53,28 @@ def wait_for_terminal_text(master, output, needle, timeout, pid):
     )
 
 
-def receive_state(sock, buffer, timeout=30):
-    sock.settimeout(timeout)
+def receive_state(sock, buffer, timeout=30, master=None, output=None):
+    deadline = time.monotonic() + timeout
     while b"\n" not in buffer:
-        chunk = sock.recv(65536)
-        if not chunk:
-            raise ConnectionError("Angband host disconnected before sending state")
-        buffer += chunk
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Timed out waiting for an Angband state line")
+        readers = [sock]
+        if master is not None:
+            readers.append(master)
+        readable, _, _ = select.select(readers, [], [], min(remaining, 0.1))
+        if master is not None and master in readable:
+            try:
+                chunk = os.read(master, 8192)
+                if chunk and output is not None:
+                    output.extend(chunk)
+            except OSError:
+                pass
+        if sock in readable:
+            chunk = sock.recv(65536)
+            if not chunk:
+                raise ConnectionError("Angband host disconnected before sending state")
+            buffer += chunk
     line, _, buffer = buffer.partition(b"\n")
     return json.loads(line), buffer
 
@@ -135,7 +150,7 @@ def main():
             # The host publishes its first real dungeon snapshot at CTX_GAME.
             buffer = b""
             try:
-                initial, buffer = receive_state(client, buffer)
+                initial, buffer = receive_state(client, buffer, master=master, output=output)
             except (TimeoutError, ConnectionError) as error:
                 # Drain any output produced after the confirmation key.
                 drain_deadline = time.monotonic() + 1
@@ -158,7 +173,7 @@ def main():
                 raise AssertionError(f"Invalid player position: {initial.get('player')!r}")
 
             client.sendall(b"WAIT\n")
-            updated, buffer = receive_state(client, buffer)
+            updated, buffer = receive_state(client, buffer, master=master, output=output)
             if updated.get("type") != "state":
                 raise AssertionError(f"Expected updated state, got: {updated!r}")
             if updated.get("turn", 0) <= initial.get("turn", -1):
@@ -200,7 +215,7 @@ def main():
             move_command, expected_position = movement
             client.sendall((move_command + "\n").encode("ascii"))
             try:
-                moved, buffer = receive_state(client, buffer)
+                moved, buffer = receive_state(client, buffer, master=master, output=output)
             except TimeoutError as error:
                 # Preserve terminal output; it can reveal whether Angband
                 # rejected the command or is waiting for additional input.
