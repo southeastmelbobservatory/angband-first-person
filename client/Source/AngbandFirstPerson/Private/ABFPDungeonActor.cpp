@@ -197,7 +197,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 FVector(0.14f, 0.14f, 2.1f)));
             Shops->AddInstance(FTransform(FRotator::ZeroRotator,
                 Tile + FVector(0.0f, CellSize * 0.42f, 105.0f),
-                FVector(0.14f, CellSize / 100.0f, 2.1f)));
+                FVector(0.14f, 0.14f, 2.1f)));
             Shops->AddInstance(FTransform(FRotator::ZeroRotator,
                 Tile + FVector(0.0f, 0.0f, 205.0f),
                 FVector(0.14f, CellSize / 100.0f, 0.14f)));
@@ -222,12 +222,17 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             {
                 if (AABFPCreatureActor* Creature =
                     Cast<AABFPCreatureActor>(Existing->Get()))
+                {
+                    Creature->SetCreatureAppearance(Entity.Name, Entity.KindId);
                     Creature->SetTargetLocation(Location, Facing);
+                }
                 else
                     Existing->Get()->SetActorLocation(Location);
             }
             else
             {
+                if (AABFPItemActor* Item = Cast<AABFPItemActor>(Existing->Get()))
+                    Item->SetItemAppearance(Entity.Name, Entity.CategoryId, Entity.VariantId);
                 Existing->Get()->SetActorLocation(Location);
             }
             continue;
@@ -251,6 +256,11 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 AABFPItemActor::StaticClass(), Location,
                 FRotator::ZeroRotator, Params);
         }
+
+        if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Spawned))
+            Creature->SetCreatureAppearance(Entity.Name, Entity.KindId);
+        else if (AABFPItemActor* Item = Cast<AABFPItemActor>(Spawned))
+            Item->SetItemAppearance(Entity.Name, Entity.CategoryId, Entity.VariantId);
 
         if (Spawned) SpawnedEntities.Add(Entity.Id, Spawned);
     }
