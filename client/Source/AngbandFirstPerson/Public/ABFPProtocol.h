@@ -1,0 +1,66 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ABFPProtocol.generated.h"
+
+UENUM(BlueprintType)
+enum class EABFPTerrain : uint8
+{
+    Unknown,
+    Floor,
+    Wall,
+    Door,
+    StairsUp,
+    StairsDown,
+    Rubble,
+    Shop
+};
+
+UENUM(BlueprintType)
+enum class EABFPEntityType : uint8
+{
+    Monster,
+    Object
+};
+
+USTRUCT(BlueprintType)
+struct FABFPCell
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 X = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Y = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) EABFPTerrain Terrain = EABFPTerrain::Unknown;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bVisible = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bLit = false;
+};
+
+USTRUCT(BlueprintType)
+struct FABFPEntity
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) uint64 Id = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 X = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Y = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) EABFPEntityType Type = EABFPEntityType::Monster;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 KindId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 CategoryId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 VariantId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 HitPoints = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 MaxHitPoints = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Quantity = 1;
+};
+
+USTRUCT(BlueprintType)
+struct FABFPSnapshot
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Turn = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 DungeonDepth = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerX = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerY = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPCell> Cells;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEntity> Entities;
+};
