@@ -40,7 +40,7 @@ struct FABFPEntity
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite) uint64 Id = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Id = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 X = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Y = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) EABFPEntityType Type = EABFPEntityType::Monster;
