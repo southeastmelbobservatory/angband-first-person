@@ -17,7 +17,8 @@ test "$(git -C "$DEST" rev-parse HEAD)" = "$UPSTREAM_COMMIT"
 
 echo "Angband 4.2.6 pinned at: $(git -C "$DEST" rev-parse HEAD)"
 
-PATCH="engine/upstream/patches/angband-4.2.6-abfp.patch"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PATCH="$REPO_ROOT/engine/upstream/patches/angband-4.2.6-abfp.patch"
 if git -C "$DEST" apply --check "$PATCH"; then
   git -C "$DEST" apply "$PATCH"
 elif git -C "$DEST" apply --reverse --check "$PATCH"; then
