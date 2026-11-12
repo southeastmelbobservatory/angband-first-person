@@ -9,7 +9,7 @@ index 0000000..0000000 100644
  
  #ifdef SOUND
  #include "sound.h"
-@@ -468,6 +469,8 @@ int main(int argc, char *argv[])
+@@ -468,6 +469,9 @@ int main(int argc, char *argv[])
  	init_angband();
  	textui_init();
  
@@ -19,7 +19,7 @@ index 0000000..0000000 100644
  	/* Wait for response */
  	pause_line(Term);
  
-@@ -476,4 +478,5 @@ int main(int argc, char *argv[])
+@@ -476,5 +479,6 @@ int main(int argc, char *argv[])
  	play_game((select_game) ?
  		GAME_SELECT : ((new_game) ? GAME_NEW : GAME_LOAD));
  
