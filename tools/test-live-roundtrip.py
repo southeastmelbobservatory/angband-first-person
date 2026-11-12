@@ -474,6 +474,78 @@ def main():
                     f"Monster display name was not serialized: {visible_monsters!r}"
                 )
 
+            # Attack the adjacent live Angband monster by bumping into it.
+            # The player stays on Angband's authoritative combat path.
+            monster_damage_verified = False
+            monster_death_verified = False
+            for _ in range(16):
+                target = next((
+                    entity for entity in monster_state.get("entities", [])
+                    if len(entity) >= 11 and entity[3] == 1
+                    and "giant white mouse" in entity[10].lower()
+                    and entity[7] > 0
+                ), None)
+                if target is None:
+                    if monster_death_verified:
+                        break
+                    raise AssertionError(
+                        "Seeded monster disappeared before the player attack test"
+                    )
+
+                player_xy = tuple(monster_state.get("player", []))
+                delta = (target[1] - player_xy[0], target[2] - player_xy[1])
+                if delta not in movement_by_delta:
+                    client.sendall(b"WAIT\\n")
+                    monster_state, buffer = receive_state(
+                        client, buffer, timeout=15, master=master, output=output
+                    )
+                    continue
+
+                old_hp = target[7]
+                target_id = str(target[0])
+                client.sendall(
+                    (movement_by_delta[delta] + "\\n").encode("ascii")
+                )
+                attack_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+                if any(
+                    len(event) >= 9 and event[0] == 3
+                    and event[3] == target_id and event[8] > 0
+                    for event in attack_state.get("events", [])
+                ):
+                    monster_damage_verified = True
+
+                remaining = next((
+                    entity for entity in attack_state.get("entities", [])
+                    if entity[0] == target[0] and entity[3] == 1
+                ), None)
+                if remaining is None and any(
+                    len(event) >= 9 and event[0] == 6
+                    and event[2] == target_id
+                    for event in attack_state.get("events", [])
+                ):
+                    monster_death_verified = True
+                    monster_state = attack_state
+                    break
+                if remaining is not None and remaining[7] < old_hp:
+                    monster_damage_verified = True
+                monster_state = attack_state
+
+            if not monster_damage_verified:
+                raise AssertionError(
+                    "Player bump-attack did not reduce the seeded monster's "
+                    f"authoritative HP. Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
+            if not monster_death_verified:
+                raise AssertionError(
+                    "Player did not kill the seeded monster or receive its "
+                    "death event within 16 attack/approach turns. "
+                    f"Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
+
             client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
@@ -510,7 +582,7 @@ def main():
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
                 f"new level objects={dungeon_object_count}; "
-                f"monster visibility and player damage event verified."
+                f"monster visibility/player damage; player attack damage and death event verified."
             )
         finally:
             if client is not None:
