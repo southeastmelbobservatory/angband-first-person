@@ -363,15 +363,46 @@ def main():
 
             depth_after_down = stair_state.get("depth")
             dungeon_player_xy = tuple(stair_state.get("player", []))
-            dungeon_floor_items = {
-                entity[0] for entity in stair_state.get("entities", [])
-                if len(entity) >= 10 and entity[3] == 2
-                and (entity[1], entity[2]) == dungeon_player_xy
+            movement_by_delta = {
+                (0, -1): "MOVE_NORTH", (1, 0): "MOVE_EAST",
+                (0, 1): "MOVE_SOUTH", (-1, 0): "MOVE_WEST",
+                (1, -1): "MOVE_NORTH_EAST", (1, 1): "MOVE_SOUTH_EAST",
+                (-1, 1): "MOVE_SOUTH_WEST", (-1, -1): "MOVE_NORTH_WEST",
             }
-            if not dungeon_floor_items:
+            seeded_item = None
+            for entity in stair_state.get("entities", []):
+                if len(entity) < 10 or entity[3] != 2:
+                    continue
+                delta = (entity[1] - dungeon_player_xy[0],
+                    entity[2] - dungeon_player_xy[1])
+                if delta in movement_by_delta:
+                    seeded_item = (entity[0], (entity[1], entity[2]), delta)
+                    break
+            if seeded_item is None:
                 raise AssertionError(
-                    "The test host did not expose its seeded floor ration at "
-                    f"the player square {dungeon_player_xy}: {stair_state.get('entities')!r}"
+                    "The test host did not expose its seeded ration on an "
+                    f"adjacent floor tile: {stair_state.get('entities')!r}"
+                )
+
+            seeded_item_id, item_xy, item_delta = seeded_item
+            client.sendall((movement_by_delta[item_delta] + "\n").encode("ascii"))
+            item_state, buffer = receive_state(
+                client, buffer, timeout=15, master=master, output=output
+            )
+            if tuple(item_state.get("player", [])) != item_xy:
+                raise AssertionError(
+                    f"Player did not move onto seeded item at {item_xy}: "
+                    f"{item_state.get('player')}"
+                )
+
+            dungeon_floor_items = {
+                entity[0] for entity in item_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 2
+                and (entity[1], entity[2]) == item_xy
+            }
+            if seeded_item_id not in dungeon_floor_items:
+                raise AssertionError(
+                    f"Seeded ration {seeded_item_id} missing after moving onto it"
                 )
 
             client.sendall(b"AUTOPICKUP\n")
@@ -381,14 +412,14 @@ def main():
             dungeon_floor_items_after = {
                 entity[0] for entity in dungeon_pickup_state.get("entities", [])
                 if len(entity) >= 10 and entity[3] == 2
-                and (entity[1], entity[2]) == dungeon_player_xy
+                and (entity[1], entity[2]) == item_xy
             }
             dungeon_removed_items = dungeon_floor_items - dungeon_floor_items_after
             dungeon_pickup_events = {
                 event[3] for event in dungeon_pickup_state.get("events", [])
                 if len(event) >= 9 and event[0] == 5 and event[2] == "1"
             }
-            if not dungeon_removed_items or not dungeon_removed_items.issubset(dungeon_pickup_events):
+            if seeded_item_id not in dungeon_removed_items or not dungeon_removed_items.issubset(dungeon_pickup_events):
                 raise AssertionError(
                     "AUTOPICKUP did not remove the seeded ration and emit its pickup event: "
                     f"removed={dungeon_removed_items}, events={dungeon_pickup_events}"
