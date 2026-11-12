@@ -6,6 +6,7 @@
 #include "obj-util.h"
 #include "mon-make.h"
 #include "mon-util.h"
+#include "trap.h"
 #include "ui-game.h"
 #include "abfp_frontend.h"
 #include "abfp_transport.h"
@@ -64,6 +65,9 @@ static bool abfp_host_seed_test_floor_item(void)
         }
     }
     if (!found_grid) return false;
+    /* The fixture path must not accidentally trigger a generated trap/web. */
+    square_remove_all_traps(cave, player->grid);
+    square_remove_all_traps(cave, item_grid);
     if (!square_isobjectholding(cave, item_grid) ||
         !square_ispassable(cave, item_grid)) {
         square_set_feat(cave, item_grid, FEAT_FLOOR);
@@ -149,6 +153,7 @@ static bool abfp_host_seed_test_monster(void)
         if (!square_in_bounds_fully(cave, approach) ||
             loc_eq(approach, test_item_grid) ||
             !square_isempty(cave, approach)) continue;
+        square_remove_all_traps(cave, approach);
         square_set_feat(cave, approach, FEAT_FLOOR);
         square_memorize(cave, approach);
         square_light_spot(cave, approach);
