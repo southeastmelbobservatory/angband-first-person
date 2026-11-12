@@ -506,9 +506,23 @@ def main():
                 client.sendall(
                     (movement_by_delta[delta] + "\\n").encode("ascii")
                 )
-                attack_state, buffer = receive_state(
-                    client, buffer, timeout=15, master=master, output=output
-                )
+                try:
+                    attack_state, buffer = receive_state(
+                        client, buffer, timeout=15, master=master, output=output
+                    )
+                except TimeoutError as error:
+                    readable, _, _ = select.select([master], [], [], 0.2)
+                    if readable:
+                        try:
+                            output.extend(os.read(master, 8192))
+                        except OSError:
+                            pass
+                    raise AssertionError(
+                        "No state returned after player bump-attack toward "
+                        f"{target[1:3]}. Player stats: "
+                        f"{monster_state.get('player_stats')!r}. "
+                        f"Angband terminal: {terminal_text(output)[-3500:]}"
+                    ) from error
                 if any(
                     len(event) >= 9 and event[0] == 3
                     and event[3] == target_id and event[8] > 0
