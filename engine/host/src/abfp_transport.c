@@ -238,7 +238,7 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     for (i = 0; i < snapshot->entity_count; ++i) {
         const abfp_entity_state *entity = &snapshot->entities[i];
         if (!append_json(&cursor, &remaining,
-            "%s[%" PRIu64 ",%d,%d,%d,%d,%d,%d,%d,%d,%d]",
+            "%s[\"%" PRIu64 "\",%d,%d,%d,%d,%d,%d,%d,%d,%d]",
             i ? "," : "", entity->id, entity->x, entity->y,
             (int)entity->type, entity->kind_id, entity->category_id,
             entity->variant_id, entity->hitpoints, entity->max_hitpoints,
@@ -248,7 +248,7 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     for (i = 0; i < event_count; ++i) {
         const abfp_event *event = &events[i];
         if (!append_json(&cursor, &remaining,
-            "%s[%d,%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%d,%d,%d,%d,%d]",
+            "%s[%d,%" PRIu64 ",\"%" PRIu64 "\",\"%" PRIu64 "\",%d,%d,%d,%d,%d]",
             i ? "," : "", (int)event->type, event->turn,
             event->subject_id, event->target_id, event->from_x,
             event->from_y, event->to_x, event->to_y, event->value)) goto done;
