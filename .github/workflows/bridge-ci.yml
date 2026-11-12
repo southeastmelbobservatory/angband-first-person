@@ -8,7 +8,7 @@ on:
       - 'engine/bridge/**'
       - 'engine/host/**'
       - 'engine/upstream/patches/**'
-      - 'tools/bootstrap-angband.sh'
+      - 'tools/bootstrap-angband.sh'\n      - 'tools/test-host-listener.py'\n      - 'tools/test-live-roundtrip.py'\n      - 'tools/test-native-smoke.sh'
       - 'protocol/**'
       - 'tests/**'
       - '.github/workflows/bridge-ci.yml'
