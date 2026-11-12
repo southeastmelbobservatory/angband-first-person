@@ -333,6 +333,7 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     Goblin.Y = 3;
     Goblin.Type = EABFPEntityType::Monster;
     Goblin.KindId = 1;
+    Goblin.Name = TEXT("goblin");
     Goblin.HitPoints = 8;
     Goblin.MaxHitPoints = 12;
     DemoSnapshot.Entities.Add(Goblin);
@@ -343,6 +344,7 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     Wraith.Y = 9;
     Wraith.Type = EABFPEntityType::Monster;
     Wraith.KindId = 2;
+    Wraith.Name = TEXT("wraith");
     Wraith.HitPoints = 22;
     Wraith.MaxHitPoints = 22;
     DemoSnapshot.Entities.Add(Wraith);
@@ -353,6 +355,7 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     Potion.Y = 6;
     Potion.Type = EABFPEntityType::Object;
     Potion.KindId = 1;
+    Potion.Name = TEXT("Potion of Healing");
     Potion.Quantity = 1;
     DemoSnapshot.Entities.Add(Potion);
 }
