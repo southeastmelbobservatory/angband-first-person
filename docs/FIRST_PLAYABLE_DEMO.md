@@ -57,7 +57,7 @@ Complete the ordinary Angband UI flow to create or load a character. When the ga
 127.0.0.1:47652
 ```
 
-The host binds to loopback by default. For a separate Unreal client on a trusted LAN, set `ABFP_BIND_ADDRESS` on the Linux host and configure the pawn Blueprint's HostAddress; see [client connection instructions](../client/README.md#connecting-across-a-trusted-lan). The protocol has no authentication or encryption, so do not expose it to the internet.
+The host binds to loopback by default. For a separate Unreal client on a trusted LAN, set `ABFP_BIND_ADDRESS` on the Linux host and configure the pawn Blueprint's HostAddress; see [client connection instructions](../client/README.md#configure-the-native-host-connection). The protocol has no authentication or encryption, so do not expose it to the internet.
 
 ## Unreal client
 
@@ -71,7 +71,7 @@ Run Play in the Editor after the C++ module has compiled.
 
 Controls:
 
-- **W/A/S/D** — move one grid square relative to the camera
+- **W/A/S/D** — move one grid square relative to the camera; combine keys for diagonal movement
 - **Space** — wait one Angband turn
 - **Page Up/Page Down** — use stairs when standing on them
 - **E** — invoke autopickup for items on the current square
@@ -96,8 +96,8 @@ This client receives the same authoritative snapshots and can submit movement an
 Native host run #261 verifies the complete pinned Angband build, real character creation, authoritative snapshots, wait and cardinal/diagonal movement, blocked movement, stair descent/ascent, floor-item pickup, monster-to-player damage, player-initiated attack damage, native monster death events and host-side client reconnect. Run #249 also verified a live monster movement event. Remaining gates are:
 
 1. verify longer play sessions and repeated reconnects;
-3. clean local bootstrap/build and interactive save/load/death/quit/restart paths on the target Linux host;
-4. compile the Unreal project in Unreal Engine 5 and connect its live input/rendering path to the native host;
-5. polish collision, production art, animation rigs, materials, audio and dungeon set dressing.
+2. clean local bootstrap/build and interactive save/load/death/quit/restart paths on the target Linux host;
+3. compile the Unreal project in Unreal Engine 5 and connect its live input/rendering path to the native host;
+4. polish collision, production art, animation rigs, materials, audio and dungeon set dressing.
 
 The project has a verified native gameplay bridge, but it is not yet a fully verified 3D playable demo until the Unreal client is compiled and tested against it.
