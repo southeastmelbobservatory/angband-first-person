@@ -1,4 +1,5 @@
 #include "abfp_bridge.h"
+#include "abfp_transport.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -11,6 +12,15 @@ int main(void)
     abfp_snapshot snapshot = {0};
     abfp_event event = {0};
     size_t i;
+
+    abfp_command_type command;
+
+    assert(abfp_transport_parse_command("MOVE_NORTH\\n", &command));
+    assert(command == ABFP_COMMAND_MOVE_NORTH);
+    assert(abfp_transport_parse_command("WAIT", &command));
+    assert(command == ABFP_COMMAND_WAIT);
+    assert(!abfp_transport_parse_command("MOVE_UP", &command));
+    assert(!abfp_transport_parse_command(NULL, &command));
 
     assert(abfp_bridge_init());
 
