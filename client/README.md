@@ -50,6 +50,24 @@ The script builds the `AngbandFirstPersonEditor` Win64 Development target. You c
 
 A successful build only confirms the C++ editor target compiles. Open `client/AngbandFirstPerson.uproject`, press Play, and connect it to the native host to verify the actual rendered game loop.
 
+## Configure the native host connection
+
+The default endpoint is `127.0.0.1:47652`, for running Unreal and the Angband host on the same PC. Change `client/Config/DefaultGame.ini` when the host is on another machine:
+
+```ini
+[/Script/AngbandFirstPerson.ABFPFirstPersonPawn]
+HostAddress=192.168.0.50
+HostPort=47652
+```
+
+Replace the example address with the Linux host's LAN address. The native host binds to loopback by default. To allow a separate LAN client, start it with:
+
+```bash
+ABFP_BIND_ADDRESS=0.0.0.0 ./tools/run-native-demo.sh
+```
+
+Allow TCP port `47652` through the host firewall on the private LAN only. The bridge has no authentication or encryption; do not expose this listener to the internet.
+
 ## Open the project
 
 Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. W/A/S/D move one grid cell relative to the camera; Space waits one turn; mouse movement looks around.
