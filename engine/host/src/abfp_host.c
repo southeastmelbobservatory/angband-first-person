@@ -81,6 +81,8 @@ static errr abfp_host_get_command(cmd_context context)
      */
     if (player) {
         OPT(player, auto_more) = true;
+        if (getenv("ABFP_TEST_FLOOR_ITEM"))
+            OPT(player, pickup_always) = true;
     }
 
     if (!bridge_registered) {
