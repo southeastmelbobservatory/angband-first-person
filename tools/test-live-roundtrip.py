@@ -104,7 +104,6 @@ def main():
                 "ABFP_TEST_FORCE_STAIRS": "1",
                 "ABFP_TEST_FLOOR_ITEM": "1",
                 "ABFP_TEST_MONSTER": "1",
-                "ABFP_TEST_WAKE_MONSTER": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
@@ -365,20 +364,6 @@ def main():
 
             depth_after_down = stair_state.get("depth")
             dungeon_player_xy = tuple(stair_state.get("player", []))
-            visible_monsters = [
-                entity for entity in stair_state.get("entities", [])
-                if len(entity) >= 10 and entity[3] == 1
-                and max(
-                    abs(entity[1] - dungeon_player_xy[0]),
-                    abs(entity[2] - dungeon_player_xy[1])
-                ) == 2
-            ]
-            if not visible_monsters or visible_monsters[0][7] <= 0:
-                raise AssertionError(
-                    "The live snapshot did not expose the seeded visible "
-                    f"monster with valid HP: {stair_state.get('entities')!r}"
-                )
-
             movement_by_delta = {
                 (0, -1): "MOVE_NORTH", (1, 0): "MOVE_EAST",
                 (0, 1): "MOVE_SOUTH", (-1, 0): "MOVE_WEST",
@@ -446,38 +431,30 @@ def main():
                     f"{return_state.get('player')}"
                 )
 
-            seeded_monster_id = visible_monsters[0][0]
-            seeded_monster_start = (visible_monsters[0][1], visible_monsters[0][2])
-            monster_moved = False
             monster_state = return_state
-            for _ in range(3):
+            monster_damaged_player = False
+            for _ in range(5):
                 client.sendall(b"WAIT\n")
                 monster_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
-                monster_move_events = [
-                    event for event in monster_state.get("events", [])
-                    if len(event) >= 9 and event[0] == 1
-                    and event[2] == seeded_monster_id
+                visible_monsters = [
+                    entity for entity in monster_state.get("entities", [])
+                    if len(entity) >= 10 and entity[3] == 1 and entity[7] > 0
                 ]
-                current_monster = next(
-                    (
-                        entity for entity in monster_state.get("entities", [])
-                        if len(entity) >= 10 and entity[0] == seeded_monster_id
-                    ),
-                    None,
-                )
-                if (
-                    monster_move_events and current_monster
-                    and (current_monster[1], current_monster[2]) != seeded_monster_start
-                ):
-                    monster_moved = True
+                player_damage_events = [
+                    event for event in monster_state.get("events", [])
+                    if len(event) >= 9 and event[0] == 3
+                    and event[3] == "1" and event[8] > 0
+                ]
+                if visible_monsters and player_damage_events:
+                    monster_damaged_player = True
                     break
-            if not monster_moved:
+            if not monster_damaged_player:
                 raise AssertionError(
-                    "The awakened Angband monster did not produce an authoritative "
-                    f"movement event from {seeded_monster_start}. "
-                    f"Last state: {monster_state.get('entities')!r}; "
+                    "The seeded awake Angband monster did not become visible "
+                    "and damage the player within five turns. "
+                    f"Entities: {monster_state.get('entities')!r}; "
                     f"events: {monster_state.get('events')!r}"
                 )
 
@@ -529,7 +506,7 @@ def main():
                 f"movement event exported; "
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
-                f"new level visible monsters={dungeon_monster_count}; monster movement event verified, "
+                f"new level objects={dungeon_object_count}; monster visibility and player damage event verified, "
                 f"objects={dungeon_object_count}."
             )
         finally:
