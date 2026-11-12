@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "",
+  "Category": "Games",
+  "Description": "First-person 3D presentation client for the original Angband game engine.",
+  "Modules": [
+    {
+      "Name": "AngbandFirstPerson",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
