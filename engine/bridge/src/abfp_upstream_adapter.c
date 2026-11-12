@@ -193,6 +193,20 @@ static void abfp_append_objects(struct object *obj, int x, int y,
     }
 }
 
+void abfp_upstream_monster_died(const struct monster *mon)
+{
+    abfp_event event;
+    if (!mon || !snapshot_history_valid) return;
+    memset(&event, 0, sizeof(event));
+    event.type = ABFP_EVENT_DEATH;
+    event.turn = turn;
+    event.subject_id = ABFP_MONSTER_ID_BASE | (uint64_t)mon->midx;
+    event.from_x = event.to_x = mon->grid.x;
+    event.from_y = event.to_y = mon->grid.y;
+    event.value = mon->race ? mon->race->level : 0;
+    abfp_bridge_emit(&event);
+}
+
 bool abfp_upstream_refresh_snapshot(void)
 {
     abfp_snapshot next = {0};
