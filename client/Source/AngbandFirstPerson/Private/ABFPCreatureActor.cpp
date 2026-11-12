@@ -16,6 +16,8 @@ AABFPCreatureActor::AABFPCreatureActor()
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(
         TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(
+        TEXT("/Engine/BasicShapes/Cone.Cone"));
 
     auto MakePart = [this](const TCHAR* Name, UStaticMesh* Mesh,
         const FVector& Location, const FVector& Scale) -> UStaticMeshComponent*
@@ -32,6 +34,7 @@ AABFPCreatureActor::AABFPCreatureActor()
 
     UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
     UStaticMesh* Cylinder = CylinderMesh.Succeeded() ? CylinderMesh.Object : Sphere;
+    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object : Sphere;
 
     Body = MakePart(TEXT("Body"), Sphere, FVector(0, 0, 105), FVector(0.48f, 0.38f, 0.66f));
     Head = MakePart(TEXT("Head"), Sphere, FVector(0, 0, 205), FVector(0.30f, 0.29f, 0.32f));
