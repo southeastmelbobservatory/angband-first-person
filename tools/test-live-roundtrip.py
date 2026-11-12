@@ -580,6 +580,25 @@ def main():
                     f"Monster display name was not serialized: {visible_monsters!r}"
                 )
 
+            # Re-centre on the up-stair tile before combat. If the mouse
+            # has moved onto that tile, this bump is itself a normal attack.
+            pre_attack_player = tuple(monster_state.get("player", []))
+            if pre_attack_player != dungeon_player_xy:
+                pre_attack_delta = (
+                    dungeon_player_xy[0] - pre_attack_player[0],
+                    dungeon_player_xy[1] - pre_attack_player[1],
+                )
+                if pre_attack_delta not in movement_by_delta:
+                    raise AssertionError(
+                        f"Cannot re-centre before combat from {pre_attack_player}"
+                    )
+                client.sendall(
+                    (movement_by_delta[pre_attack_delta] + "\n").encode("ascii")
+                )
+                monster_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+
             # Bump into the mouse once it has pursued close enough. If it
             # is still two squares away, let Angband take another monster turn.
             monster_damage_verified = False
@@ -613,23 +632,20 @@ def main():
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    client.sendall(b"WAIT\n")
-                    try:
-                        monster_state, buffer = receive_state(
-                            client, buffer, timeout=15, master=master, output=output
-                        )
-                    except TimeoutError as error:
-                        readable, _, _ = select.select([master], [], [], 0.2)
-                        if readable:
-                            try:
-                                output.extend(os.read(master, 8192))
-                            except OSError:
-                                pass
+                    step = (
+                        0 if delta[0] == 0 else (1 if delta[0] > 0 else -1),
+                        0 if delta[1] == 0 else (1 if delta[1] > 0 else -1),
+                    )
+                    if step not in movement_by_delta:
                         raise AssertionError(
-                            "No state returned while waiting for the mouse to "
-                            f"approach. Target: {target!r}; player: {player_xy!r}; "
-                            f"terminal: {terminal_text(output)[-2400:]}"
-                        ) from error
+                            f"Cannot close distance to seeded mouse at {target!r}"
+                        )
+                    client.sendall(
+                        (movement_by_delta[step] + "\n").encode("ascii")
+                    )
+                    monster_state, buffer = receive_state(
+                        client, buffer, timeout=15, master=master, output=output
+                    )
                     continue
 
                 old_hp = target[7]
