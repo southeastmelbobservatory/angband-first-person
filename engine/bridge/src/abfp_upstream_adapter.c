@@ -21,6 +21,8 @@
 static bool handlers_installed;
 static struct loc pending_from;
 static bool pending_move;
+static bool pending_command;
+static bool observed_player_moved;
 static abfp_cell snapshot_cells[ABFP_SNAPSHOT_CELLS];
 static abfp_entity_state snapshot_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
 
@@ -42,23 +44,10 @@ static int abfp_direction(abfp_command_type command)
 static void abfp_player_moved(game_event_type type,
     game_event_data *data, void *user)
 {
-    abfp_event event = {0};
     (void)type;
     (void)data;
     (void)user;
-
-    if (!player || !cave) return;
-
-    event.type = ABFP_EVENT_ENTITY_MOVED;
-    event.subject_id = 1;
-    event.from_x = pending_move ? pending_from.x : player->grid.x;
-    event.from_y = pending_move ? pending_from.y : player->grid.y;
-    event.to_x = player->grid.x;
-    event.to_y = player->grid.y;
-    event.turn = (uint64_t)cave->turn;
-    abfp_bridge_emit(&event);
-    pending_move = false;
-    (void)abfp_upstream_refresh_snapshot();
+    observed_player_moved = true;
 }
 
 bool abfp_upstream_install_handlers(void)
@@ -76,24 +65,31 @@ void abfp_upstream_remove_handlers(void)
     event_remove_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
     handlers_installed = false;
     pending_move = false;
+    pending_command = false;
+    observed_player_moved = false;
 }
 
 bool abfp_upstream_queue_command(abfp_command_type command)
 {
     int dir = abfp_direction(command);
 
-    if (!player || !cave) return false;
+    if (!player || !cave || pending_command) return false;
 
     if (dir != DIR_UNKNOWN) {
         if (cmdq_push(CMD_WALK) != 0) return false;
         cmd_set_arg_direction(cmdq_peek(), "direction", dir);
         pending_from = player->grid;
         pending_move = true;
+        pending_command = true;
+        observed_player_moved = false;
         return true;
     }
 
-    if (command == ABFP_COMMAND_WAIT)
-        return cmdq_push(CMD_HOLD) == 0;
+    if (command == ABFP_COMMAND_WAIT) {
+        if (cmdq_push(CMD_HOLD) != 0) return false;
+        pending_command = true;
+        return true;
+    }
 
     return false;
 }
@@ -201,4 +197,33 @@ bool abfp_upstream_refresh_snapshot(void)
 
     abfp_bridge_set_snapshot(&next);
     return true;
+}
+
+/*
+ * The host calls this after Angband's run_game_loop() returns. That boundary
+ * is later than EVENT_PLAYERMOVED: monsters and world processing have had
+ * their normal opportunity to act, and blocked moves are also acknowledged.
+ */
+void abfp_upstream_sync_after_game_loop(void)
+{
+    if (player && cave) {
+        if (pending_move && observed_player_moved &&
+            (player->grid.x != pending_from.x ||
+             player->grid.y != pending_from.y)) {
+            abfp_event event = {0};
+            event.type = ABFP_EVENT_ENTITY_MOVED;
+            event.subject_id = 1;
+            event.from_x = pending_from.x;
+            event.from_y = pending_from.y;
+            event.to_x = player->grid.x;
+            event.to_y = player->grid.y;
+            event.turn = (uint64_t)cave->turn;
+            abfp_bridge_emit(&event);
+        }
+        (void)abfp_upstream_refresh_snapshot();
+    }
+
+    pending_move = false;
+    pending_command = false;
+    observed_player_moved = false;
 }
