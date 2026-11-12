@@ -16,7 +16,7 @@
 - [x] Add explicit host sync callback after `run_game_loop()` returns.
 - [x] Trace the pinned text frontend lifecycle and identify the supported command-hook seam (`cmd_get_hook`) plus required post-loop sync point in `play_game()`.
 - [x] Add a revision-checked patch to `main.c`, `ui-game.c` and Angband's CMake build while preserving the normal `play_game()` lifecycle.
-- [x] Implement bounded, thread-safe loopback TCP command ingress; the transport worker never calls Angband.
+- [x] Implement bounded, thread-safe TCP command ingress with loopback default and opt-in trusted-LAN binding; the transport worker never calls Angband.
 - [x] Consume one presentation command on the Angband game thread and submit it through Angband's normal command queue.
 - [x] Publish the initial snapshot on client connection and publish refreshed snapshots/events after each completed game loop.
 - [x] Retain queued events when snapshot delivery fails; clear them only after successful delivery.
@@ -32,6 +32,7 @@
 - [x] Export lighting flag.
 - [x] Prevent unseen monster/object occupancy leakage.
 - [x] Export visible monster identity and hit points.
+- [x] Export bounded Angband display names for visible monsters and known objects.
 - [x] Export visible floor objects with unidentified-item privacy.
 - [x] Distinguish rubble and shops from generic walls.
 - [ ] Add complete terrain feature identifiers (door states, traps, mineral veins, webs, etc.).
@@ -56,6 +57,7 @@
 - [x] Create Unreal Engine 5 C++ project scaffold.
 - [x] Render floor, wall and door blockout geometry from snapshots.
 - [x] Render persistent 3D creature and item actors.
+- [x] Add race-name and object-name driven procedural silhouette/material variants.
 - [x] Add first-person look and interpolated grid movement in the mock scene.
 - [ ] Connect Unreal input to the live host protocol.
 - [x] Wire authoritative damage events to visible creature hit reactions.
