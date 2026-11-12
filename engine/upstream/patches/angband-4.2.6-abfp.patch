@@ -71,7 +71,10 @@ index 0000000..0000000 100644
  set(ANGBAND_CORE_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src")
  set(ANGBAND_CORE_LINK_LIBRARIES "")
 @@ -437,6 +452,7 @@
+ target_include_directories(OurExecutable PRIVATE
+     ${ANGBAND_CORE_INCLUDE_DIRS}
+ )
  target_link_libraries(OurExecutable PRIVATE ${ANGBAND_CORE_LINK_LIBRARIES})
 +target_link_libraries(OurExecutable PRIVATE Threads::Threads)
  
-+# Allow for some introspection:  have rules to print out names that something
+ # Allow for some introspection:  have rules to print out names that something
