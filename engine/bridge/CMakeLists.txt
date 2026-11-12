@@ -17,7 +17,16 @@ add_library(abfp_bridge STATIC ${ABFP_BRIDGE_SOURCES})
 target_include_directories(abfp_bridge PUBLIC
     "${CMAKE_CURRENT_LIST_DIR}/include"
     "${CMAKE_CURRENT_LIST_DIR}/../../protocol"
+    "${CMAKE_CURRENT_LIST_DIR}/../../engine/host/include"
 )
+
+if(UNIX)
+    find_package(Threads REQUIRED)
+    target_sources(abfp_bridge PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/../host/src/abfp_transport.c"
+    )
+    target_link_libraries(abfp_bridge PUBLIC Threads::Threads)
+endif()
 
 target_compile_features(abfp_bridge PUBLIC c_std_99)
 
