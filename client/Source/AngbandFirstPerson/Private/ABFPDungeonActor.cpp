@@ -25,6 +25,14 @@ AABFPDungeonActor::AABFPDungeonActor()
     RememberedWalls->SetupAttachment(SceneRoot);
     Doors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("DoorInstances"));
     Doors->SetupAttachment(SceneRoot);
+    StairsUp = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("StairsUpInstances"));
+    StairsUp->SetupAttachment(SceneRoot);
+    StairsDown = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("StairsDownInstances"));
+    StairsDown->SetupAttachment(SceneRoot);
+    Rubble = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("RubbleInstances"));
+    Rubble->SetupAttachment(SceneRoot);
+    Shops = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("ShopInstances"));
+    Shops->SetupAttachment(SceneRoot);
 
     DungeonFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("DungeonFog"));
     DungeonFog->SetupAttachment(SceneRoot);
@@ -46,6 +54,10 @@ AABFPDungeonActor::AABFPDungeonActor()
         Walls->SetStaticMesh(CubeMesh.Object);
         RememberedWalls->SetStaticMesh(CubeMesh.Object);
         Doors->SetStaticMesh(CubeMesh.Object);
+        StairsUp->SetStaticMesh(CubeMesh.Object);
+        StairsDown->SetStaticMesh(CubeMesh.Object);
+        Rubble->SetStaticMesh(CubeMesh.Object);
+        Shops->SetStaticMesh(CubeMesh.Object);
     }
 
     Floors->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -53,6 +65,10 @@ AABFPDungeonActor::AABFPDungeonActor()
     Walls->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     RememberedWalls->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Doors->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    StairsUp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    StairsDown->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Rubble->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Shops->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Floors->SetCastShadow(true);
     RememberedFloors->SetCastShadow(false);
     Walls->SetCastShadow(true);
@@ -68,16 +84,28 @@ AABFPDungeonActor::AABFPDungeonActor()
         UMaterialInstanceDynamic* WallMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         UMaterialInstanceDynamic* MemoryWallMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         UMaterialInstanceDynamic* DoorMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* UpStairMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* DownStairMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* RubbleMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* ShopMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         FloorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.075f, 0.085f, 0.10f));
         MemoryFloorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.025f, 0.03f, 0.04f));
         WallMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.19f, 0.20f, 0.22f));
         MemoryWallMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.055f, 0.06f, 0.07f));
         DoorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.32f, 0.16f, 0.055f));
+        UpStairMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.48f, 0.43f, 0.32f));
+        DownStairMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.24f, 0.29f, 0.38f));
+        RubbleMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.26f, 0.22f, 0.17f));
+        ShopMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.62f, 0.36f, 0.08f));
         Floors->SetMaterial(0, FloorMaterial);
         RememberedFloors->SetMaterial(0, MemoryFloorMaterial);
         Walls->SetMaterial(0, WallMaterial);
         RememberedWalls->SetMaterial(0, MemoryWallMaterial);
         Doors->SetMaterial(0, DoorMaterial);
+        StairsUp->SetMaterial(0, UpStairMaterial);
+        StairsDown->SetMaterial(0, DownStairMaterial);
+        Rubble->SetMaterial(0, RubbleMaterial);
+        Shops->SetMaterial(0, ShopMaterial);
     }
 }
 
@@ -96,6 +124,10 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     Walls->ClearInstances();
     RememberedWalls->ClearInstances();
     Doors->ClearInstances();
+    StairsUp->ClearInstances();
+    StairsDown->ClearInstances();
+    Rubble->ClearInstances();
+    Shops->ClearInstances();
 
     for (const FABFPCell& Cell : Snapshot.Cells)
     {
@@ -123,6 +155,48 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             Doors->AddInstance(FTransform(FRotator::ZeroRotator,
                 Tile + FVector(0, 0, 115.0f),
                 FVector(CellSize / 100.0f, 0.25f, 2.3f)));
+        }
+        else if (Cell.Terrain == EABFPTerrain::StairsUp ||
+            Cell.Terrain == EABFPTerrain::StairsDown)
+        {
+            UInstancedStaticMeshComponent* StairLayer =
+                Cell.Terrain == EABFPTerrain::StairsUp ? StairsUp : StairsDown;
+            for (int32 Step = 0; Step < 4; ++Step)
+            {
+                const int32 RampStep = Cell.Terrain == EABFPTerrain::StairsUp ?
+                    Step : 3 - Step;
+                const float OffsetX = (static_cast<float>(Step) - 1.5f) *
+                    (CellSize * 0.25f);
+                const float Height = 15.0f + RampStep * 30.0f;
+                StairLayer->AddInstance(FTransform(FRotator::ZeroRotator,
+                    Tile + FVector(OffsetX, 0.0f, Height),
+                    FVector(CellSize / 400.0f, CellSize / 110.0f, 0.30f)));
+            }
+        }
+        else if (Cell.Terrain == EABFPTerrain::Rubble)
+        {
+            for (int32 Rock = 0; Rock < 3; ++Rock)
+            {
+                const float OffsetX = (Rock - 1) * CellSize * 0.18f;
+                const float OffsetY = ((Rock % 2) ? 1.0f : -1.0f) *
+                    CellSize * 0.12f;
+                const float Height = 16.0f + Rock * 5.0f;
+                Rubble->AddInstance(FTransform(FRotator(0.0f, Rock * 31.0f, 0.0f),
+                    Tile + FVector(OffsetX, OffsetY, Height),
+                    FVector(0.22f + Rock * 0.03f, 0.20f, 0.22f + Rock * 0.04f)));
+            }
+        }
+        else if (Cell.Terrain == EABFPTerrain::Shop)
+        {
+            Shops->AddInstance(FTransform(FRotator::ZeroRotator,
+                Tile + FVector(0.0f, -CellSize * 0.42f, 105.0f),
+                FVector(0.14f, CellSize / 100.0f, 2.1f)));
+            Shops->AddInstance(FTransform(FRotator::ZeroRotator,
+                Tile + FVector(0.0f, CellSize * 0.42f, 105.0f),
+                FVector(0.14f, CellSize / 100.0f, 2.1f)));
+            Shops->AddInstance(FTransform(FRotator::ZeroRotator,
+                Tile + FVector(0.0f, 0.0f, 205.0f),
+                FVector(0.14f, CellSize / 100.0f, 0.14f)));
         }
     }
 
