@@ -28,7 +28,7 @@ def terminal_text(output):
 
 
 def wait_for_terminal_text(master, output, needle, timeout, pid):
-    needle = needle.lower()
+    needle = needle.decode().lower()
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         waited, status = os.waitpid(pid, os.WNOHANG)
