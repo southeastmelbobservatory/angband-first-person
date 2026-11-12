@@ -73,6 +73,21 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 
     if (bLiveMode)
     {
+        if (!NetworkClient.IsConnected())
+        {
+            ReconnectRetrySeconds -= DeltaSeconds;
+            if (ReconnectRetrySeconds <= 0.0f)
+            {
+                ReconnectRetrySeconds = 2.0f;
+                if (NetworkClient.Connect(TEXT("127.0.0.1"), 47652))
+                {
+                    bHaveAuthoritativeState = false;
+                    bAwaitingServerTurn = false;
+                    bInterpolatingMove = false;
+                }
+            }
+        }
+
         FABFPSnapshot AuthoritativeSnapshot;
         if (NetworkClient.PollSnapshot(AuthoritativeSnapshot))
         {
