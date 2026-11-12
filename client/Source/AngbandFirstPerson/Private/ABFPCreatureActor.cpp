@@ -67,11 +67,36 @@ void AABFPCreatureActor::PlayHitReaction(int32 Damage)
     DamageFlashSeconds = 0.22f;
 }
 
+void AABFPCreatureActor::SetTargetLocation(const FVector& Location,
+    const FRotator& Rotation)
+{
+    TargetLocation = Location;
+    TargetRotation = Rotation;
+    bInterpolating = FVector::DistSquared(GetActorLocation(), TargetLocation) > 4.0f;
+    if (!bInterpolating) SetActorRotation(TargetRotation);
+}
+
 void AABFPCreatureActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     Elapsed += DeltaSeconds;
     DamageFlashSeconds = FMath::Max(0.0f, DamageFlashSeconds - DeltaSeconds);
+
+    if (bInterpolating)
+    {
+        const FVector CurrentLocation = FMath::VInterpTo(
+            GetActorLocation(), TargetLocation, DeltaSeconds, 8.0f);
+        const FRotator CurrentRotation = FMath::RInterpTo(
+            GetActorRotation(), TargetRotation, DeltaSeconds, 8.0f);
+        SetActorLocation(CurrentLocation);
+        SetActorRotation(CurrentRotation);
+        if (FVector::DistSquared(CurrentLocation, TargetLocation) < 4.0f)
+        {
+            SetActorLocation(TargetLocation);
+            SetActorRotation(TargetRotation);
+            bInterpolating = false;
+        }
+    }
 
     const float Breath = FMath::Sin(Elapsed * 2.1f) * 3.0f;
     const float ArmSwing = FMath::Sin(Elapsed * 1.3f) * 7.0f;
