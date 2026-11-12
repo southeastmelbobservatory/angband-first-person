@@ -287,6 +287,50 @@ bool abfp_upstream_refresh_snapshot(void)
             }
         }
 
+        /*
+         * A previously visible monster that disappears from a grid which
+         * remains visible and is now unoccupied has been removed from play.
+         * This snapshot-derived death event deliberately avoids leaking
+         * monsters that simply leave the player's visible area.
+         */
+        for (i = 0; i < previous_entity_count; ++i) {
+            const abfp_entity_state *previous = &previous_entities[i];
+            bool still_present = false;
+            bool old_grid_visible = false;
+            bool old_grid_occupied = false;
+            uint32_t cell_index;
+
+            if (previous->type != ABFP_ENTITY_MONSTER) continue;
+            for (j = 0; j < entity_count; ++j) {
+                if (snapshot_entities[j].id == previous->id) {
+                    still_present = true;
+                    break;
+                }
+            }
+            if (still_present) continue;
+
+            for (cell_index = 0; cell_index < ABFP_SNAPSHOT_CELLS;
+                 ++cell_index) {
+                const abfp_cell *cell = &snapshot_cells[cell_index];
+                if (cell->x == previous->x && cell->y == previous->y) {
+                    old_grid_visible = cell->visible != 0;
+                    old_grid_occupied = cell->occupied_by_monster != 0;
+                    break;
+                }
+            }
+            if (old_grid_visible && !old_grid_occupied) {
+                abfp_event event = {0};
+                event.type = ABFP_EVENT_DEATH;
+                event.turn = next.turn;
+                event.subject_id = previous->id;
+                event.from_x = previous->x;
+                event.from_y = previous->y;
+                event.to_x = previous->x;
+                event.to_y = previous->y;
+                abfp_bridge_emit(&event);
+            }
+        }
+
         for (i = 0; i < entity_count; ++i) {
             const abfp_entity_state *current = &snapshot_entities[i];
             const abfp_entity_state *previous = NULL;
