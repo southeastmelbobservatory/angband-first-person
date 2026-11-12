@@ -3,9 +3,11 @@
 ## Upstream
 - [x] Pin official Angband 4.2.6 release commit.
 - [x] Compile the adapter translation unit against the exact pinned Angband 4.2.6 headers in CI.
-- [ ] Link the bridge into a real Angband host and run the game.
+- [x] Link the bridge, adapter, host hook and loopback transport into the patched Angband CMake executable (CI build verified).
+- [ ] Run the host interactively and verify save/load, birth, death, quit, and restart paths.
 - [ ] Bootstrap exact revision and build unchanged.
-- [ ] Build the patched host and verify save/load, birth, death, quit, and restart paths.
+- [x] Build the patched Angband host executable in CI.
+- [ ] Verify save/load, birth, death, quit, and restart paths at runtime.
 - [ ] Record local build/test result.
 
 ## Frontend integration
@@ -14,11 +16,12 @@
 - [x] Register player-moved event handler.
 - [x] Add explicit host sync callback after run_game_loop returns.
 - [x] Trace the pinned text frontend lifecycle and identify the supported command-hook seam (`cmd_get_hook`) plus required post-loop sync point in `play_game()`.
-- [ ] Add a revision-checked patch to `ui-game.c` that preserves `start_game()`, `pre_turn_refresh()`, `close_game()`, and the normal `play_game()` lifecycle while synchronizing after `run_game_loop()`.
+- [x] Add a revision-checked patch to `main.c`, `ui-game.c`, and Angband's CMake build while preserving the normal `play_game()` lifecycle.
 - [x] Implement a bounded, thread-safe loopback TCP command ingress queue and strict command-line parser (transport worker does not call Angband).
-- [ ] Wire the game-thread cmd_get_hook to wait for one transport command and submit it through the bridge.
+- [x] Wire the game-thread `cmd_get_hook` to wait for one transport command and submit it through the bridge.
 - [ ] Add snapshot/event serialization and delivery to the client.
-- [ ] Link the bridge into a real Angband host and run the game.
+- [x] Compile and link the patched host executable in CI.
+- [ ] Run a live game and verify movement/turn behaviour end to end.
 
 ## Snapshot
 - [x] Export 21x21 player-centred terrain window.
