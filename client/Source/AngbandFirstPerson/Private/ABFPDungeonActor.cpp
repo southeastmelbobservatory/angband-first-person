@@ -75,7 +75,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
     }
 
-    TSet<uint64> CurrentIds;
+    TSet<int64> CurrentIds;
     for (const FABFPEntity& Entity : Snapshot.Entities)
     {
         CurrentIds.Add(Entity.Id);
@@ -111,9 +111,9 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 
     for (auto It = SpawnedEntities.CreateIterator(); It; ++It)
     {
-        if (!CurrentIds.Contains(It->Key()))
+        if (!CurrentIds.Contains(It.Key()))
         {
-            if (IsValid(It->Value())) It->Value()->Destroy();
+            if (IsValid(It.Value())) It->Value()->Destroy();
             It.RemoveCurrent();
         }
     }
