@@ -23,7 +23,7 @@ The GitHub Actions native-host workflow now builds the pinned Angband executable
 - A player bump-attack reduces the monster's authoritative HP and killing it exports a native death event.
 - A disconnected presentation client can reconnect and receive a fresh initial snapshot without restarting the Angband character.
 
-Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43193541345).
+Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43194112726).
 
 ## Implemented behaviour (not all yet runtime-verified)
 
@@ -93,10 +93,9 @@ This client receives the same authoritative snapshots and can submit movement an
 
 ## Remaining verification gate
 
-Native host run #249 verifies the complete pinned Angband build, real character creation, authoritative snapshots, wait and movement, blocked movement, stair descent/ascent, floor-item pickup, visible monster state and AI movement events, monster-to-player damage, player-initiated attack damage, native monster death events and host-side client reconnect. Remaining gates are:
+Native host run #261 verifies the complete pinned Angband build, real character creation, authoritative snapshots, wait and cardinal/diagonal movement, blocked movement, stair descent/ascent, floor-item pickup, monster-to-player damage, player-initiated attack damage, native monster death events and host-side client reconnect. Run #249 also verified a live monster movement event. Remaining gates are:
 
-1. verify diagonal movement in the live host (player bump-attacks and monster interruption are now covered);
-2. verify longer play sessions and repeated reconnects;
+1. verify longer play sessions and repeated reconnects;
 3. clean local bootstrap/build and interactive save/load/death/quit/restart paths on the target Linux host;
 4. compile the Unreal project in Unreal Engine 5 and connect its live input/rendering path to the native host;
 5. polish collision, production art, animation rigs, materials, audio and dungeon set dressing.
