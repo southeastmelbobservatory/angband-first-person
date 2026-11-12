@@ -43,6 +43,9 @@ private:
     void TryDemoStep(int32 DX, int32 DY);
     void UpdateStatusReadout();
 
+    UPROPERTY(EditDefaultsOnly, Category="Angband|Connection") FString HostAddress = TEXT("127.0.0.1");
+    UPROPERTY(EditDefaultsOnly, Category="Angband|Connection") int32 HostPort = 47652;
+
     UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPointLightComponent> Lantern;
