@@ -206,6 +206,49 @@ static bool append_json(char **cursor, size_t *remaining, const char *format, ..
     return true;
 }
 
+static bool append_json_string(char **cursor, size_t *remaining,
+    const char *value, size_t max_length)
+{
+    size_t i;
+    if (!append_json(cursor, remaining, "\"")) return false;
+    if (!value) value = "";
+    for (i = 0; i < max_length && value[i]; ++i) {
+        const unsigned char ch = (unsigned char)value[i];
+        switch (ch) {
+        case '"':
+            if (!append_json(cursor, remaining, "\\\"")) return false;
+            break;
+        case '\\':
+            if (!append_json(cursor, remaining, "\\\\")) return false;
+            break;
+        case '\b':
+            if (!append_json(cursor, remaining, "\\b")) return false;
+            break;
+        case '\f':
+            if (!append_json(cursor, remaining, "\\f")) return false;
+            break;
+        case '\n':
+            if (!append_json(cursor, remaining, "\\n")) return false;
+            break;
+        case '\r':
+            if (!append_json(cursor, remaining, "\\r")) return false;
+            break;
+        case '\t':
+            if (!append_json(cursor, remaining, "\\t")) return false;
+            break;
+        default:
+            if (ch < 0x20) {
+                if (!append_json(cursor, remaining, "\\u%04x", (unsigned)ch))
+                    return false;
+            } else if (!append_json(cursor, remaining, "%c", (int)ch)) {
+                return false;
+            }
+            break;
+        }
+    }
+    return append_json(cursor, remaining, "\"");
+}
+
 static bool send_all(int fd, const char *data, size_t length)
 {
     while (length) {
@@ -234,7 +277,7 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
         (snapshot->entity_count && !snapshot->entities) ||
         (event_count && !events) || event_count > 4096) return false;
     capacity = 512 + (size_t)snapshot->cell_count * 96 +
-        (size_t)snapshot->entity_count * 192 + event_count * 192;
+        (size_t)snapshot->entity_count * 512 + event_count * 192;
     buffer = (char *)malloc(capacity);
     if (!buffer) return false;
     cursor = buffer;
@@ -262,11 +305,14 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     for (i = 0; i < snapshot->entity_count; ++i) {
         const abfp_entity_state *entity = &snapshot->entities[i];
         if (!append_json(&cursor, &remaining,
-            "%s[\"%" PRIu64 "\",%d,%d,%d,%d,%d,%d,%d,%d,%d]",
+            "%s[\"%" PRIu64 "\",%d,%d,%d,%d,%d,%d,%d,%d,%d,",
             i ? "," : "", entity->id, entity->x, entity->y,
             (int)entity->type, entity->kind_id, entity->category_id,
             entity->variant_id, entity->hitpoints, entity->max_hitpoints,
             entity->quantity)) goto done;
+        if (!append_json_string(&cursor, &remaining, entity->name,
+                sizeof(entity->name)) ||
+            !append_json(&cursor, &remaining, "]")) goto done;
     }
     if (!append_json(&cursor, &remaining, "],\"events\":[")) goto done;
     for (i = 0; i < event_count; ++i) {
