@@ -77,7 +77,7 @@ This tests the protocol/bridge layer independently of Angband.
 
 The Unreal Engine 5 project is in [client/AngbandFirstPerson.uproject](client/AngbandFirstPerson.uproject); see [client/README.md](client/README.md) before opening it. The scene still uses mock data and is not yet runtime-verified against a live native host.
 
-See [docs/architecture.md](docs/architecture.md), [docs/bridge-roadmap.md](docs/bridge-roadmap.md) and [engine/bridge/INTEGRATION_CHECKLIST.md](engine/bridge/INTEGRATION_CHECKLIST.md).
+See [docs/FIRST_PLAYABLE_DEMO.md](docs/FIRST_PLAYABLE_DEMO.md) for the end-to-end demo flow, plus [docs/architecture.md](docs/architecture.md), [docs/bridge-roadmap.md](docs/bridge-roadmap.md) and [engine/bridge/INTEGRATION_CHECKLIST.md](engine/bridge/INTEGRATION_CHECKLIST.md).
 
 ## First playable milestone
 
