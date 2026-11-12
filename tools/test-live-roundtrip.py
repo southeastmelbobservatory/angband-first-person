@@ -505,20 +505,13 @@ def main():
                 and (event[4] != event[6] or event[5] != event[7])
                 for event in monster_state.get("events", [])
             )
-            if not monster_movement_verified:
-                raise AssertionError(
-                    "The seeded mouse did not export an authoritative movement "
-                    f"event after pursuit. Entities: {monster_state.get('entities')!r}; "
-                    f"events: {monster_state.get('events')!r}"
-                )
-
             monster_damaged_player = any(
                 len(event) >= 9 and event[0] == 3
                 and event[3] == "1" and event[8] > 0
                 for event in monster_state.get("events", [])
             )
             for _ in range(5):
-                if monster_damaged_player:
+                if monster_damaged_player and monster_movement_verified:
                     break
                 client.sendall(b"WAIT\n")
                 monster_state, buffer = receive_state(
@@ -530,6 +523,13 @@ def main():
                     and "giant white mouse" in entity[10].lower()
                     and entity[7] > 0
                 ]
+                if any(
+                    len(event) >= 9 and event[0] == 1
+                    and event[2] == seeded_monster_id
+                    and (event[4] != event[6] or event[5] != event[7])
+                    for event in monster_state.get("events", [])
+                ):
+                    monster_movement_verified = True
                 player_damage_events = [
                     event for event in monster_state.get("events", [])
                     if len(event) >= 9 and event[0] == 3
@@ -537,6 +537,12 @@ def main():
                 ]
                 if visible_monsters and player_damage_events:
                     monster_damaged_player = True
+            if not monster_movement_verified:
+                raise AssertionError(
+                    "The seeded mouse did not export an authoritative movement "
+                    f"event after pursuit. Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
             if not monster_damaged_player:
                 raise AssertionError(
                     "The seeded awake Angband monster did not damage the player "
