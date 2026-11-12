@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-"$ROOT/tools/bootstrap-angband.sh"
+bash "$ROOT/tools/bootstrap-angband.sh"
 
 BUILD_DIR="${ABFP_BUILD_DIR:-$ROOT/build-angband}"
 cmake -S "$ROOT/engine/upstream/angband" -B "$BUILD_DIR" \
