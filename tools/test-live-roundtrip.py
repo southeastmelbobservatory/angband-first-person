@@ -311,7 +311,7 @@ def main():
                 if len(entity) >= 10 and entity[3] == 2
                 and (entity[1], entity[2]) == player_xy
             }
-            client.sendall(b"AUTOPICKUP\\n")
+            client.sendall(b"AUTOPICKUP\n")
             pickup_state, buffer = receive_state(
                 client, buffer, master=master, output=output
             )
@@ -337,7 +337,7 @@ def main():
             # valid transitions or no-ops depending on whether this generated
             # character happens to be standing on a staircase.
             depth_before_up = pickup_state.get("depth")
-            client.sendall(b"GO_UP\\n")
+            client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
                 client, buffer, master=master, output=output
             )
@@ -345,7 +345,7 @@ def main():
                 raise AssertionError("GO_UP increased dungeon depth")
 
             depth_before_down = up_state.get("depth")
-            client.sendall(b"GO_DOWN\\n")
+            client.sendall(b"GO_DOWN\n")
             down_state, buffer = receive_state(
                 client, buffer, master=master, output=output
             )
