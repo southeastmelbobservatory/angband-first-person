@@ -5,9 +5,10 @@
 #include "ABFPItemActor.generated.h"
 
 class UStaticMeshComponent;
+class USceneComponent;
 
 UCLASS()
-class ANG BANDFIRSTPERSON_API AABFPItemActor : public AActor
+class ANGBANDFIRSTPERSON_API AABFPItemActor : public AActor
 {
     GENERATED_BODY()
 
