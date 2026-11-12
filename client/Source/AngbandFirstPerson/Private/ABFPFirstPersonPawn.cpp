@@ -102,13 +102,15 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         if (NetworkClient.PollSnapshot(AuthoritativeSnapshot))
         {
             const bool bFirstState = !bHaveAuthoritativeState;
+            const bool bLevelChanged = bHaveAuthoritativeState &&
+                AuthoritativeSnapshot.DungeonDepth != DemoSnapshot.DungeonDepth;
             DemoSnapshot = MoveTemp(AuthoritativeSnapshot);
             if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
 
             const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
             TargetPawnLocation = FVector(DemoSnapshot.PlayerX * GridCellSize,
                 DemoSnapshot.PlayerY * GridCellSize, 0.0f);
-            if (bFirstState)
+            if (bFirstState || bLevelChanged)
             {
                 SetActorLocation(TargetPawnLocation);
                 bInterpolatingMove = false;
