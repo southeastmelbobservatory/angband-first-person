@@ -7,7 +7,7 @@ Prove that the original simulation can drive a first-person 3D scene without cha
 ## Scene
 
 - Stone floor, walls and doors built from the exported terrain snapshot
-- First-person camera with free mouse look and warm lantern light
+- First-person camera with free mouse look, warm lantern light, ambient skylight and dungeon fog
 - Separate articulated 3D creature actor (not a billboard)
 - Separate 3D object actor
 - Turn/depth diagnostics
