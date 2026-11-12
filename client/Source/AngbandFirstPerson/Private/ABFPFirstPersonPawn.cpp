@@ -185,12 +185,31 @@ void AABFPFirstPersonPawn::WaitTurn()
 
 void AABFPFirstPersonPawn::GoUp()
 {
-    SendSimpleCommand(TEXT("GO_UP"));
+    if (bLiveMode)
+    {
+        SendSimpleCommand(TEXT("GO_UP"));
+        return;
+    }
+
+    if (DemoSnapshot.DungeonDepth > 0)
+    {
+        --DemoSnapshot.DungeonDepth;
+        ++DemoSnapshot.Turn;
+        UpdateStatusReadout();
+    }
 }
 
 void AABFPFirstPersonPawn::GoDown()
 {
-    SendSimpleCommand(TEXT("GO_DOWN"));
+    if (bLiveMode)
+    {
+        SendSimpleCommand(TEXT("GO_DOWN"));
+        return;
+    }
+
+    ++DemoSnapshot.DungeonDepth;
+    ++DemoSnapshot.Turn;
+    UpdateStatusReadout();
 }
 
 void AABFPFirstPersonPawn::AutoPickup()
