@@ -580,32 +580,48 @@ def main():
                     f"Monster display name was not serialized: {visible_monsters!r}"
                 )
 
-            # Attack the adjacent live Angband monster by bumping into it.
-            # The movement command remains Angband's normal combat action.
+            # Bump into the mouse once it has pursued close enough. If it
+            # is still two squares away, let Angband take another monster turn.
             monster_damage_verified = False
             monster_death_verified = False
-            target_id = None
-            for _ in range(4):
+            target_id = seeded_monster_id
+            for _ in range(16):
                 target = next((
                     entity for entity in monster_state.get("entities", [])
                     if len(entity) >= 11 and entity[3] == 1
+                    and str(entity[0]) == target_id
                     and "giant white mouse" in entity[10].lower()
                     and entity[7] > 0
                 ), None)
                 if target is None:
-                    break
+                    monster_death_verified = any(
+                        len(event) >= 9 and event[0] == 6 and event[2] == target_id
+                        for event in monster_state.get("events", [])
+                    ) and not any(
+                        len(entity) >= 4 and str(entity[0]) == target_id
+                        and entity[3] == 1
+                        for entity in monster_state.get("entities", [])
+                    )
+                    if monster_death_verified:
+                        break
+                    client.sendall(b"WAIT\\n")
+                    monster_state, buffer = receive_state(
+                        client, buffer, timeout=15, master=master, output=output
+                    )
+                    continue
 
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    raise AssertionError(
-                        f"Seeded monster is not adjacent for bump-attack: {target!r}"
+                    client.sendall(b"WAIT\\n")
+                    monster_state, buffer = receive_state(
+                        client, buffer, timeout=15, master=master, output=output
                     )
+                    continue
 
                 old_hp = target[7]
-                target_id = str(target[0])
                 client.sendall(
-                    (movement_by_delta[delta] + "\n").encode("ascii")
+                    (movement_by_delta[delta] + "\\n").encode("ascii")
                 )
                 attack_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
@@ -621,7 +637,7 @@ def main():
                 )
                 remaining = next((
                     entity for entity in attack_state.get("entities", [])
-                    if entity[0] == target[0] and entity[3] == 1
+                    if str(entity[0]) == target_id and entity[3] == 1
                 ), None)
                 if damage_event or (remaining is not None and remaining[7] < old_hp):
                     monster_damage_verified = True
@@ -630,8 +646,6 @@ def main():
                     monster_state = attack_state
                     break
                 monster_state = attack_state
-                if monster_damage_verified:
-                    break
 
             if not monster_damage_verified and not monster_death_verified:
                 raise AssertionError(
@@ -641,7 +655,7 @@ def main():
                 )
 
             if not monster_death_verified:
-                client.sendall(b"WAIT\n")
+                client.sendall(b"WAIT\\n")
                 death_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
@@ -649,7 +663,8 @@ def main():
                     len(event) >= 9 and event[0] == 6 and event[2] == target_id
                     for event in death_state.get("events", [])
                 ) and not any(
-                    len(entity) >= 10 and entity[0] == target_id and entity[3] == 1
+                    len(entity) >= 4 and str(entity[0]) == target_id
+                    and entity[3] == 1
                     for entity in death_state.get("entities", [])
                 )
                 monster_state = death_state
