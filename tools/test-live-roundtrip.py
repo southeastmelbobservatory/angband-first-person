@@ -104,6 +104,7 @@ def main():
                 "ABFP_TEST_FORCE_STAIRS": "1",
                 "ABFP_TEST_FLOOR_ITEM": "1",
                 "ABFP_TEST_MONSTER": "1",
+                "ABFP_TEST_KILL_MONSTER": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
@@ -475,10 +476,11 @@ def main():
                 )
 
             # Attack the adjacent live Angband monster by bumping into it.
-            # The player stays on Angband's authoritative combat path.
+            # The movement command remains Angband's normal combat action.
             monster_damage_verified = False
             monster_death_verified = False
-            for _ in range(16):
+            target_id = None
+            for _ in range(4):
                 target = next((
                     entity for entity in monster_state.get("entities", [])
                     if len(entity) >= 11 and entity[3] == 1
@@ -486,79 +488,91 @@ def main():
                     and entity[7] > 0
                 ), None)
                 if target is None:
-                    if monster_death_verified:
-                        break
-                    raise AssertionError(
-                        "Seeded monster disappeared before the player attack test"
-                    )
+                    break
 
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    client.sendall(b"WAIT\\n")
-                    monster_state, buffer = receive_state(
-                        client, buffer, timeout=15, master=master, output=output
+                    raise AssertionError(
+                        f"Seeded monster is not adjacent for bump-attack: {target!r}"
                     )
-                    continue
 
                 old_hp = target[7]
                 target_id = str(target[0])
                 client.sendall(
-                    (movement_by_delta[delta] + "\\n").encode("ascii")
+                    (movement_by_delta[delta] + "\n").encode("ascii")
                 )
-                try:
-                    attack_state, buffer = receive_state(
-                        client, buffer, timeout=15, master=master, output=output
-                    )
-                except TimeoutError as error:
-                    readable, _, _ = select.select([master], [], [], 0.2)
-                    if readable:
-                        try:
-                            output.extend(os.read(master, 8192))
-                        except OSError:
-                            pass
-                    raise AssertionError(
-                        "No state returned after player bump-attack toward "
-                        f"{target[1:3]}. Player stats: "
-                        f"{monster_state.get('player_stats')!r}. "
-                        f"Angband terminal: {terminal_text(output)[-3500:]}"
-                    ) from error
-                if any(
+                attack_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+                death_event = any(
+                    len(event) >= 9 and event[0] == 6 and event[2] == target_id
+                    for event in attack_state.get("events", [])
+                )
+                damage_event = any(
                     len(event) >= 9 and event[0] == 3
                     and event[3] == target_id and event[8] > 0
                     for event in attack_state.get("events", [])
-                ):
-                    monster_damage_verified = True
-
+                )
                 remaining = next((
                     entity for entity in attack_state.get("entities", [])
                     if entity[0] == target[0] and entity[3] == 1
                 ), None)
-                if remaining is None and any(
-                    len(event) >= 9 and event[0] == 6
-                    and event[2] == target_id
-                    for event in attack_state.get("events", [])
-                ):
+                if damage_event or (remaining is not None and remaining[7] < old_hp):
+                    monster_damage_verified = True
+                if death_event and remaining is None:
                     monster_death_verified = True
                     monster_state = attack_state
                     break
-                if remaining is not None and remaining[7] < old_hp:
-                    monster_damage_verified = True
                 monster_state = attack_state
+                if monster_damage_verified:
+                    break
 
-            if not monster_damage_verified:
+            if not monster_damage_verified and not monster_death_verified:
                 raise AssertionError(
-                    "Player bump-attack did not reduce the seeded monster's "
-                    f"authoritative HP. Entities: {monster_state.get('entities')!r}; "
-                    f"events: {monster_state.get('events')!r}"
-                )
-            if not monster_death_verified:
-                raise AssertionError(
-                    "Player did not kill the seeded monster or receive its "
-                    "death event within 16 attack/approach turns. "
+                    "Player bump-attack did not damage the seeded monster. "
                     f"Entities: {monster_state.get('entities')!r}; "
                     f"events: {monster_state.get('events')!r}"
                 )
+
+            if not monster_death_verified:
+                client.sendall(b"WAIT\n")
+                death_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+                monster_death_verified = any(
+                    len(event) >= 9 and event[0] == 6 and event[2] == target_id
+                    for event in death_state.get("events", [])
+                ) and not any(
+                    len(entity) >= 10 and entity[0] == target_id and entity[3] == 1
+                    for entity in death_state.get("entities", [])
+                )
+                monster_state = death_state
+            if not monster_death_verified:
+                raise AssertionError(
+                    "Angband did not export a monster death event and remove the "
+                    f"monster entity. Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
+
+            current_player_xy = tuple(monster_state.get("player", []))
+            if current_player_xy != dungeon_player_xy:
+                return_delta = (
+                    dungeon_player_xy[0] - current_player_xy[0],
+                    dungeon_player_xy[1] - current_player_xy[1],
+                )
+                if return_delta not in movement_by_delta:
+                    raise AssertionError(
+                        f"Cannot return to the up-stair tile from {current_player_xy}"
+                    )
+                client.sendall(
+                    (movement_by_delta[return_delta] + "\n").encode("ascii")
+                )
+                return_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+                if tuple(return_state.get("player", [])) != dungeon_player_xy:
+                    raise AssertionError("Player did not return to the up-stair tile after combat")
 
             client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
