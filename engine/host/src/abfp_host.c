@@ -120,6 +120,9 @@ static bool abfp_host_seed_test_monster(void)
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
     struct monster *mon;
+    static const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 };
+    static const int dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
+    size_t direction;
 
     if (!race || !test_item_grid_valid ||
         !square_in_bounds_fully(cave, test_item_grid) ||
