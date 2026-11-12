@@ -88,7 +88,14 @@ bool abfp_upstream_queue_command(abfp_command_type command)
     if (!player || !cave || pending_command) return false;
 
     if (dir != DIR_UNKNOWN) {
-        if (cmdq_push(CMD_WALK) != 0) return false;
+        struct loc target = loc_sum(player->grid, ddgrid[dir]);
+        /*
+         * Use Angband's explicit alter action for an occupied monster grid.
+         * It calls py_attack() directly and avoids the walk-test's visibility
+         * gate; ordinary empty-square movement remains CMD_WALK.
+         */
+        const bool attacking = square_monster(cave, target) != NULL;
+        if (cmdq_push(attacking ? CMD_ALTER : CMD_WALK) != 0) return false;
         cmd_set_arg_direction(cmdq_peek(), "direction", dir);
         pending_from = player->grid;
         pending_move = true;
