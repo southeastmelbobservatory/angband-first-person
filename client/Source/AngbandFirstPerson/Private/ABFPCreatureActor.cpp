@@ -117,14 +117,18 @@ void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId
         bDragon ? FVector(0.78f, 0.68f, 0.66f) :
         bBrute ? FVector(0.72f, 0.68f, 0.88f) :
         FVector(0.48f, 0.38f, 0.66f);
+    BaseBodyScale = BodyScale;
+    BaseBodyLocation = bSerpent ? FVector(0, 0, 52) : FVector(0, 0, 105);
+    BaseHeadScale = bDragon || bBrute ? FVector(0.40f, 0.38f, 0.40f) :
+        FVector(0.30f, 0.29f, 0.32f);
+    BaseHeadLocation = bSerpent ? FVector(65, 0, 66) : FVector(0, 0, 205);
     if (Body) {
-        Body->SetRelativeScale3D(BodyScale);
-        Body->SetRelativeLocation(bSerpent ? FVector(0, 0, 52) : FVector(0, 0, 105));
+        Body->SetRelativeScale3D(BaseBodyScale);
+        Body->SetRelativeLocation(BaseBodyLocation);
     }
     if (Head) {
-        Head->SetRelativeScale3D(bDragon || bBrute ? FVector(0.40f, 0.38f, 0.40f) :
-            FVector(0.30f, 0.29f, 0.32f));
-        Head->SetRelativeLocation(bSerpent ? FVector(65, 0, 66) : FVector(0, 0, 205));
+        Head->SetRelativeScale3D(BaseHeadScale);
+        Head->SetRelativeLocation(BaseHeadLocation);
     }
 
     const bool bArmedShape = !bSerpent;
@@ -142,7 +146,17 @@ void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId
 void AABFPCreatureActor::PlayHitReaction(int32 Damage)
 {
     (void)Damage;
+    if (bDying) return;
     DamageFlashSeconds = 0.22f;
+}
+
+void AABFPCreatureActor::PlayDeathReaction()
+{
+    if (bDying) return;
+    bDying = true;
+    DeathSeconds = 0.0f;
+    bInterpolating = false;
+    SetActorEnableCollision(false);
 }
 
 void AABFPCreatureActor::SetTargetLocation(const FVector& Location,
@@ -157,6 +171,20 @@ void AABFPCreatureActor::SetTargetLocation(const FVector& Location,
 void AABFPCreatureActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    if (bDying)
+    {
+        DeathSeconds += DeltaSeconds;
+        const float Alpha = FMath::Clamp(DeathSeconds / 0.72f, 0.0f, 1.0f);
+        const float RemainingScale = 1.0f - Alpha * 0.78f;
+        SetActorScale3D(FVector(RemainingScale));
+        AddActorLocalRotation(FRotator(0.0f, 0.0f, 190.0f * DeltaSeconds));
+        if (CreatureMaterial)
+            CreatureMaterial->SetVectorParameterValue(TEXT("Color"),
+                FLinearColor::LerpUsingHSV(BaseColor, FLinearColor(0.015f, 0.012f, 0.01f), Alpha));
+        if (DeathSeconds >= 0.72f) Destroy();
+        return;
+    }
+
     Elapsed += DeltaSeconds;
     DamageFlashSeconds = FMath::Max(0.0f, DamageFlashSeconds - DeltaSeconds);
 
@@ -179,7 +207,7 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
     const float Breath = FMath::Sin(Elapsed * 2.1f) * 3.0f;
     const float ArmSwing = FMath::Sin(Elapsed * 1.3f) * 7.0f;
 
-    if (Body) Body->SetRelativeLocation(FVector(0, 0, 105 + Breath));
+    if (Body) Body->SetRelativeLocation(BaseBodyLocation + FVector(0, 0, Breath));
     if (Head) Head->SetRelativeRotation(FRotator(0, FMath::Sin(Elapsed * 0.7f) * 5.0f, 0));
     if (LeftArm) LeftArm->SetRelativeRotation(FRotator(ArmSwing, 0, -8));
     if (RightArm) RightArm->SetRelativeRotation(FRotator(-ArmSwing, 0, 8));
@@ -191,12 +219,12 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
     if (DamageFlashSeconds > 0.0f)
     {
         const float Punch = 1.0f + FMath::Sin(Elapsed * 45.0f) * 0.09f;
-        if (Body) Body->SetRelativeScale3D(FVector(0.48f * Punch, 0.38f * Punch, 0.66f * Punch));
-        if (Head) Head->SetRelativeScale3D(FVector(0.30f * Punch, 0.29f * Punch, 0.32f * Punch));
+        if (Body) Body->SetRelativeScale3D(BaseBodyScale * Punch);
+        if (Head) Head->SetRelativeScale3D(BaseHeadScale * Punch);
     }
     else
     {
-        if (Body) Body->SetRelativeScale3D(FVector(0.48f, 0.38f, 0.66f));
-        if (Head) Head->SetRelativeScale3D(FVector(0.30f, 0.29f, 0.32f));
+        if (Body) Body->SetRelativeScale3D(BaseBodyScale);
+        if (Head) Head->SetRelativeScale3D(BaseHeadScale);
     }
 }
