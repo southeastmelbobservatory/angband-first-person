@@ -19,6 +19,7 @@ static bool test_down_stair_seeded;
 static bool test_monster_seeded;
 static bool test_monster_attacked;
 static bool test_monster_killed;
+static int test_monster_midx;
 static bool test_item_grid_valid;
 static struct loc test_item_grid;
 static bool test_stair_grid_valid;
@@ -120,6 +121,7 @@ static bool abfp_host_seed_test_monster(void)
          */
         mon->hp = 1;
         mon->maxhp = 1;
+        test_monster_midx = mon->midx;
         monster_wake(mon, true, 100);
     }
     update_monsters(true);
@@ -185,17 +187,18 @@ static errr abfp_host_get_command(cmd_context context)
             if (!abfp_host_seed_test_monster()) return -1;
         }
 
-        if (test_monster_seeded) {
+        if (test_monster_seeded && test_monster_midx > 0) {
             struct loc target;
-            if (abfp_host_move_target(command, &target) &&
-                loc_eq(target, test_item_grid) &&
-                square_monster(cave, test_item_grid))
+            struct monster *mon = cave_monster(cave, test_monster_midx);
+            if (mon && abfp_host_move_target(command, &target) &&
+                loc_eq(target, mon->grid))
                 test_monster_attacked = true;
         }
         if (getenv("ABFP_TEST_KILL_MONSTER") &&
             command == ABFP_COMMAND_WAIT && test_monster_attacked &&
             !test_monster_killed) {
-            struct monster *mon = square_monster(cave, test_item_grid);
+            struct monster *mon = test_monster_midx > 0 ?
+                cave_monster(cave, test_monster_midx) : NULL;
             if (mon) {
                 bool fear = false;
                 (void)mon_take_hit(mon, player, mon->hp, &fear, NULL);
@@ -265,6 +268,7 @@ void abfp_host_game_closed(void)
     test_monster_seeded = false;
     test_monster_attacked = false;
     test_monster_killed = false;
+    test_monster_midx = 0;
     test_item_grid_valid = false;
     test_stair_grid_valid = false;
 }
