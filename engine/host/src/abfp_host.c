@@ -134,6 +134,26 @@ static bool abfp_host_seed_test_monster(void)
     mon->hp = 1;
     mon->maxhp = 1;
     monster_wake(mon, true, 100);
+
+    /*
+     * Ensure the player has an open neighbouring tile to step away onto.
+     * This lets the normal Angband monster phase pursue the player and
+     * gives the bridge a visible before/after pair for its movement event.
+     */
+    for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
+        struct loc approach = loc(test_stair_grid.x + dx[direction],
+            test_stair_grid.y + dy[direction]);
+        if (!square_in_bounds_fully(cave, approach) ||
+            loc_eq(approach, test_item_grid) ||
+            !square_isempty(cave, approach)) continue;
+        if (!square_isobjectholding(cave, approach) ||
+            !square_ispassable(cave, approach)) {
+            square_set_feat(cave, approach, FEAT_FLOOR);
+            square_memorize(cave, approach);
+            square_light_spot(cave, approach);
+        }
+    }
+
     update_monsters(true);
     square_light_spot(cave, test_item_grid);
     test_monster_seeded = true;
@@ -190,7 +210,8 @@ static errr abfp_host_get_command(cmd_context context)
             (void)abfp_frontend_refresh_snapshot();
         }
 
-        if (getenv("ABFP_TEST_MONSTER") && !test_monster_seeded &&
+        if (getenv("ABFP_TEST_MONSTER") &&
+            command == ABFP_COMMAND_WAIT && !test_monster_seeded &&
             player && cave && cave->depth > 0 && test_stair_grid_valid &&
             test_item_grid_valid && !square_object(cave, test_item_grid) &&
             loc_eq(player->grid, test_stair_grid)) {
