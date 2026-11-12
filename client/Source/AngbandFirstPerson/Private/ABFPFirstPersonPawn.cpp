@@ -46,25 +46,59 @@ void AABFPFirstPersonPawn::BeginPlay()
         AABFPDungeonActor::StaticClass(), FVector::ZeroVector,
         FRotator::ZeroRotator, Params);
 
-    BuildDemoSnapshot();
-    const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
-    SetActorLocation(FVector(DemoSnapshot.PlayerX * GridCellSize,
-        DemoSnapshot.PlayerY * GridCellSize, 0.0f));
-    TargetPawnLocation = GetActorLocation();
-    if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
-
-    if (GEngine)
+    bLiveMode = NetworkClient.Connect(TEXT("127.0.0.1"), 47652);
+    if (bLiveMode)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 12.0f, FColor::Yellow,
-            TEXT("ANGBAND FIRST PERSON — RENDERER DEMO (local mock state, not live Angband)"));
+        if (GEngine)
+            GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::Green,
+                TEXT("Connected to local Angband host. Waiting for authoritative state..."));
+    }
+    else
+    {
+        BuildDemoSnapshot();
+        const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
+        SetActorLocation(FVector(DemoSnapshot.PlayerX * GridCellSize,
+            DemoSnapshot.PlayerY * GridCellSize, 0.0f));
+        TargetPawnLocation = GetActorLocation();
+        if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
+        if (GEngine)
+            GEngine->AddOnScreenDebugMessage(-1, 12.0f, FColor::Yellow,
+                TEXT("No Angband host at 127.0.0.1:47652 — running local renderer demo"));
     }
 }
 
 void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
-    if (!bInterpolatingMove) return;
 
+    if (bLiveMode)
+    {
+        FABFPSnapshot AuthoritativeSnapshot;
+        if (NetworkClient.PollSnapshot(AuthoritativeSnapshot))
+        {
+            const bool bFirstState = !bHaveAuthoritativeState;
+            DemoSnapshot = MoveTemp(AuthoritativeSnapshot);
+            if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
+
+            const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
+            TargetPawnLocation = FVector(DemoSnapshot.PlayerX * GridCellSize,
+                DemoSnapshot.PlayerY * GridCellSize, 0.0f);
+            if (bFirstState)
+            {
+                SetActorLocation(TargetPawnLocation);
+                bInterpolatingMove = false;
+            }
+            else if (FVector::DistSquared(GetActorLocation(), TargetPawnLocation) > 4.0f)
+            {
+                bInterpolatingMove = true;
+            }
+
+            if (!DemoSnapshot.bInitialState) bAwaitingServerTurn = false;
+            bHaveAuthoritativeState = true;
+        }
+    }
+
+    if (!bInterpolatingMove) return;
     const FVector Current = FMath::VInterpTo(GetActorLocation(),
         TargetPawnLocation, DeltaSeconds, 12.0f);
     SetActorLocation(Current);
@@ -73,6 +107,12 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         SetActorLocation(TargetPawnLocation);
         bInterpolatingMove = false;
     }
+}
+
+void AABFPFirstPersonPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    NetworkClient.Disconnect();
+    Super::EndPlay(EndPlayReason);
 }
 
 void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -115,7 +155,27 @@ void AABFPFirstPersonPawn::MoveRelative(FVector2D LocalDirection)
     const int32 DY = FMath::Abs(WorldDirection.Y) > 0.35f ?
         static_cast<int32>(FMath::Sign(WorldDirection.Y)) : 0;
 
-    if (DX != 0 || DY != 0) TryDemoStep(DX, DY);
+    if (DX == 0 && DY == 0) return;
+
+    if (bLiveMode)
+    {
+        if (!bHaveAuthoritativeState || bAwaitingServerTurn) return;
+        FString Command;
+        if (DX == 0 && DY < 0) Command = TEXT("MOVE_NORTH");
+        else if (DX == 0 && DY > 0) Command = TEXT("MOVE_SOUTH");
+        else if (DX < 0 && DY == 0) Command = TEXT("MOVE_WEST");
+        else if (DX > 0 && DY == 0) Command = TEXT("MOVE_EAST");
+        else if (DX < 0 && DY < 0) Command = TEXT("MOVE_NORTH_WEST");
+        else if (DX > 0 && DY < 0) Command = TEXT("MOVE_NORTH_EAST");
+        else if (DX < 0 && DY > 0) Command = TEXT("MOVE_SOUTH_WEST");
+        else if (DX > 0 && DY > 0) Command = TEXT("MOVE_SOUTH_EAST");
+
+        if (!Command.IsEmpty() && NetworkClient.SendCommand(Command))
+            bAwaitingServerTurn = true;
+        return;
+    }
+
+    TryDemoStep(DX, DY);
 }
 
 void AABFPFirstPersonPawn::BuildDemoSnapshot()
