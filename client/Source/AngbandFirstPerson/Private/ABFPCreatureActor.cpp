@@ -41,24 +41,102 @@ AABFPCreatureActor::AABFPCreatureActor()
     RightLeg = MakePart(TEXT("RightLeg"), Cylinder, FVector(0, 18, 34), FVector(0.14f, 0.14f, 0.38f));
     LeftEye = MakePart(TEXT("LeftEye"), Sphere, FVector(24, -12, 211), FVector(0.055f, 0.055f, 0.055f));
     RightEye = MakePart(TEXT("RightEye"), Sphere, FVector(24, 12, 211), FVector(0.055f, 0.055f, 0.055f));
+    Tail = MakePart(TEXT("Tail"), Cone, FVector(-72, 0, 68), FVector(0.16f, 0.16f, 0.72f));
+    Tail->SetRelativeRotation(FRotator(0, 0, -90));
+    LeftWing = MakePart(TEXT("LeftWing"), Cone, FVector(-8, -68, 155), FVector(0.58f, 0.12f, 0.34f));
+    RightWing = MakePart(TEXT("RightWing"), Cone, FVector(-8, 68, 155), FVector(0.58f, 0.12f, 0.34f));
+    LeftWing->SetRelativeRotation(FRotator(0, 0, -35));
+    RightWing->SetRelativeRotation(FRotator(0, 0, 35));
+    LeftHorn = MakePart(TEXT("LeftHorn"), Cone, FVector(26, -18, 245), FVector(0.09f, 0.09f, 0.28f));
+    RightHorn = MakePart(TEXT("RightHorn"), Cone, FVector(26, 18, 245), FVector(0.09f, 0.09f, 0.28f));
+    Tail->SetVisibility(false);
+    LeftWing->SetVisibility(false);
+    RightWing->SetVisibility(false);
+    LeftHorn->SetVisibility(false);
+    RightHorn->SetVisibility(false);
 
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     if (BasicMaterial.Succeeded())
     {
-        UMaterialInstanceDynamic* HideMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        CreatureMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         UMaterialInstanceDynamic* EyeMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        HideMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.12f, 0.19f, 0.11f));
+        CreatureMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
         EyeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.55f, 0.08f));
-        Body->SetMaterial(0, HideMaterial);
-        Head->SetMaterial(0, HideMaterial);
-        LeftArm->SetMaterial(0, HideMaterial);
-        RightArm->SetMaterial(0, HideMaterial);
-        LeftLeg->SetMaterial(0, HideMaterial);
-        RightLeg->SetMaterial(0, HideMaterial);
+        Body->SetMaterial(0, CreatureMaterial);
+        Head->SetMaterial(0, CreatureMaterial);
+        LeftArm->SetMaterial(0, CreatureMaterial);
+        RightArm->SetMaterial(0, CreatureMaterial);
+        LeftLeg->SetMaterial(0, CreatureMaterial);
+        RightLeg->SetMaterial(0, CreatureMaterial);
+        Tail->SetMaterial(0, CreatureMaterial);
+        LeftWing->SetMaterial(0, CreatureMaterial);
+        RightWing->SetMaterial(0, CreatureMaterial);
+        LeftHorn->SetMaterial(0, CreatureMaterial);
+        RightHorn->SetMaterial(0, CreatureMaterial);
         LeftEye->SetMaterial(0, EyeMaterial);
         RightEye->SetMaterial(0, EyeMaterial);
     }
+}
+
+void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId)
+{
+    if (CreatureName == Name && CreatureKindId == KindId) return;
+    CreatureName = Name;
+    CreatureKindId = KindId;
+
+    const FString Lower = Name.ToLower();
+    const bool bDragon = Lower.Contains(TEXT("dragon")) || Lower.Contains(TEXT("wyrm"));
+    const bool bSerpent = Lower.Contains(TEXT("snake")) ||
+        Lower.Contains(TEXT("worm")) || Lower.Contains(TEXT("naga"));
+    const bool bUndead = Lower.Contains(TEXT("skeleton")) ||
+        Lower.Contains(TEXT("zombie")) || Lower.Contains(TEXT("wraith")) ||
+        Lower.Contains(TEXT("ghost"));
+    const bool bBrute = Lower.Contains(TEXT("troll")) ||
+        Lower.Contains(TEXT("ogre")) || Lower.Contains(TEXT("giant"));
+    const bool bDemon = Lower.Contains(TEXT("demon")) ||
+        Lower.Contains(TEXT("devil"));
+
+    BaseColor = bDragon ? FLinearColor(0.42f, 0.075f, 0.045f) :
+        bSerpent ? FLinearColor(0.12f, 0.38f, 0.16f) :
+        bUndead ? FLinearColor(0.48f, 0.58f, 0.66f) :
+        bDemon ? FLinearColor(0.38f, 0.055f, 0.045f) :
+        bBrute ? FLinearColor(0.30f, 0.34f, 0.12f) :
+        Lower.Contains(TEXT("kobold")) || Lower.Contains(TEXT("goblin")) ?
+            FLinearColor(0.20f, 0.34f, 0.12f) :
+            FLinearColor(0.34f, 0.25f, 0.16f);
+
+    const float KindTint = static_cast<float>(FMath::Abs(KindId) % 5) * 0.018f;
+    BaseColor.R = FMath::Clamp(BaseColor.R + KindTint, 0.0f, 1.0f);
+    BaseColor.G = FMath::Clamp(BaseColor.G + KindTint * 0.5f, 0.0f, 1.0f);
+
+    if (CreatureMaterial)
+        CreatureMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
+
+    const FVector BodyScale = bSerpent ? FVector(0.82f, 0.25f, 0.24f) :
+        bDragon ? FVector(0.78f, 0.68f, 0.66f) :
+        bBrute ? FVector(0.72f, 0.68f, 0.88f) :
+        FVector(0.48f, 0.38f, 0.66f);
+    if (Body) {
+        Body->SetRelativeScale3D(BodyScale);
+        Body->SetRelativeLocation(bSerpent ? FVector(0, 0, 52) : FVector(0, 0, 105));
+    }
+    if (Head) {
+        Head->SetRelativeScale3D(bDragon || bBrute ? FVector(0.40f, 0.38f, 0.40f) :
+            FVector(0.30f, 0.29f, 0.32f));
+        Head->SetRelativeLocation(bSerpent ? FVector(65, 0, 66) : FVector(0, 0, 205));
+    }
+
+    const bool bArmedShape = !bSerpent;
+    if (LeftArm) LeftArm->SetVisibility(bArmedShape);
+    if (RightArm) RightArm->SetVisibility(bArmedShape);
+    if (LeftLeg) LeftLeg->SetVisibility(bArmedShape);
+    if (RightLeg) RightLeg->SetVisibility(bArmedShape);
+    if (Tail) Tail->SetVisibility(bSerpent || bDragon);
+    if (LeftWing) LeftWing->SetVisibility(bDragon);
+    if (RightWing) RightWing->SetVisibility(bDragon);
+    if (LeftHorn) LeftHorn->SetVisibility(bDragon || bDemon);
+    if (RightHorn) RightHorn->SetVisibility(bDragon || bDemon);
 }
 
 void AABFPCreatureActor::PlayHitReaction(int32 Damage)
@@ -105,6 +183,10 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
     if (Head) Head->SetRelativeRotation(FRotator(0, FMath::Sin(Elapsed * 0.7f) * 5.0f, 0));
     if (LeftArm) LeftArm->SetRelativeRotation(FRotator(ArmSwing, 0, -8));
     if (RightArm) RightArm->SetRelativeRotation(FRotator(-ArmSwing, 0, 8));
+
+    if (CreatureMaterial)
+        CreatureMaterial->SetVectorParameterValue(TEXT("Color"),
+            DamageFlashSeconds > 0.0f ? FLinearColor(1.0f, 0.06f, 0.025f) : BaseColor);
 
     if (DamageFlashSeconds > 0.0f)
     {
