@@ -6,9 +6,10 @@
 #include "ABFPDungeonActor.generated.h"
 
 class UInstancedStaticMeshComponent;
+class USceneComponent;
 
 UCLASS()
-class ANG BANDFIRSTPERSON_API AABFPDungeonActor : public AActor
+class ANGBANDFIRSTPERSON_API AABFPDungeonActor : public AActor
 {
     GENERATED_BODY()
 
