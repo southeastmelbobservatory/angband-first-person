@@ -61,6 +61,7 @@ struct FABFPEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Type = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 Turn = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bInitialState = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 SubjectId = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int64 TargetId = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 FromX = 0;
