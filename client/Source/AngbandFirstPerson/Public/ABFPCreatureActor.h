@@ -6,6 +6,7 @@
 
 class UStaticMeshComponent;
 class USceneComponent;
+class UMaterialInstanceDynamic;
 
 UCLASS()
 class ANGBANDFIRSTPERSON_API AABFPCreatureActor : public AActor
@@ -17,6 +18,7 @@ public:
 
     void PlayHitReaction(int32 Damage);
     void SetTargetLocation(const FVector& Location, const FRotator& Rotation);
+    void SetCreatureAppearance(const FString& Name, int32 KindId);
 
 protected:
     virtual void Tick(float DeltaSeconds) override;
@@ -31,6 +33,14 @@ private:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> RightLeg;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftEye;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> RightEye;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> Tail;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftWing;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightWing;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftHorn;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightHorn;
+    UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CreatureMaterial;
+    FString CreatureName;
+    FLinearColor BaseColor = FLinearColor(0.12f, 0.19f, 0.11f);
     float Elapsed = 0.0f;
     float DamageFlashSeconds = 0.0f;
     FVector TargetLocation = FVector::ZeroVector;
