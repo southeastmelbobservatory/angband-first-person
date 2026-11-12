@@ -17,8 +17,12 @@ AABFPDungeonActor::AABFPDungeonActor()
 
     Floors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("FloorInstances"));
     Floors->SetupAttachment(SceneRoot);
+    RememberedFloors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("RememberedFloorInstances"));
+    RememberedFloors->SetupAttachment(SceneRoot);
     Walls = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("WallInstances"));
     Walls->SetupAttachment(SceneRoot);
+    RememberedWalls = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("RememberedWallInstances"));
+    RememberedWalls->SetupAttachment(SceneRoot);
     Doors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("DoorInstances"));
     Doors->SetupAttachment(SceneRoot);
 
@@ -38,15 +42,21 @@ AABFPDungeonActor::AABFPDungeonActor()
     if (CubeMesh.Succeeded())
     {
         Floors->SetStaticMesh(CubeMesh.Object);
+        RememberedFloors->SetStaticMesh(CubeMesh.Object);
         Walls->SetStaticMesh(CubeMesh.Object);
+        RememberedWalls->SetStaticMesh(CubeMesh.Object);
         Doors->SetStaticMesh(CubeMesh.Object);
     }
 
     Floors->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    RememberedFloors->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Walls->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    RememberedWalls->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Doors->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Floors->SetCastShadow(true);
+    RememberedFloors->SetCastShadow(false);
     Walls->SetCastShadow(true);
+    RememberedWalls->SetCastShadow(false);
     Doors->SetCastShadow(true);
 
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
@@ -54,13 +64,19 @@ AABFPDungeonActor::AABFPDungeonActor()
     if (BasicMaterial.Succeeded())
     {
         UMaterialInstanceDynamic* FloorMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* MemoryFloorMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         UMaterialInstanceDynamic* WallMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* MemoryWallMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         UMaterialInstanceDynamic* DoorMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         FloorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.075f, 0.085f, 0.10f));
+        MemoryFloorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.025f, 0.03f, 0.04f));
         WallMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.19f, 0.20f, 0.22f));
+        MemoryWallMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.055f, 0.06f, 0.07f));
         DoorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.32f, 0.16f, 0.055f));
         Floors->SetMaterial(0, FloorMaterial);
+        RememberedFloors->SetMaterial(0, MemoryFloorMaterial);
         Walls->SetMaterial(0, WallMaterial);
+        RememberedWalls->SetMaterial(0, MemoryWallMaterial);
         Doors->SetMaterial(0, DoorMaterial);
     }
 }
@@ -76,7 +92,9 @@ FVector AABFPDungeonActor::GridToWorld(int32 X, int32 Y,
 void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 {
     Floors->ClearInstances();
+    RememberedFloors->ClearInstances();
     Walls->ClearInstances();
+    RememberedWalls->ClearInstances();
     Doors->ClearInstances();
 
     for (const FABFPCell& Cell : Snapshot.Cells)
@@ -88,13 +106,15 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 
         if (Cell.Terrain == EABFPTerrain::Wall)
         {
-            Walls->AddInstance(FTransform(FRotator::ZeroRotator,
+            UInstancedStaticMeshComponent* WallLayer = Cell.bVisible ? Walls : RememberedWalls;
+            WallLayer->AddInstance(FTransform(FRotator::ZeroRotator,
                 Tile + FVector(0, 0, 150.0f),
                 FVector(CellSize / 100.0f, CellSize / 100.0f, 3.0f)));
             continue;
         }
 
-        Floors->AddInstance(FTransform(FRotator::ZeroRotator,
+        UInstancedStaticMeshComponent* FloorLayer = Cell.bVisible ? Floors : RememberedFloors;
+        FloorLayer->AddInstance(FTransform(FRotator::ZeroRotator,
             Tile - FVector(0, 0, 6.0f),
             FVector(CellSize / 100.0f, CellSize / 100.0f, 0.12f)));
 
