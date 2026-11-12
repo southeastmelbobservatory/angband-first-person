@@ -287,7 +287,7 @@ def main():
                 )
 
             blocked_command, blocked_target = blocked
-            client.sendall((blocked_command + "\\n").encode("ascii"))
+            client.sendall((blocked_command + "\n").encode("ascii"))
             blocked_state, buffer = receive_state(
                 client, buffer, master=master, output=output
             )
