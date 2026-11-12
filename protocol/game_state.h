@@ -32,6 +32,7 @@ typedef struct abfp_cell {
  * Object category/variant are tval/sval and are zero for unidentified items.
  * The renderer maps these game IDs to its own models and animations. */
 typedef struct abfp_entity_state {
+    char name[64];
     uint64_t id;
     int32_t x, y;
     abfp_entity_type type;
