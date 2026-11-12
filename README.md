@@ -44,6 +44,8 @@ ctest --test-dir build --output-on-failure
 
 This builds and tests the protocol/bridge layer without the Angband dependency.
 
+The Unreal Engine 5 presentation project is in [client/AngbandFirstPerson.uproject](client/AngbandFirstPerson.uproject); see [client/README.md](client/README.md) before opening it. The Unreal scene currently uses mock data, not the live engine.
+
 See [docs/architecture.md](docs/architecture.md), [docs/bridge-roadmap.md](docs/bridge-roadmap.md), and [engine/bridge/INTEGRATION_CHECKLIST.md](engine/bridge/INTEGRATION_CHECKLIST.md).
 
 ## First playable milestone
