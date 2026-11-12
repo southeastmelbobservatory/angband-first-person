@@ -2,7 +2,7 @@ diff --git a/src/main.c b/src/main.c
 index 0000000..0000000 100644
 --- a/src/main.c
 +++ b/src/main.c
-@@ -20,6 +20,7 @@
+@@ -20,5 +20,6 @@
  #include "ui-prefs.h"
  #include "ui-signals.h"
 +#include "abfp_host.h"
@@ -19,7 +19,7 @@ index 0000000..0000000 100644
  	/* Wait for response */
  	pause_line(Term);
  
-@@ -476,6 +479,7 @@ int main(int argc, char *argv[])
+@@ -476,4 +478,5 @@ int main(int argc, char *argv[])
  	play_game((select_game) ?
  		GAME_SELECT : ((new_game) ? GAME_NEW : GAME_LOAD));
  
@@ -30,12 +30,12 @@ diff --git a/src/ui-game.c b/src/ui-game.c
 index 0000000..0000000 100644
 --- a/src/ui-game.c
 +++ b/src/ui-game.c
-@@ -52,6 +52,7 @@
+@@ -52,2 +52,4 @@
  #include "ui-game.h"
 +#include "abfp_frontend.h"
 +#include "abfp_host.h"
  #include "ui-help.h"
-@@ -1038,6 +1039,7 @@ void play_game(enum game_mode_type mode)
+@@ -1038,8 +1040,10 @@ void play_game(enum game_mode_type mode)
  			pre_turn_refresh();
  			cmd_get_hook(CTX_GAME);
  			run_game_loop();
