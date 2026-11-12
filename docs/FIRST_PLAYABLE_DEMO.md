@@ -57,7 +57,7 @@ Complete the ordinary Angband UI flow to create or load a character. When the ga
 127.0.0.1:47652
 ```
 
-The host binds to loopback by default. For a separate Unreal client on a trusted LAN, set `ABFP_BIND_ADDRESS` on the Linux host and configure the pawn Blueprint's HostAddress; see [client connection instructions](../client/README.md#configure-the-native-host-connection). The protocol has no authentication or encryption, so do not expose it to the internet.
+The host binds to loopback by default. For a separate Unreal client on a trusted LAN, set `ABFP_BIND_ADDRESS` on the Linux host and set HostAddress in client/Config/DefaultGame.ini; see [client connection instructions](../client/README.md#configure-the-native-host-connection). The protocol has no authentication or encryption, so do not expose it to the internet.
 
 ## Unreal client
 
