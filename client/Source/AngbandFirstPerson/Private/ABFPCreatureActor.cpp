@@ -61,10 +61,17 @@ AABFPCreatureActor::AABFPCreatureActor()
     }
 }
 
+void AABFPCreatureActor::PlayHitReaction(int32 Damage)
+{
+    (void)Damage;
+    DamageFlashSeconds = 0.22f;
+}
+
 void AABFPCreatureActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     Elapsed += DeltaSeconds;
+    DamageFlashSeconds = FMath::Max(0.0f, DamageFlashSeconds - DeltaSeconds);
 
     const float Breath = FMath::Sin(Elapsed * 2.1f) * 3.0f;
     const float ArmSwing = FMath::Sin(Elapsed * 1.3f) * 7.0f;
@@ -73,4 +80,16 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
     if (Head) Head->SetRelativeRotation(FRotator(0, FMath::Sin(Elapsed * 0.7f) * 5.0f, 0));
     if (LeftArm) LeftArm->SetRelativeRotation(FRotator(ArmSwing, 0, -8));
     if (RightArm) RightArm->SetRelativeRotation(FRotator(-ArmSwing, 0, 8));
+
+    if (DamageFlashSeconds > 0.0f)
+    {
+        const float Punch = 1.0f + FMath::Sin(Elapsed * 45.0f) * 0.09f;
+        if (Body) Body->SetRelativeScale3D(FVector(0.48f * Punch, 0.38f * Punch, 0.66f * Punch));
+        if (Head) Head->SetRelativeScale3D(FVector(0.30f * Punch, 0.29f * Punch, 0.32f * Punch));
+    }
+    else
+    {
+        if (Body) Body->SetRelativeScale3D(FVector(0.48f, 0.38f, 0.66f));
+        if (Head) Head->SetRelativeScale3D(FVector(0.30f, 0.29f, 0.32f));
+    }
 }
