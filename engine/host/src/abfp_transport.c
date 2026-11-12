@@ -86,12 +86,14 @@ static void *worker_main(void *unused)
     (void)unused;
     while (1) {
         int fd = accept(listen_fd, NULL, NULL);
+        bool serve;
         if (fd < 0) { if (errno == EINTR) continue; break; }
         pthread_mutex_lock(&mutex);
         active_fd = fd;
-        if (!running) shutdown(fd, SHUT_RDWR);
+        serve = running;
+        if (!serve) shutdown(fd, SHUT_RDWR);
         pthread_mutex_unlock(&mutex);
-        if (running) serve_client(fd);
+        if (serve) serve_client(fd);
         close(fd);
         pthread_mutex_lock(&mutex); active_fd = -1; pthread_mutex_unlock(&mutex);
         pthread_mutex_lock(&mutex);
