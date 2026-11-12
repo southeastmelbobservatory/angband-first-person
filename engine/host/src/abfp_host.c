@@ -23,10 +23,8 @@ static errr abfp_host_get_command(cmd_context context)
 
     while (1) {
         if (!abfp_transport_wait_for_client()) return -1;
-        if (!initial_state_sent) {
-            abfp_host_publish_state(true);
-            initial_state_sent = true;
-        }
+        if (!initial_state_sent)
+            initial_state_sent = abfp_host_publish_state(true);
         if (!abfp_transport_wait_command(&command)) {
             initial_state_sent = false;
             continue;
@@ -42,24 +40,32 @@ bool abfp_host_install(uint16_t port)
     return true;
 }
 
-void abfp_host_publish_state(bool initial_state)
+/*
+ * Retain queued events if delivery fails (for example, a client disconnects
+ * between command submission and the post-turn publish). The next client
+ * receives the latest full snapshot plus those still-pending events.
+ */
+bool abfp_host_publish_state(bool initial_state)
 {
     const abfp_snapshot *snapshot = abfp_frontend_snapshot();
     size_t count = abfp_bridge_event_count();
     abfp_event *events = count ? (abfp_event *)malloc(count * sizeof(*events)) : NULL;
     size_t i;
+    bool published;
 
-    if (count && !events) {
-        abfp_bridge_clear_events();
-        return;
-    }
+    if (count && !events) return false;
     for (i = 0; i < count; ++i) {
         const abfp_event *event = abfp_bridge_event_at(i);
-        if (event) events[i] = *event;
+        if (!event) {
+            free(events);
+            return false;
+        }
+        events[i] = *event;
     }
-    (void)abfp_transport_publish_state(snapshot, events, count, initial_state);
+    published = abfp_transport_publish_state(snapshot, events, count, initial_state);
     free(events);
-    abfp_bridge_clear_events();
+    if (published) abfp_bridge_clear_events();
+    return published;
 }
 
 void abfp_host_game_closed(void)
