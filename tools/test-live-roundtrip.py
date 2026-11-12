@@ -604,7 +604,7 @@ def main():
                     )
                     if monster_death_verified:
                         break
-                    client.sendall(b"WAIT\\n")
+                    client.sendall(b"WAIT\n")
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
@@ -613,7 +613,7 @@ def main():
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    client.sendall(b"WAIT\\n")
+                    client.sendall(b"WAIT\n")
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
@@ -621,7 +621,7 @@ def main():
 
                 old_hp = target[7]
                 client.sendall(
-                    (movement_by_delta[delta] + "\\n").encode("ascii")
+                    (movement_by_delta[delta] + "\n").encode("ascii")
                 )
                 attack_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
@@ -655,7 +655,7 @@ def main():
                 )
 
             if not monster_death_verified:
-                client.sendall(b"WAIT\\n")
+                client.sendall(b"WAIT\n")
                 death_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
