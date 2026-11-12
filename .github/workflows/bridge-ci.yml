@@ -29,3 +29,25 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  upstream-adapter-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Checkout pinned Angband 4.2.6 source
+        uses: actions/checkout@v4
+        with:
+          repository: angband/angband
+          ref: f3082213b73f3e463e3d0d60bff4b00462beae6e
+          path: engine/upstream/angband
+      - name: Configure bridge with real upstream headers
+        run: >-
+          cmake -S . -B build-upstream
+          -DBUILD_TESTING=ON
+          -DABFP_WITH_ANGBAND=ON
+          -DANGBAND_SRC_DIR=${{ github.workspace }}/engine/upstream/angband/src
+      - name: Compile bridge and upstream adapter
+        run: cmake --build build-upstream --parallel
+      - name: Run bridge tests
+        run: ctest --test-dir build-upstream --output-on-failure
