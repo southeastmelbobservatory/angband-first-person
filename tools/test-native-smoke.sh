@@ -9,12 +9,13 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-# Angband expects a writable per-user directory even for its save-list query.
-# Keep smoke-test state isolated from the runner account and repository.
+# The -l startup path opens the configured save directory.  Give the test an
+# isolated, writable save directory rather than relying on the runner's system
+# paths or per-user config directory.
 TMP_HOME="$(mktemp -d)"
 trap 'rm -rf "$TMP_HOME"' EXIT
-mkdir -p "$TMP_HOME/user"
+mkdir -p "$TMP_HOME/save"
 
-HOME="$TMP_HOME" "$BIN" "-duser=$TMP_HOME/user" -l
+HOME="$TMP_HOME" "$BIN" "-dsave=$TMP_HOME/save" -l
 
 echo "ABFP native Angband executable smoke test passed."
