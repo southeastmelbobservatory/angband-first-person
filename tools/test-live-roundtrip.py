@@ -233,7 +233,11 @@ def main():
                 pass
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
-                waited, _ = os.waitpid(pid, os.WNOHANG)
+                try:
+                    waited, _ = os.waitpid(pid, os.WNOHANG)
+                except ChildProcessError:
+                    # wait_for_terminal_text() may already have reaped it.
+                    waited = pid
                 if waited:
                     break
                 time.sleep(0.05)
