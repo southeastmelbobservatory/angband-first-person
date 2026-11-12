@@ -3,6 +3,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 AABFPCreatureActor::AABFPCreatureActor()
 {
@@ -40,6 +41,24 @@ AABFPCreatureActor::AABFPCreatureActor()
     RightLeg = MakePart(TEXT("RightLeg"), Cylinder, FVector(0, 18, 34), FVector(0.14f, 0.14f, 0.38f));
     LeftEye = MakePart(TEXT("LeftEye"), Sphere, FVector(24, -12, 211), FVector(0.055f, 0.055f, 0.055f));
     RightEye = MakePart(TEXT("RightEye"), Sphere, FVector(24, 12, 211), FVector(0.055f, 0.055f, 0.055f));
+
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    if (BasicMaterial.Succeeded())
+    {
+        UMaterialInstanceDynamic* HideMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* EyeMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        HideMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.12f, 0.19f, 0.11f));
+        EyeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.55f, 0.08f));
+        Body->SetMaterial(0, HideMaterial);
+        Head->SetMaterial(0, HideMaterial);
+        LeftArm->SetMaterial(0, HideMaterial);
+        RightArm->SetMaterial(0, HideMaterial);
+        LeftLeg->SetMaterial(0, HideMaterial);
+        RightLeg->SetMaterial(0, HideMaterial);
+        LeftEye->SetMaterial(0, EyeMaterial);
+        RightEye->SetMaterial(0, EyeMaterial);
+    }
 }
 
 void AABFPCreatureActor::Tick(float DeltaSeconds)
