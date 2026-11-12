@@ -221,7 +221,7 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
             TArray<TSharedPtr<FJsonValue>> Row;
             if (!ReadRow(Value, Row) || Row.Num() < 9) return false;
             FABFPEvent Event;
-            Event.Type = ReadInt(Row[0]);
+            Event.Type = static_cast<EABFPEventType>(ReadInt(Row[0]));
             Event.Turn = ReadInt64(Row[1]);
             Event.SubjectId = ReadId(Row[2]);
             Event.TargetId = ReadId(Row[3]);
