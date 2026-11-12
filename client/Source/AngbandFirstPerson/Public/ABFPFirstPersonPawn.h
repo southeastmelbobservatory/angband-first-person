@@ -58,5 +58,6 @@ private:
     bool bAwaitingServerTurn = false;
     bool bHaveAuthoritativeState = false;
     float ReconnectRetrySeconds = 0.0f;
+    float PlayerDamageFlashSeconds = 0.0f;
     FABFPNetworkClient NetworkClient;
 };
