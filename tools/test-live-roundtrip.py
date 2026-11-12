@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 import pty
+import re
 import select
 import signal
 import socket
@@ -17,6 +18,13 @@ import time
 
 
 PORT = 47652
+
+
+def terminal_text(output):
+    # Angband emits colour and cursor-control sequences between words.
+    text = bytes(output).decode(errors="replace")
+    text = re.sub(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\)|[()][A-Z0-9])", "", text)
+    return text.lower()
 
 
 def wait_for_terminal_text(master, output, needle, timeout, pid):
@@ -37,7 +45,7 @@ def wait_for_terminal_text(master, output, needle, timeout, pid):
                     output.extend(chunk)
             except OSError:
                 pass
-        if needle in bytes(output).lower():
+        if needle in terminal_text(output):
             return
     raise RuntimeError(
         f"Timed out waiting for terminal text {needle!r}:\n"
