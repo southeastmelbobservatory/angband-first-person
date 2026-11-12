@@ -243,13 +243,73 @@ def main():
                     f"got {moved.get('player')}"
                 )
 
+            # The host should export the authoritative player-moved event
+            # alongside the state snapshot, not merely update coordinates.
+            movement_events = [
+                event for event in moved.get("events", [])
+                if len(event) >= 9 and event[0] == 1 and event[2] == "1"
+            ]
+            if not any(
+                event[4] == updated["player"][0]
+                and event[5] == updated["player"][1]
+                and event[6] == expected_position[0]
+                and event[7] == expected_position[1]
+                for event in movement_events
+            ):
+                raise AssertionError(
+                    "Movement snapshot did not include the matching "
+                    f"authoritative player-moved event: {moved.get('events')!r}"
+                )
+
+            # Bumping a known wall is a no-energy Angband action. It must
+            # return to the host input boundary without moving or consuming
+            # a turn, rather than leaving the client waiting indefinitely.
+            wall_moves = [
+                ("MOVE_NORTH", 0, -1), ("MOVE_EAST", 1, 0),
+                ("MOVE_SOUTH", 0, 1), ("MOVE_WEST", -1, 0),
+                ("MOVE_NORTH_EAST", 1, -1), ("MOVE_SOUTH_EAST", 1, 1),
+                ("MOVE_SOUTH_WEST", -1, 1), ("MOVE_NORTH_WEST", -1, -1),
+            ]
+            moved_cells = {
+                (cell[0], cell[1]): cell for cell in moved.get("cells", [])
+            }
+            blocked = None
+            for command, dx, dy in wall_moves:
+                target = (moved["player"][0] + dx, moved["player"][1] + dy)
+                cell = moved_cells.get(target)
+                if cell and cell[2] == 2 and cell[3] and not cell[5]:
+                    blocked = (command, target)
+                    break
+            if blocked is None:
+                raise AssertionError(
+                    "No visible adjacent wall square available to verify "
+                    f"blocked movement at {moved['player']}"
+                )
+
+            blocked_command, blocked_target = blocked
+            client.sendall((blocked_command + "\\n").encode("ascii"))
+            blocked_state, buffer = receive_state(
+                client, buffer, master=master, output=output
+            )
+            if tuple(blocked_state.get("player", [])) != expected_position:
+                raise AssertionError(
+                    f"{blocked_command} into wall {blocked_target} unexpectedly "
+                    f"changed player position: {blocked_state.get('player')}"
+                )
+            if blocked_state.get("turn") != moved.get("turn"):
+                raise AssertionError(
+                    f"Blocked movement should not consume a turn: "
+                    f"{moved.get('turn')} -> {blocked_state.get('turn')}"
+                )
+
             print(
                 "Live Angband round trip passed: "
                 f"initial turn {initial['turn']}, wait turn {updated['turn']}, "
-                f"movement turn {moved['turn']}; "
-                f"{len(initial['cells'])} visible/remembered cells; "
+                f"movement turn {moved['turn']}, blocked move unchanged; "
+                f"{len(initial['cells'])} snapshot cells; "
                 f"player {initial['player']} -> {updated['player']} -> "
-                f"{moved['player']} via {move_command}."
+                f"{moved['player']} via {move_command}; "
+                f"movement event exported."
             )
         finally:
             if client is not None:
