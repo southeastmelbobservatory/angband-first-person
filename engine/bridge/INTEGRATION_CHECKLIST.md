@@ -45,6 +45,8 @@
 - [x] Refresh snapshot after host sync.
 - [x] Derive visible monster movement and damage events from consecutive authoritative snapshots.
 - [x] Derive authoritative player-damage events from consecutive snapshots.
+- [x] Route stairs and autopickup through the original Angband command queue.
+- [x] Emit authoritative pickup events for floor objects removed by autopickup.
 - [ ] Verify blocked movement, diagonal movement and monster interruption in a running build.
 - [ ] Verify one submitted movement command corresponds to exactly one Angband turn.
 
