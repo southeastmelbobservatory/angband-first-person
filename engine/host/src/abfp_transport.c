@@ -202,7 +202,7 @@ static bool send_all(int fd, const char *data, size_t length)
 }
 
 bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
-    const abfp_event *events, size_t event_count)
+    const abfp_event *events, size_t event_count, bool initial_state)
 {
     size_t capacity, remaining, i;
     char *buffer, *cursor;
