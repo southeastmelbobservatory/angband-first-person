@@ -12,8 +12,14 @@ import termios
 import time
 import sys
 
+
 def main():
     binary = os.path.abspath(sys.argv[1])
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    upstream_dir = os.path.join(repo_root, "engine", "upstream", "angband")
+    if not os.path.isfile(os.path.join(upstream_dir, "lib", "screens", "news.txt")):
+        raise RuntimeError(f"Angband data directory is missing: {upstream_dir}/lib")
+
     with tempfile.TemporaryDirectory(prefix="abfp-host-smoke-") as home:
         user_dir = os.path.join(home, "user")
         save_dir = os.path.join(home, "save")
@@ -22,6 +28,7 @@ def main():
 
         pid, master = pty.fork()
         if pid == 0:
+            os.chdir(upstream_dir)
             env = os.environ.copy()
             env.update({
                 "HOME": home,
@@ -83,6 +90,7 @@ def main():
             os.close(master)
 
     print("ABFP patched Angband host started and accepted a loopback TCP connection.")
+
 
 if __name__ == "__main__":
     main()
