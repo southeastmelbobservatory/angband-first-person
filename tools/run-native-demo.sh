@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-"$ROOT/tools/build-angband-host.sh"
+bash "$ROOT/tools/build-angband-host.sh"
 
 cd "$ROOT/build-angband/game"
 echo "ABFP native host starting."
