@@ -16,6 +16,7 @@ public:
     AABFPCreatureActor();
 
     void PlayHitReaction(int32 Damage);
+    void SetTargetLocation(const FVector& Location, const FRotator& Rotation);
 
 protected:
     virtual void Tick(float DeltaSeconds) override;
@@ -32,4 +33,7 @@ private:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> RightEye;
     float Elapsed = 0.0f;
     float DamageFlashSeconds = 0.0f;
+    FVector TargetLocation = FVector::ZeroVector;
+    FRotator TargetRotation = FRotator::ZeroRotator;
+    bool bInterpolating = false;
 };
