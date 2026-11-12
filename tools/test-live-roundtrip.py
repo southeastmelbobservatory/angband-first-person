@@ -441,33 +441,95 @@ def main():
                     f"{return_state.get('player')}"
                 )
 
-            monster_state = return_state
-            monster_damaged_player = False
-            monster_movement_verified = False
-            seeded_monster_id = None
+            # Move away from the ration tile. The host seeds the mouse
+            # immediately before this action, so Angband's monster phase
+            # must pursue the player and the bridge must export its movement.
+            away_candidates = []
+            preferred_away = (-item_delta[0], -item_delta[1])
+            if preferred_away in movement_by_delta:
+                away_candidates.append(preferred_away)
+            for candidate_delta in movement_by_delta:
+                if candidate_delta not in away_candidates:
+                    away_candidates.append(candidate_delta)
+
+            away_move = None
+            for dx, dy in away_candidates:
+                target_xy = (
+                    dungeon_player_xy[0] + dx,
+                    dungeon_player_xy[1] + dy,
+                )
+                cell = next((
+                    row for row in return_state.get("cells", [])
+                    if (row[0], row[1]) == target_xy
+                ), None)
+                if (cell and cell[2] == 1 and cell[3] and not cell[5]
+                    and max(abs(target_xy[0] - item_xy[0]),
+                            abs(target_xy[1] - item_xy[1])) > 1):
+                    away_move = (candidate_delta, target_xy)
+                    break
+            if away_move is None:
+                raise AssertionError(
+                    "No visible floor square available to draw the seeded "
+                    f"monster away from {item_xy}"
+                )
+
+            away_delta, away_xy = away_move
+            client.sendall(
+                (movement_by_delta[away_delta] + "\n").encode("ascii")
+            )
+            monster_state, buffer = receive_state(
+                client, buffer, timeout=15, master=master, output=output
+            )
+            if tuple(monster_state.get("player", [])) != away_xy:
+                raise AssertionError(
+                    f"Player did not move away from the monster: {away_xy} "
+                    f"!= {monster_state.get('player')}"
+                )
+
+            visible_monsters = [
+                entity for entity in monster_state.get("entities", [])
+                if len(entity) >= 11 and entity[3] == 1
+                and "giant white mouse" in entity[10].lower()
+                and entity[7] > 0
+            ]
+            if not visible_monsters:
+                raise AssertionError(
+                    "Seeded mouse was not visible after the player moved away: "
+                    f"{monster_state.get('entities')!r}"
+                )
+            seeded_monster_id = str(visible_monsters[0][0])
+            monster_movement_verified = any(
+                len(event) >= 9 and event[0] == 1
+                and event[2] == seeded_monster_id
+                and event[4] == item_xy[0] and event[5] == item_xy[1]
+                and (event[4] != event[6] or event[5] != event[7])
+                for event in monster_state.get("events", [])
+            )
+            if not monster_movement_verified:
+                raise AssertionError(
+                    "The seeded mouse did not export an authoritative movement "
+                    f"event after pursuit. Entities: {monster_state.get('entities')!r}; "
+                    f"events: {monster_state.get('events')!r}"
+                )
+
+            monster_damaged_player = any(
+                len(event) >= 9 and event[0] == 3
+                and event[3] == "1" and event[8] > 0
+                for event in monster_state.get("events", [])
+            )
             for _ in range(5):
+                if monster_damaged_player:
+                    break
                 client.sendall(b"WAIT\n")
                 monster_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
                 visible_monsters = [
                     entity for entity in monster_state.get("entities", [])
-                    if len(entity) >= 10 and entity[3] == 1 and entity[7] > 0
+                    if len(entity) >= 11 and entity[3] == 1
+                    and "giant white mouse" in entity[10].lower()
+                    and entity[7] > 0
                 ]
-                seeded_mouse = next((
-                    entity for entity in visible_monsters
-                    if len(entity) > 10 and "giant white mouse" in entity[10].lower()
-                ), None)
-                if seeded_mouse is not None:
-                    seeded_monster_id = str(seeded_mouse[0])
-                    if any(
-                        len(event) >= 9 and event[0] == 1
-                        and event[2] == seeded_monster_id
-                        and (event[4] != event[6] or event[5] != event[7])
-                        for event in monster_state.get("events", [])
-                    ):
-                        monster_movement_verified = True
-
                 player_damage_events = [
                     event for event in monster_state.get("events", [])
                     if len(event) >= 9 and event[0] == 3
@@ -475,17 +537,10 @@ def main():
                 ]
                 if visible_monsters and player_damage_events:
                     monster_damaged_player = True
-                    break
-            if not monster_movement_verified:
-                raise AssertionError(
-                    "The seeded monster did not export an authoritative movement event. "
-                    f"Entities: {monster_state.get('entities')!r}; "
-                    f"events: {monster_state.get('events')!r}"
-                )
             if not monster_damaged_player:
                 raise AssertionError(
-                    "The seeded awake Angband monster did not become visible "
-                    "and damage the player within five turns. "
+                    "The seeded awake Angband monster did not damage the player "
+                    "within five turns. "
                     f"Entities: {monster_state.get('entities')!r}; "
                     f"events: {monster_state.get('events')!r}"
                 )
