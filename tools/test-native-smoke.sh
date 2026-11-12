@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="\${ABFP_BUILD_DIR:-$ROOT/build-angband}/game/angband"
+BIN="${ABFP_BUILD_DIR:-$ROOT/build-angband}/game/angband"
 
 if [[ ! -x "$BIN" ]]; then
   echo "Missing native Angband executable: $BIN" >&2
