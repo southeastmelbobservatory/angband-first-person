@@ -6,26 +6,26 @@ Prove that the original simulation can drive a first-person 3D scene without cha
 
 ## Scene
 
-- stone floor
-- walls and ceiling
-- player
-- one monster
-- one object
-- one light source
+- Stone floor, walls and doors built from the exported terrain snapshot
+- First-person camera with free mouse look and warm lantern light
+- Separate articulated 3D creature actor (not a billboard)
+- Separate 3D object actor
+- Turn/depth diagnostics
 
 ## Controls
 
-- W/A/S/D: submit directional movement commands
-- Mouse: free visual look
-- Escape: menu
+- W/A/S/D: one discrete grid step relative to the camera
+- Mouse: free visual look; does not consume a game turn
+- Escape: menu (not yet wired)
 
-Movement remains turn-based. The camera smoothly animates after the engine accepts a command.
+The current Unreal scene uses a local mock snapshot to test presentation and camera movement. This is not live Angband gameplay. In live mode, each input must submit one command to Angband, wait for the host's normal game loop and end-of-loop sync, then interpolate the camera to the new authoritative player grid.
 
 ## Acceptance criteria
 
-- blocked cells remain blocked exactly as determined by Angband
-- monster movement originates from the engine
-- combat results originate from the engine
-- rendered positions match exported grid state
-- a debug grid can validate the 3D scene
-- the renderer can resynchronise from a complete snapshot
+- Blocked cells remain blocked exactly as determined by Angband
+- Monster movement originates from the engine
+- Combat results originate from the engine
+- Rendered positions match exported grid state
+- A debug grid can validate the 3D scene
+- The renderer can resynchronise from a complete snapshot
+- Camera movement never predicts or overrides the authoritative player position
