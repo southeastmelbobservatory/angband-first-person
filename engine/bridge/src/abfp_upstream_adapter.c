@@ -190,6 +190,10 @@ bool abfp_upstream_refresh_snapshot(void)
     next.dungeon_depth = cave->depth;
     next.player_x = player->grid.x;
     next.player_y = player->grid.y;
+    next.player.hitpoints = player->chp;
+    next.player.max_hitpoints = player->mhp;
+    next.player.level = player->lev;
+    next.player.gold = player->au;
     next.cells = snapshot_cells;
     next.cell_count = ABFP_SNAPSHOT_CELLS;
     next.entities = snapshot_entities;
