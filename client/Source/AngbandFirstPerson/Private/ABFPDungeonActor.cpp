@@ -112,11 +112,17 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         CurrentIds.Add(Entity.Id);
         const FVector Location = GridToWorld(Entity.X, Entity.Y,
             Snapshot.PlayerX, Snapshot.PlayerY);
+        const FVector ToPlayer((Snapshot.PlayerX - Entity.X) * CellSize,
+            (Snapshot.PlayerY - Entity.Y) * CellSize, 0.0f);
+        const FRotator Facing = ToPlayer.IsNearlyZero() ?
+            FRotator::ZeroRotator : ToPlayer.Rotation();
 
         TObjectPtr<AActor>* Existing = SpawnedEntities.Find(Entity.Id);
         if (Existing && IsValid(Existing->Get()))
         {
             Existing->Get()->SetActorLocation(Location);
+            if (Entity.Type == EABFPEntityType::Monster)
+                Existing->Get()->SetActorRotation(Facing);
             continue;
         }
 
@@ -130,7 +136,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         {
             Spawned = GetWorld()->SpawnActor<AABFPCreatureActor>(
                 AABFPCreatureActor::StaticClass(), Location,
-                FRotator::ZeroRotator, Params);
+                Facing, Params);
         }
         else
         {
