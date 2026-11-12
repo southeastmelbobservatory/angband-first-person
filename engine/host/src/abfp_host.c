@@ -22,9 +22,6 @@ static bool test_item_grid_valid;
 static struct loc test_item_grid;
 static bool test_stair_grid_valid;
 static struct loc test_stair_grid;
-static bool test_monster_grid_valid;
-static struct loc test_monster_grid;
-static bool test_monster_awakened;
 
 static bool abfp_host_seed_test_floor_item(void)
 {
@@ -92,6 +89,11 @@ static bool abfp_host_seed_test_monster(void)
     if (!place_new_monster(cave, test_item_grid, race, false, false,
             group_info, ORIGIN_DROP_SPECIAL)) return false;
 
+    {
+        struct monster *mon = square_monster(cave, test_item_grid);
+        if (!mon) return false;
+        monster_wake(mon, true, 100);
+    }
     update_monsters(true);
     square_light_spot(cave, test_item_grid);
     test_monster_seeded = true;
@@ -144,8 +146,6 @@ static errr abfp_host_get_command(cmd_context context)
             square_set_feat(cave, player->grid, FEAT_MORE);
             square_memorize(cave, player->grid);
             square_light_spot(cave, player->grid);
-            test_stair_grid = player->grid;
-            test_stair_grid_valid = true;
             test_down_stair_seeded = true;
             (void)abfp_frontend_refresh_snapshot();
         }
@@ -176,6 +176,11 @@ bool abfp_host_install(uint16_t port)
 bool abfp_host_publish_state(bool initial_state)
 {
     const abfp_snapshot *snapshot;
+    if (getenv("ABFP_TEST_MONSTER") && !test_stair_grid_valid &&
+        player && cave && cave->depth > 0) {
+        test_stair_grid = player->grid;
+        test_stair_grid_valid = true;
+    }
     if (getenv("ABFP_TEST_FLOOR_ITEM") && !test_floor_item_seeded &&
         player && cave && cave->depth > 0) {
         if (!abfp_host_seed_test_floor_item()) {
