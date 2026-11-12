@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 BUILD_DIR="${ABFP_BUILD_DIR:-$ROOT/build-angband}"
 cmake -S "$ROOT/engine/upstream/angband" -B "$BUILD_DIR" \
-  -DSUPPORT_GCU_FRONTEND=ON \
+  -DSUPPORT_GCU_FRONTEND=OFF \
   -DSUPPORT_SPOIL_FRONTEND=OFF \
   -DSUPPORT_BORG=OFF
 cmake --build "$BUILD_DIR" --parallel "${ABFP_BUILD_JOBS:-2}"
