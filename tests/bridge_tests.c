@@ -43,6 +43,10 @@ int main(void)
     snapshot.dungeon_depth = 5;
     snapshot.player_x = 12;
     snapshot.player_y = 7;
+    snapshot.player.hitpoints = 31;
+    snapshot.player.max_hitpoints = 45;
+    snapshot.player.level = 7;
+    snapshot.player.gold = 1234;
     snapshot.cells = &cell;
     snapshot.cell_count = 1;
     snapshot.entities = &entity;
@@ -50,6 +54,10 @@ int main(void)
     abfp_bridge_set_snapshot(&snapshot);
 
     assert(abfp_bridge_snapshot()->turn == 99);
+    assert(abfp_bridge_snapshot()->player.hitpoints == 31);
+    assert(abfp_bridge_snapshot()->player.max_hitpoints == 45);
+    assert(abfp_bridge_snapshot()->player.level == 7);
+    assert(abfp_bridge_snapshot()->player.gold == 1234);
     assert(abfp_bridge_snapshot()->cells == &cell);
     assert(abfp_bridge_snapshot()->cell_count == 1);
     assert(abfp_bridge_snapshot()->entities == &entity);
