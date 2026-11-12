@@ -232,9 +232,12 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
 
     if (!append_json(&cursor, &remaining,
         "{\"type\":\"state\",\"turn\":%" PRIu64
-        ",\"depth\":%d,\"initial\":%s,\"player\":[%d,%d],\"cells\":[",
+        ",\"depth\":%d,\"initial\":%s,\"player\":[%d,%d]"
+        ",\"player_stats\":[%d,%d,%d,%d],\"cells\":[",
         snapshot->turn, snapshot->dungeon_depth,
-        initial_state ? "true" : "false", snapshot->player_x, snapshot->player_y)) goto done;
+        initial_state ? "true" : "false", snapshot->player_x, snapshot->player_y,
+        snapshot->player.hitpoints, snapshot->player.max_hitpoints,
+        snapshot->player.level, snapshot->player.gold)) goto done;
 
     for (i = 0; i < snapshot->cell_count; ++i) {
         const abfp_cell *cell = &snapshot->cells[i];
