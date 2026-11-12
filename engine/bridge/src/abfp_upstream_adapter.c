@@ -99,6 +99,12 @@ bool abfp_upstream_queue_command(abfp_command_type command)
         return true;
     }
 
+    if (command == ABFP_COMMAND_AUTOPICKUP) {
+        if (cmdq_push(CMD_AUTOPICKUP) != 0) return false;
+        pending_command = true;
+        return true;
+    }
+
     if (command == ABFP_COMMAND_GO_UP) {
         if (cmdq_push(CMD_GO_UP) != 0) return false;
         pending_command = true;
