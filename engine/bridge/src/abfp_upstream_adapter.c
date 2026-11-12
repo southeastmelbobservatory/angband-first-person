@@ -200,9 +200,9 @@ bool abfp_upstream_refresh_snapshot(void)
 }
 
 /*
- * The host calls this after Angband's run_game_loop() returns. That boundary
- * is later than EVENT_PLAYERMOVED: monsters and world processing have had
- * their normal opportunity to act, and blocked moves are also acknowledged.
+ * The host calls this after Angband's run_game_loop() returns to its input
+ * boundary. Any monster/world work scheduled before that boundary has run;
+ * blocked moves are also acknowledged here.
  */
 void abfp_upstream_sync_after_game_loop(void)
 {
