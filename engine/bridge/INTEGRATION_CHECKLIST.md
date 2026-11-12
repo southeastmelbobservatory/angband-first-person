@@ -46,6 +46,8 @@
 - [x] Derive visible monster movement and damage events from consecutive authoritative snapshots.
 - [x] Derive authoritative player-damage events from consecutive snapshots.
 - [x] Route stairs and autopickup through the original Angband command queue.
+- [x] Exercise `AUTOPICKUP`, `GO_UP` and `GO_DOWN` no-op paths in the live host without blocking on text-UI message prompts.
+- [ ] Verify successful stair traversal and an actual floor-item pickup (including the pickup event) in a live generated level.
 - [x] Emit authoritative pickup events for floor objects removed by autopickup.
 - [x] Verify blocked movement returns a snapshot without moving or consuming a turn in the live CI build.\n- [ ] Verify diagonal movement and monster interruption in a running build.
 - [x] Verify one successful movement command advances exactly one Angband turn; blocked movement advances none.
