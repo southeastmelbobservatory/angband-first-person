@@ -374,6 +374,15 @@ def main():
                     f"got {up_state.get('depth')} after descending to {depth_after_down}"
                 )
 
+            dungeon_monster_count = sum(
+                1 for entity in stair_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 1
+            )
+            dungeon_object_count = sum(
+                1 for entity in stair_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 2
+            )
+
             print(
                 "Live Angband round trip passed: "
                 f"initial turn {initial['turn']}, wait turn {updated['turn']}, "
@@ -383,7 +392,9 @@ def main():
                 f"{moved['player']} via {move_command}; "
                 f"movement event exported; "
                 f"autopickup removed {len(removed_objects)} floor objects; "
-                f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}."
+                f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
+                f"new level visible monsters={dungeon_monster_count}, "
+                f"objects={dungeon_object_count}."
             )
         finally:
             if client is not None:
