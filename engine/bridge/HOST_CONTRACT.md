@@ -14,13 +14,13 @@ The supported text frontend in the pinned revision follows this sequence:
 
 This matters: calling `run_game_loop()` alone does not start a game or provide the full frontend lifecycle. A custom host must preserve the outer lifecycle (including birth/load, refresh, save, death, and shutdown), not reimplement those pieces casually.
 
-## Intended integration seam
+## Implemented integration seam
 
 The lowest-risk first host should retain Angband's existing `play_game()` lifecycle and replace only its command source:
 
 - Keep `start_game()`, `pre_turn_refresh()`, `close_game()`, and all save/death handling inside Angband's existing `play_game()`.
-- Replace `cmd_get_hook` with an ABFP command hook. The hook runs on the Angband game thread, waits for one validated command from the transport, and submits it through `abfp_frontend_submit_command()`.
-- Add a post-`run_game_loop()` synchronization call in the pinned `ui-game.c` loop. This is the correct point to call `abfp_frontend_after_game_loop()`: it runs after Angband has processed the command and all resulting monster/world activity, including blocked moves.
+- The pinned patch replaces `cmd_get_hook` through `abfp_host_install()`. The ABFP hook delegates non-game contexts (including character birth) to `textui_get_cmd()`. For `CTX_GAME`, it waits for one validated command from the loopback transport and submits it through `abfp_frontend_submit_command()` on the Angband game thread.
+- The pinned `ui-game.c` patch calls `abfp_frontend_after_game_loop()` immediately after `run_game_loop()` returns, including blocked moves. After `close_game(true)`, it shuts down the bridge event handler before Angband resets or tears down the game state.
 - Initialize the bridge lazily on the first game-command hook, after `start_game()` has created a live player and cave. Do not initialize it during application startup or character birth.
 - Copy the snapshot and events before publishing them to the network thread. Never let the network thread read Angband globals or adapter-owned snapshot buffers.
 
@@ -30,7 +30,7 @@ The command hook is synchronous from Angband's perspective. A transport worker m
 
 In Angband 4.2.6, `start_game()`, `pre_turn_refresh()`, `select_savefile()`, and `close_game()` are private functions in `ui-game.c`. There is no public API that lets an external executable safely perform the complete start/load/birth/play/close lifecycle. The practical integration is therefore a small, pinned patch to the existing frontend loop, not a second independently-written game loop.
 
-The patch should be version-checked against commit `f3082213b73f3e463e3d0d60bff4b00462beae6e` and applied by the bootstrap/build process. It must not silently apply to a different Angband revision.
+The patch at `engine/upstream/patches/angband-4.2.6-abfp.patch` is version-checked by applying it to the exact commit `f3082213b73f3e463e3d0d60bff4b00462beae6e`. `tools/bootstrap-angband.sh` applies it only when the patch applies cleanly, or recognizes an already-applied patch. The patch also extends Angband's CMake target to compile and link the bridge, host hook, and POSIX transport.
 
 ## Bridge API and thread rules
 
