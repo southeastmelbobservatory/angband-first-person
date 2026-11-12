@@ -22,6 +22,7 @@ static bool handlers_installed;
 static struct loc pending_from;
 static bool pending_move;
 static bool pending_command;
+static abfp_command_type pending_command_type;
 static bool observed_player_moved;
 static abfp_cell snapshot_cells[ABFP_SNAPSHOT_CELLS];
 static abfp_entity_state snapshot_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
@@ -74,6 +75,7 @@ void abfp_upstream_remove_handlers(void)
     previous_depth = 0;
     pending_move = false;
     pending_command = false;
+    pending_command_type = ABFP_COMMAND_WAIT;
     observed_player_moved = false;
 }
 
@@ -89,6 +91,7 @@ bool abfp_upstream_queue_command(abfp_command_type command)
         pending_from = player->grid;
         pending_move = true;
         pending_command = true;
+        pending_command_type = command;
         observed_player_moved = false;
         return true;
     }
@@ -96,24 +99,28 @@ bool abfp_upstream_queue_command(abfp_command_type command)
     if (command == ABFP_COMMAND_WAIT) {
         if (cmdq_push(CMD_HOLD) != 0) return false;
         pending_command = true;
+        pending_command_type = command;
         return true;
     }
 
     if (command == ABFP_COMMAND_AUTOPICKUP) {
         if (cmdq_push(CMD_AUTOPICKUP) != 0) return false;
         pending_command = true;
+        pending_command_type = command;
         return true;
     }
 
     if (command == ABFP_COMMAND_GO_UP) {
         if (cmdq_push(CMD_GO_UP) != 0) return false;
         pending_command = true;
+        pending_command_type = command;
         return true;
     }
 
     if (command == ABFP_COMMAND_GO_DOWN) {
         if (cmdq_push(CMD_GO_DOWN) != 0) return false;
         pending_command = true;
+        pending_command_type = command;
         return true;
     }
 
@@ -237,6 +244,35 @@ bool abfp_upstream_refresh_snapshot(void)
             abfp_bridge_emit(&event);
         }
 
+        if (pending_command_type == ABFP_COMMAND_AUTOPICKUP) {
+            for (i = 0; i < previous_entity_count; ++i) {
+                const abfp_entity_state *previous = &previous_entities[i];
+                bool still_present = false;
+                if (previous->type != ABFP_ENTITY_OBJECT ||
+                    previous->x != next.player_x ||
+                    previous->y != next.player_y) continue;
+                for (j = 0; j < entity_count; ++j) {
+                    if (snapshot_entities[j].id == previous->id) {
+                        still_present = true;
+                        break;
+                    }
+                }
+                if (!still_present) {
+                    abfp_event event = {0};
+                    event.type = ABFP_EVENT_PICKUP;
+                    event.turn = next.turn;
+                    event.subject_id = 1;
+                    event.target_id = previous->id;
+                    event.from_x = previous->x;
+                    event.from_y = previous->y;
+                    event.to_x = previous->x;
+                    event.to_y = previous->y;
+                    event.value = previous->quantity;
+                    abfp_bridge_emit(&event);
+                }
+            }
+        }
+
         for (i = 0; i < entity_count; ++i) {
             const abfp_entity_state *current = &snapshot_entities[i];
             const abfp_entity_state *previous = NULL;
@@ -311,5 +347,6 @@ void abfp_upstream_sync_after_game_loop(void)
 
     pending_move = false;
     pending_command = false;
+    pending_command_type = ABFP_COMMAND_WAIT;
     observed_player_moved = false;
 }
