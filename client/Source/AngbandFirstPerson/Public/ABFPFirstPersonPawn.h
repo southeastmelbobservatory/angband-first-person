@@ -46,5 +46,6 @@ private:
     bool bLiveMode = false;
     bool bAwaitingServerTurn = false;
     bool bHaveAuthoritativeState = false;
+    float ReconnectRetrySeconds = 0.0f;
     FABFPNetworkClient NetworkClient;
 };
