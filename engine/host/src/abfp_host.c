@@ -125,34 +125,60 @@ static bool abfp_host_seed_test_monster(void)
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
     struct monster *mon;
+    struct loc monster_grid;
     static const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 };
     static const int dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
     size_t direction;
+    bool found_grid = false;
 
-    if (!race || !test_item_grid_valid ||
-        !square_in_bounds_fully(cave, test_item_grid) ||
-        !square_is_monster_walkable(cave, test_item_grid) ||
-        !square_isempty(cave, test_item_grid)) return false;
-    if (!place_new_monster(cave, test_item_grid, race, false, false,
+    if (!race || !test_stair_grid_valid) return false;
+
+    /* Prefer the ration tile after pickup; otherwise use another free neighbour. */
+    if (test_item_grid_valid &&
+        square_in_bounds_fully(cave, test_item_grid) &&
+        !square_isoccupied(cave, test_item_grid) &&
+        !square_object(cave, test_item_grid)) {
+        monster_grid = test_item_grid;
+        found_grid = true;
+    }
+
+    for (direction = 0; !found_grid &&
+            direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
+        struct loc candidate = loc(test_stair_grid.x + dx[direction],
+            test_stair_grid.y + dy[direction]);
+        if (!square_in_bounds_fully(cave, candidate) ||
+            square_isoccupied(cave, candidate) ||
+            square_object(cave, candidate)) continue;
+        monster_grid = candidate;
+        found_grid = true;
+    }
+    if (!found_grid) return false;
+
+    square_remove_all_traps(cave, monster_grid);
+    square_set_feat(cave, monster_grid, FEAT_FLOOR);
+    square_memorize(cave, monster_grid);
+    square_light_spot(cave, monster_grid);
+
+    if (!place_new_monster(cave, monster_grid, race, false, false,
             group_info, ORIGIN_DROP_SPECIAL)) return false;
 
-    mon = square_monster(cave, test_item_grid);
+    mon = square_monster(cave, monster_grid);
     if (!mon) return false;
     /* Deterministic target; Angband still resolves its real AI and combat. */
     mon->hp = 1;
     mon->maxhp = 1;
     monster_wake(mon, true, 100);
+    test_monster_midx = mon->midx;
 
     /*
-     * Ensure the player has an open neighbouring tile to step away onto.
-     * This lets the normal Angband monster phase pursue the player and
-     * gives the bridge a visible before/after pair for its movement event.
+     * Give the monster a clear local approach and remove random traps/webs
+     * from the small test arena so movement and combat are repeatable.
      */
     for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
         struct loc approach = loc(test_stair_grid.x + dx[direction],
             test_stair_grid.y + dy[direction]);
         if (!square_in_bounds_fully(cave, approach) ||
-            loc_eq(approach, test_item_grid) ||
+            loc_eq(approach, monster_grid) ||
             square_isoccupied(cave, approach) ||
             square_object(cave, approach)) continue;
         square_remove_all_traps(cave, approach);
@@ -161,8 +187,9 @@ static bool abfp_host_seed_test_monster(void)
         square_light_spot(cave, approach);
     }
 
+    square_remove_all_traps(cave, test_stair_grid);
     update_monsters(true);
-    square_light_spot(cave, test_item_grid);
+    square_light_spot(cave, monster_grid);
     test_monster_seeded = true;
     return true;
 }
@@ -220,8 +247,7 @@ static errr abfp_host_get_command(cmd_context context)
         if (getenv("ABFP_TEST_MONSTER") &&
             command == ABFP_COMMAND_WAIT && !test_monster_seeded &&
             player && cave && cave->depth > 0 && test_stair_grid_valid &&
-            test_item_grid_valid && !square_object(cave, test_item_grid) &&
-            loc_eq(player->grid, test_stair_grid)) {
+            test_item_grid_valid && loc_eq(player->grid, test_stair_grid)) {
             if (!abfp_host_seed_test_monster() ||
                 !abfp_frontend_refresh_snapshot()) return -1;
         }
