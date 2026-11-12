@@ -20,6 +20,8 @@ static bool test_down_stair_seeded;
 static bool test_monster_seeded;
 static bool test_item_grid_valid;
 static struct loc test_item_grid;
+static bool test_stair_grid_valid;
+static struct loc test_stair_grid;
 static bool test_monster_grid_valid;
 static struct loc test_monster_grid;
 static bool test_monster_awakened;
@@ -82,35 +84,18 @@ static bool abfp_host_seed_test_monster(void)
 {
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
-    int dx, dy;
 
-    if (!race) return false;
-    for (dy = -2; dy <= 2; ++dy) {
-        for (dx = -2; dx <= 2; ++dx) {
-            struct loc middle, candidate;
-            int step_x, step_y;
+    if (!race || !test_item_grid_valid ||
+        !square_in_bounds_fully(cave, test_item_grid) ||
+        !square_is_monster_walkable(cave, test_item_grid) ||
+        !square_isempty(cave, test_item_grid)) return false;
+    if (!place_new_monster(cave, test_item_grid, race, false, false,
+            group_info, ORIGIN_DROP_SPECIAL)) return false;
 
-            if (MAX(ABS(dx), ABS(dy)) != 2) continue;
-            step_x = (dx > 0) - (dx < 0);
-            step_y = (dy > 0) - (dy < 0);
-            middle = loc(player->grid.x + step_x, player->grid.y + step_y);
-            candidate = loc(player->grid.x + dx, player->grid.y + dy);
-            if (!square_in_bounds_fully(cave, middle) ||
-                !square_ispassable(cave, middle) ||
-                !square_in_bounds_fully(cave, candidate) ||
-                !square_is_monster_walkable(cave, candidate) ||
-                square_isoccupied(cave, candidate)) continue;
-            if (!place_new_monster(cave, candidate, race, true, false,
-                    group_info, ORIGIN_DROP_SPECIAL)) continue;
-            update_monsters(true);
-            square_light_spot(cave, candidate);
-            test_monster_grid = candidate;
-            test_monster_grid_valid = true;
-            test_monster_seeded = true;
-            return true;
-        }
-    }
-    return false;
+    update_monsters(true);
+    square_light_spot(cave, test_item_grid);
+    test_monster_seeded = true;
+    return true;
 }
 
 static errr abfp_host_get_command(cmd_context context)
@@ -159,17 +144,17 @@ static errr abfp_host_get_command(cmd_context context)
             square_set_feat(cave, player->grid, FEAT_MORE);
             square_memorize(cave, player->grid);
             square_light_spot(cave, player->grid);
+            test_stair_grid = player->grid;
+            test_stair_grid_valid = true;
             test_down_stair_seeded = true;
             (void)abfp_frontend_refresh_snapshot();
         }
 
-        if (getenv("ABFP_TEST_WAKE_MONSTER") &&
-            command == ABFP_COMMAND_WAIT && test_monster_grid_valid &&
-            !test_monster_awakened) {
-            struct monster *mon = square_monster(cave, test_monster_grid);
-            if (!mon) return -1;
-            monster_wake(mon, true, 100);
-            test_monster_awakened = true;
+        if (getenv("ABFP_TEST_MONSTER") &&
+            command == ABFP_COMMAND_WAIT && !test_monster_seeded &&
+            player && cave && cave->depth > 0 && test_stair_grid_valid &&
+            loc_eq(player->grid, test_stair_grid)) {
+            if (!abfp_host_seed_test_monster()) return -1;
         }
 
         if (abfp_frontend_submit_command(command)) return 0;
@@ -199,18 +184,6 @@ bool abfp_host_publish_state(bool initial_state)
         }
         if (!abfp_frontend_refresh_snapshot()) {
             fprintf(stderr, "ABFP_TEST: snapshot refresh failed after floor item fixture\n");
-            return false;
-        }
-    }
-    if (getenv("ABFP_TEST_MONSTER") && !test_monster_seeded &&
-        player && cave && cave->depth > 0) {
-        if (!abfp_host_seed_test_monster()) {
-            fprintf(stderr, "ABFP_TEST: monster fixture failed at depth %d near (%d,%d)\n",
-                cave->depth, player->grid.x, player->grid.y);
-            return false;
-        }
-        if (!abfp_frontend_refresh_snapshot()) {
-            fprintf(stderr, "ABFP_TEST: snapshot refresh failed after monster fixture\n");
             return false;
         }
     }
@@ -246,8 +219,7 @@ void abfp_host_game_closed(void)
     test_down_stair_seeded = false;
     test_monster_seeded = false;
     test_item_grid_valid = false;
-    test_monster_grid_valid = false;
-    test_monster_awakened = false;
+    test_stair_grid_valid = false;
 }
 
 void abfp_host_shutdown(void)
