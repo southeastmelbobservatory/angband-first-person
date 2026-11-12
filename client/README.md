@@ -13,7 +13,8 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 - Dungeon fog, ambient skylight and a warm player lantern.
 - Persistent 3D entity actors keyed by bridge entity ID.
 - Visible monsters interpolate between authoritative grid positions; race and object-kind names drive the procedural appearance, damage events trigger hit reactions, and death events play a short creature death animation.
-- In-world status readout showing authoritative depth, turn, HP, level and gold.
+- In-world status readout showing authoritative depth, turn, HP, level and gold; player damage events flash the lantern/status readout red.
+- Creature death events play a short scale/fade/spin reaction before the procedural actor is destroyed.
 - Procedural articulated creature actor with idle motion (not a billboard).
 - Procedural floating item actor.
 - First-person camera, mouse look, warm lantern light, one-grid-step WASD controls and Space to wait.
