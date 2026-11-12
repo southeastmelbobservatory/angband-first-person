@@ -78,19 +78,22 @@ static bool abfp_host_seed_test_monster(void)
 {
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
-    static const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 };
-    static const int dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
+    static const int dx[] = { 0, 1, 0, -1 };
+    static const int dy[] = { -1, 0, 1, 0 };
     size_t direction;
 
     if (!race) return false;
     for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
-        struct loc candidate = loc(player->grid.x + dx[direction],
+        struct loc middle = loc(player->grid.x + dx[direction],
             player->grid.y + dy[direction]);
-        if (!square_in_bounds_fully(cave, candidate) ||
+        struct loc candidate = loc(player->grid.x + 2 * dx[direction],
+            player->grid.y + 2 * dy[direction]);
+        if (!square_in_bounds_fully(cave, middle) ||
+            !square_ispassable(cave, middle) ||
+            !square_in_bounds_fully(cave, candidate) ||
             !square_is_monster_walkable(cave, candidate) ||
-            square_isoccupied(cave, candidate) ||
-            (test_item_grid_valid && loc_eq(candidate, test_item_grid))) continue;
-        if (!place_new_monster(cave, candidate, race, true, false,
+            square_isoccupied(cave, candidate)) continue;
+        if (!place_new_monster(cave, candidate, race, false, false,
                 group_info, ORIGIN_DROP_SPECIAL)) continue;
         update_monsters(true);
         square_light_spot(cave, candidate);
