@@ -32,6 +32,9 @@ private:
     void MoveLeft();
     void MoveRight();
     void WaitTurn();
+    void GoUp();
+    void GoDown();
+    void SendSimpleCommand(const FString& Command);
     void Turn(float Value);
     void LookUp(float Value);
     void MoveRelative(FVector2D LocalDirection);
