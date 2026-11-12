@@ -11,7 +11,7 @@
 
 AABFPFirstPersonPawn::AABFPFirstPersonPawn()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
     AutoPossessPlayer = EAutoReceiveInput::Player0;
     bUseControllerRotationYaw = true;
 
@@ -47,12 +47,30 @@ void AABFPFirstPersonPawn::BeginPlay()
         FRotator::ZeroRotator, Params);
 
     BuildDemoSnapshot();
+    SetActorLocation(FVector(DemoSnapshot.PlayerX * 400.0f,
+        DemoSnapshot.PlayerY * 400.0f, 0.0f));
+    TargetPawnLocation = GetActorLocation();
     if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
 
     if (GEngine)
     {
         GEngine->AddOnScreenDebugMessage(-1, 12.0f, FColor::Yellow,
             TEXT("ANGBAND FIRST PERSON — RENDERER DEMO (local mock state, not live Angband)"));
+    }
+}
+
+void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    if (!bInterpolatingMove) return;
+
+    const FVector Current = FMath::VInterpTo(GetActorLocation(),
+        TargetPawnLocation, DeltaSeconds, 12.0f);
+    SetActorLocation(Current);
+    if (FVector::DistSquared(Current, TargetPawnLocation) < 4.0f)
+    {
+        SetActorLocation(TargetPawnLocation);
+        bInterpolatingMove = false;
     }
 }
 
@@ -85,6 +103,8 @@ void AABFPFirstPersonPawn::LookUp(float Value)
 
 void AABFPFirstPersonPawn::MoveRelative(FVector2D LocalDirection)
 {
+    if (bInterpolatingMove) return;
+
     const float Yaw = GetControlRotation().Yaw;
     const FVector WorldDirection = FRotationMatrix(FRotator(0, Yaw, 0))
         .TransformVector(FVector(LocalDirection.X, LocalDirection.Y, 0));
@@ -177,6 +197,8 @@ void AABFPFirstPersonPawn::TryDemoStep(int32 DX, int32 DY)
     ++DemoSnapshot.Turn;
 
     if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
+    TargetPawnLocation = FVector(TargetX * 400.0f, TargetY * 400.0f, 0.0f);
+    bInterpolatingMove = true;
 
     if (GEngine)
     {
