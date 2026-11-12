@@ -138,7 +138,14 @@ bool abfp_transport_start(uint16_t port)
     (void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
     memset(&address, 0, sizeof(address));
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    {
+        const char *bind_address = getenv("ABFP_BIND_ADDRESS");
+        if (!bind_address || !*bind_address) bind_address = "127.0.0.1";
+        if (inet_pton(AF_INET, bind_address, &address.sin_addr) != 1) {
+            close(fd);
+            return false;
+        }
+    }
     address.sin_port = htons(port);
     if (bind(fd, (struct sockaddr *)&address, sizeof(address)) < 0 || listen(fd, 1) < 0) {
         close(fd); return false;
