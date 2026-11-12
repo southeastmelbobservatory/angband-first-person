@@ -33,6 +33,10 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Walls;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RememberedWalls;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Doors;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StairsUp;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StairsDown;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Rubble;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Shops;
     UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> DungeonFog;
     UPROPERTY() TObjectPtr<USkyLightComponent> AmbientSky;
     UPROPERTY(Transient) TMap<int64, TObjectPtr<AActor>> SpawnedEntities;
