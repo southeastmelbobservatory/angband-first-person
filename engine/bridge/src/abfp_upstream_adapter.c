@@ -28,6 +28,7 @@ static abfp_entity_state snapshot_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
 static abfp_entity_state previous_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
 static uint32_t previous_entity_count;
 static abfp_player_state previous_player;
+static int32_t previous_depth;
 static bool snapshot_history_valid;
 
 static int abfp_direction(abfp_command_type command)
@@ -70,6 +71,7 @@ void abfp_upstream_remove_handlers(void)
     handlers_installed = false;
     snapshot_history_valid = false;
     previous_entity_count = 0;
+    previous_depth = 0;
     pending_move = false;
     pending_command = false;
     observed_player_moved = false;
@@ -217,7 +219,7 @@ bool abfp_upstream_refresh_snapshot(void)
     next.entities = snapshot_entities;
     next.entity_count = entity_count;
 
-    if (snapshot_history_valid) {
+    if (snapshot_history_valid && next.dungeon_depth == previous_depth) {
         uint32_t i, j;
 
         if (next.player.hitpoints < previous_player.hitpoints) {
@@ -270,6 +272,7 @@ bool abfp_upstream_refresh_snapshot(void)
         entity_count * sizeof(*snapshot_entities));
     previous_entity_count = entity_count;
     previous_player = next.player;
+    previous_depth = next.dungeon_depth;
     snapshot_history_valid = true;
 
     abfp_bridge_set_snapshot(&next);
