@@ -5,7 +5,7 @@ index 0000000..0000000 100644
 @@ -20,5 +20,6 @@
  #include "ui-prefs.h"
  #include "ui-signals.h"
-+#include "abfp_host.h"
++#include "../../../host/include/abfp_host.h"
  
  #ifdef SOUND
  #include "sound.h"
@@ -32,8 +32,8 @@ index 0000000..0000000 100644
 +++ b/src/ui-game.c
 @@ -52,2 +52,4 @@
  #include "ui-game.h"
-+#include "abfp_frontend.h"
-+#include "abfp_host.h"
++#include "../../../bridge/include/abfp_frontend.h"
++#include "../../../host/include/abfp_host.h"
  #include "ui-help.h"
 @@ -1038,8 +1040,10 @@ void play_game(enum game_mode_type mode)
  			pre_turn_refresh();
