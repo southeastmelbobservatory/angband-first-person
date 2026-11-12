@@ -440,14 +440,33 @@ def main():
                     f"got {up_state.get('depth')} after descending to {depth_after_down}"
                 )
 
-            dungeon_monster_count = sum(
-                1 for entity in stair_state.get("entities", [])
+            dungeon_monsters = [
+                entity for entity in stair_state.get("entities", [])
                 if len(entity) >= 10 and entity[3] == 1
-            )
+            ]
+            dungeon_monster_count = len(dungeon_monsters)
             dungeon_object_count = sum(
                 1 for entity in stair_state.get("entities", [])
                 if len(entity) >= 10 and entity[3] == 2
             )
+
+            # The entity exporter must include actual visible Angband
+            # monsters, not just floor geometry. Their HP fields are the
+            # authoritative values the renderer will use for hit reactions.
+            if not dungeon_monsters:
+                raise AssertionError(
+                    "Generated depth exposed no visible monster entities; "
+                    "the native snapshot cannot yet drive creature rendering"
+                )
+            invalid_monsters = [
+                entity for entity in dungeon_monsters
+                if entity[8] <= 0 or entity[9] < entity[8]
+            ]
+            if invalid_monsters:
+                raise AssertionError(
+                    "Monster entities have invalid authoritative HP values: "
+                    f"{invalid_monsters!r}"
+                )
 
             print(
                 "Live Angband round trip passed: "
