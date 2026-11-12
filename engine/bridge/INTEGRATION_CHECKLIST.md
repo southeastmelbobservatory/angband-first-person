@@ -23,7 +23,7 @@
 - [x] Add CI jobs for standalone bridge tests and the complete pinned Angband host build.
 - [x] Add a standalone loopback transport command parser regression test.
 - [x] Add a minimal interactive protocol client for live native-host smoke testing.
-- [ ] Execute a live interactive host/client session and verify turn processing.
+- [x] Execute a live interactive host/client session and verify turn processing in CI.
 - [ ] Compile the Unreal project and verify the live host/client connection.
 
 ## Snapshot
@@ -47,8 +47,8 @@
 - [x] Derive authoritative player-damage events from consecutive snapshots.
 - [x] Route stairs and autopickup through the original Angband command queue.
 - [x] Emit authoritative pickup events for floor objects removed by autopickup.
-- [ ] Verify blocked movement, diagonal movement and monster interruption in a running build.
-- [ ] Verify one submitted movement command corresponds to exactly one Angband turn.
+- [x] Verify blocked movement returns a snapshot without moving or consuming a turn in the live CI build.\n- [ ] Verify diagonal movement and monster interruption in a running build.
+- [x] Verify one successful movement command advances exactly one Angband turn; blocked movement advances none.
 
 ## Renderer
 - [x] Create Unreal Engine 5 C++ project scaffold.
@@ -57,5 +57,5 @@
 - [x] Add first-person look and interpolated grid movement in the mock scene.
 - [ ] Connect Unreal input to the live host protocol.
 - [x] Wire authoritative damage events to visible creature hit reactions.
-- [ ] Verify authoritative turn timing in a running Angband host.
+- [ ] Verify authoritative turn timing in a running Angband host and Unreal client.
 - [ ] Replace placeholder meshes with production art, materials and creature-specific rigs.
