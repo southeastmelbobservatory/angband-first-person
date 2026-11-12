@@ -49,7 +49,7 @@ sudo apt install build-essential cmake pkg-config libncurses-dev
 
 The script checks out the pinned Angband 4.2.6 revision, applies the ABFP integration patch and builds `build-angband/game/angband`.
 
-The host binds only to `127.0.0.1:47652`. It accepts one newline-delimited command at a time from the presentation client. Supported commands are `MOVE_NORTH`, `MOVE_SOUTH`, `MOVE_EAST`, `MOVE_WEST`, the four diagonal equivalents and `WAIT`. Each state record also includes authoritative player HP, maximum HP, level and gold. The host sends newline-delimited JSON state records back over the same connection.
+The host binds only to `127.0.0.1:47652`. It accepts one newline-delimited command at a time from the presentation client. Supported commands are `MOVE_NORTH`, `MOVE_SOUTH`, `MOVE_EAST`, `MOVE_WEST`, the four diagonal equivalents, `WAIT`, `GO_UP` and `GO_DOWN`. Each state record also includes authoritative player HP, maximum HP, level and gold. The host sends newline-delimited JSON state records back over the same connection.
 
 ### Manual bridge smoke test
 
