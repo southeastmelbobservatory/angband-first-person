@@ -15,7 +15,7 @@ int main(void)
 
     abfp_command_type command;
 
-    assert(abfp_transport_parse_command("MOVE_NORTH\\n", &command));
+    assert(abfp_transport_parse_command("MOVE_NORTH", &command));
     assert(command == ABFP_COMMAND_MOVE_NORTH);
     assert(abfp_transport_parse_command("WAIT", &command));
     assert(command == ABFP_COMMAND_WAIT);
