@@ -155,11 +155,59 @@ def main():
                     f"{initial.get('turn')} -> {updated.get('turn')}"
                 )
 
+            # Prove that a directional command changes the authoritative player
+            # position, not merely that the host can advance a turn.
+            adjacent_moves = [
+                ("MOVE_NORTH", 0, -1),
+                ("MOVE_EAST", 1, 0),
+                ("MOVE_SOUTH", 0, 1),
+                ("MOVE_WEST", -1, 0),
+                ("MOVE_NORTH_EAST", 1, -1),
+                ("MOVE_SOUTH_EAST", 1, 1),
+                ("MOVE_SOUTH_WEST", -1, 1),
+                ("MOVE_NORTH_WEST", -1, -1),
+            ]
+            cell_by_position = {
+                (cell[0], cell[1]): cell for cell in updated.get("cells", [])
+            }
+            movement = None
+            for command, dx, dy in adjacent_moves:
+                target = (updated["player"][0] + dx, updated["player"][1] + dy)
+                cell = cell_by_position.get(target)
+                # Terrain 1 is known floor. Avoid monsters; floor objects do
+                # not prevent ordinary Angband movement.
+                if cell and cell[2] == 1 and cell[3] and not cell[5]:
+                    movement = (command, target)
+                    break
+            if movement is None:
+                raise AssertionError(
+                    "No visible, unoccupied floor square adjacent to the "
+                    f"player for movement verification: {updated['player']}"
+                )
+
+            move_command, expected_position = movement
+            client.sendall((move_command + "\\n").encode("ascii"))
+            moved, buffer = receive_state(client, buffer)
+            if moved.get("type") != "state":
+                raise AssertionError(f"Expected movement state, got: {moved!r}")
+            if moved.get("turn", 0) <= updated.get("turn", -1):
+                raise AssertionError(
+                    f"{move_command} did not advance the authoritative turn: "
+                    f"{updated.get('turn')} -> {moved.get('turn')}"
+                )
+            if tuple(moved.get("player", [])) != expected_position:
+                raise AssertionError(
+                    f"{move_command} did not move to {expected_position}: "
+                    f"got {moved.get('player')}"
+                )
+
             print(
                 "Live Angband round trip passed: "
-                f"initial turn {initial['turn']}, updated turn {updated['turn']}, "
-                f"{len(initial['cells'])} visible/remembered cells, "
-                f"player {initial['player']} -> {updated['player']}."
+                f"initial turn {initial['turn']}, wait turn {updated['turn']}, "
+                f"movement turn {moved['turn']}; "
+                f"{len(initial['cells'])} visible/remembered cells; "
+                f"player {initial['player']} -> {updated['player']} -> "
+                f"{moved['player']} via {move_command}."
             )
         finally:
             if client is not None:
