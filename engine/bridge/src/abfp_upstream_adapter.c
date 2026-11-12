@@ -10,6 +10,7 @@
 #include "game-world.h"
 #include "monster.h"
 #include "object.h"
+#include <string.h>
 
 #define ABFP_SNAPSHOT_RADIUS 10
 #define ABFP_SNAPSHOT_SIDE (ABFP_SNAPSHOT_RADIUS * 2 + 1)
@@ -153,6 +154,9 @@ static void abfp_append_monster(struct monster *mon, int x, int y,
         *entity_count >= ABFP_MAX_SNAPSHOT_ENTITIES) return;
 
     entity = &snapshot_entities[(*entity_count)++];
+    memset(entity, 0, sizeof(*entity));
+    if (mon->race->name)
+        strncpy(entity->name, mon->race->name, sizeof(entity->name) - 1);
     entity->id = ABFP_MONSTER_ID_BASE | (uint64_t)(uint32_t)mon->midx;
     entity->x = x;
     entity->y = y;
@@ -171,6 +175,9 @@ static void abfp_append_objects(struct object *obj, int x, int y,
     for (; obj && *entity_count < ABFP_MAX_SNAPSHOT_ENTITIES; obj = obj->next) {
         const struct object *known = obj->known;
         abfp_entity_state *entity = &snapshot_entities[(*entity_count)++];
+        memset(entity, 0, sizeof(*entity));
+        if (known && known->kind && known->kind->name)
+            strncpy(entity->name, known->kind->name, sizeof(entity->name) - 1);
 
         entity->id = ABFP_OBJECT_ID_BASE | (uint64_t)obj->oidx;
         entity->x = x;
