@@ -52,6 +52,7 @@ struct FABFPEntity
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 HitPoints = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 MaxHitPoints = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Quantity = 1;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
 };
 
 UENUM(BlueprintType)
