@@ -1,0 +1,31 @@
+name: Native build and bridge tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure bridge tests
+        run: cmake -S engine/bridge -B build-bridge -DBUILD_TESTING=ON
+      - name: Build bridge tests
+        run: cmake --build build-bridge --parallel 2
+      - name: Run bridge tests
+        run: ctest --test-dir build-bridge --output-on-failure
+
+  angband-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git pkg-config             libncursesw5-dev zlib1g-dev libpng-dev
+      - name: Build pinned Angband host
+        run: bash tools/build-angband-host.sh
+      - name: Verify executable exists
+        run: test -x build-angband/game/angband
