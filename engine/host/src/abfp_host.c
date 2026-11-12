@@ -1,5 +1,6 @@
 #include "angband.h"
 #include "cmd-core.h"
+#include "cave.h"
 #include "option.h"
 #include "obj-make.h"
 #include "obj-pile.h"
@@ -188,6 +189,7 @@ static bool abfp_host_seed_test_monster(void)
     }
 
     square_remove_all_traps(cave, test_stair_grid);
+    update_view();
     update_monsters(true);
     square_light_spot(cave, monster_grid);
     test_monster_seeded = true;
