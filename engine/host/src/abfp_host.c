@@ -91,6 +91,9 @@ static bool abfp_host_seed_test_monster(void)
     {
         struct monster *mon = square_monster(cave, test_item_grid);
         if (!mon) return false;
+        /* Give the CI combat test enough health for a non-lethal first hit. */
+        mon->hp = 6;
+        mon->maxhp = 6;
         monster_wake(mon, true, 100);
     }
     update_monsters(true);
