@@ -19,7 +19,7 @@ The GitHub Actions native-host workflow now builds the pinned Angband executable
 - An eligible floor ration is picked up by Angband when the player walks onto it, and the bridge exports the matching pickup event.
 - A visible Angband monster is exported with its live HP, and an attack produces a player-damage event.
 
-Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43187060819).
+Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43187545073).
 
 ## Implemented behaviour (not all yet runtime-verified)
 
