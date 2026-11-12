@@ -7,6 +7,7 @@
 #include "cave.h"
 #include "cmd-core.h"
 #include "game-event.h"
+#include "game-world.h"
 #include "monster.h"
 #include "object.h"
 
