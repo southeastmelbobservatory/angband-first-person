@@ -47,8 +47,9 @@ void AABFPFirstPersonPawn::BeginPlay()
         FRotator::ZeroRotator, Params);
 
     BuildDemoSnapshot();
-    SetActorLocation(FVector(DemoSnapshot.PlayerX * 400.0f,
-        DemoSnapshot.PlayerY * 400.0f, 0.0f));
+    const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
+    SetActorLocation(FVector(DemoSnapshot.PlayerX * GridCellSize,
+        DemoSnapshot.PlayerY * GridCellSize, 0.0f));
     TargetPawnLocation = GetActorLocation();
     if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
 
@@ -197,7 +198,8 @@ void AABFPFirstPersonPawn::TryDemoStep(int32 DX, int32 DY)
     ++DemoSnapshot.Turn;
 
     if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
-    TargetPawnLocation = FVector(TargetX * 400.0f, TargetY * 400.0f, 0.0f);
+    const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
+    TargetPawnLocation = FVector(TargetX * GridCellSize, TargetY * GridCellSize, 0.0f);
     bInterpolatingMove = true;
 
     if (GEngine)
