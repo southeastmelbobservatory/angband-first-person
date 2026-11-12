@@ -40,6 +40,7 @@ private:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> RightHorn;
     UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CreatureMaterial;
     FString CreatureName;
+    int32 CreatureKindId = INDEX_NONE;
     FLinearColor BaseColor = FLinearColor(0.12f, 0.19f, 0.11f);
     float Elapsed = 0.0f;
     float DamageFlashSeconds = 0.0f;
