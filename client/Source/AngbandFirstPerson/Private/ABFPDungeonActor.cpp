@@ -39,7 +39,9 @@ AABFPDungeonActor::AABFPDungeonActor()
 FVector AABFPDungeonActor::GridToWorld(int32 X, int32 Y,
     int32 PlayerX, int32 PlayerY) const
 {
-    return FVector((X - PlayerX) * CellSize, (Y - PlayerY) * CellSize, 0.0f);
+    (void)PlayerX;
+    (void)PlayerY;
+    return FVector(X * CellSize, Y * CellSize, 0.0f);
 }
 
 void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
@@ -89,6 +91,8 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             continue;
         }
 
+        if (!GetWorld()) continue;
+
         FActorSpawnParameters Params;
         Params.Owner = this;
         AActor* Spawned = nullptr;
@@ -113,7 +117,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     {
         if (!CurrentIds.Contains(It.Key()))
         {
-            if (IsValid(It.Value())) It->Value()->Destroy();
+            if (IsValid(It.Value())) It.Value()->Destroy();
             It.RemoveCurrent();
         }
     }
