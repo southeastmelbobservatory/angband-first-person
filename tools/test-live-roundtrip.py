@@ -613,7 +613,7 @@ def main():
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    client.sendall(b"WAIT\\n")
+                    client.sendall(b"WAIT\n")
                     try:
                         monster_state, buffer = receive_state(
                             client, buffer, timeout=15, master=master, output=output
