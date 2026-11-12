@@ -57,6 +57,7 @@ static void serve_client(int fd)
 {
     char line[ABFP_LINE_CAPACITY], buffer[128];
     size_t used = 0;
+    bool discarding = false;
     ssize_t n;
     while ((n = recv(fd, buffer, sizeof(buffer), 0)) > 0) {
         ssize_t i;
@@ -64,12 +65,15 @@ static void serve_client(int fd)
             char ch = buffer[i];
             if (ch == '\n') {
                 abfp_command_type command;
-                line[used] = '\0';
-                if (abfp_transport_parse_command(line, &command)) (void)enqueue(command);
+                if (!discarding) {
+                    line[used] = '\0';
+                    if (abfp_transport_parse_command(line, &command)) (void)enqueue(command);
+                }
                 used = 0;
-            } else if (ch != '\r') {
+                discarding = false;
+            } else if (ch != '\r' && !discarding) {
                 if (used + 1 < sizeof(line)) line[used++] = ch;
-                else used = 0;
+                else { used = 0; discarding = true; }
             }
         }
         pthread_mutex_lock(&mutex);
@@ -83,8 +87,12 @@ static void *worker_main(void *unused)
     while (1) {
         int fd = accept(listen_fd, NULL, NULL);
         if (fd < 0) { if (errno == EINTR) continue; break; }
-        pthread_mutex_lock(&mutex); active_fd = fd; pthread_mutex_unlock(&mutex);
-        serve_client(fd); close(fd);
+        pthread_mutex_lock(&mutex);
+        active_fd = fd;
+        if (!running) shutdown(fd, SHUT_RDWR);
+        pthread_mutex_unlock(&mutex);
+        if (running) serve_client(fd);
+        close(fd);
         pthread_mutex_lock(&mutex); active_fd = -1; pthread_mutex_unlock(&mutex);
         pthread_mutex_lock(&mutex);
         if (!running) { pthread_mutex_unlock(&mutex); break; }
