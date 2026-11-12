@@ -21,11 +21,29 @@ static bool abfp_host_seed_test_floor_item(void)
     struct object_kind *kind;
     struct object *object;
     struct object *known;
+    struct loc item_grid = loc(0, 0);
+    bool found_grid = false;
     bool note = true;
+    static const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 };
+    static const int dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
+    size_t direction;
 
     if (sval < 0) return false;
     kind = lookup_kind(TV_FOOD, sval);
     if (!kind) return false;
+
+    for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
+        struct loc candidate = loc(player->grid.x + dx[direction],
+            player->grid.y + dy[direction]);
+        if (!square_in_bounds_fully(cave, candidate) ||
+            !square_isobjectholding(cave, candidate) ||
+            !square_ispassable(cave, candidate) ||
+            square_isoccupied(cave, candidate)) continue;
+        item_grid = candidate;
+        found_grid = true;
+        break;
+    }
+    if (!found_grid) return false;
 
     object = object_new();
     known = object_new();
@@ -38,7 +56,7 @@ static bool abfp_host_seed_test_floor_item(void)
     object_prep(object, kind, cave->depth, AVERAGE);
     object_prep(known, kind, cave->depth, AVERAGE);
     object->known = known;
-    if (!floor_carry(cave, player->grid, object, &note)) {
+    if (!floor_carry(cave, item_grid, object, &note)) {
         object->known = NULL;
         object_free(known);
         object_free(object);
