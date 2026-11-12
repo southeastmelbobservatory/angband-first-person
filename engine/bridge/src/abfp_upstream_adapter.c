@@ -157,7 +157,7 @@ static void abfp_append_monster(struct monster *mon, int x, int y,
 {
     abfp_entity_state *entity;
 
-    if (!mon || !mon->race ||
+    if (!mon || !mon->race || mon->hp <= 0 ||
         *entity_count >= ABFP_MAX_SNAPSHOT_ENTITIES) return;
 
     entity = &snapshot_entities[(*entity_count)++];
@@ -240,9 +240,12 @@ bool abfp_upstream_refresh_snapshot(void)
                 struct monster *mon = square_monster(cave, grid);
                 struct object *obj = square_object(cave, grid);
 
-                cell->occupied_by_monster = mon != NULL;
+                /* HP zero is Angband's lethal state, even if cleanup
+                 * has not yet removed the monster from its cave square. */
+                cell->occupied_by_monster = mon != NULL && mon->hp > 0;
                 cell->occupied_by_object = obj != NULL;
-                abfp_append_monster(mon, grid.x, grid.y, &entity_count);
+                if (mon && mon->hp > 0)
+                    abfp_append_monster(mon, grid.x, grid.y, &entity_count);
                 abfp_append_objects(obj, grid.x, grid.y, &entity_count);
             }
         }
