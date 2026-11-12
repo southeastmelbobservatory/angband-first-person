@@ -395,34 +395,26 @@ def main():
                     f"{item_state.get('player')}"
                 )
 
-            dungeon_floor_items = {
+            dungeon_floor_items_after = {
                 entity[0] for entity in item_state.get("entities", [])
                 if len(entity) >= 10 and entity[3] == 2
                 and (entity[1], entity[2]) == item_xy
             }
-            if seeded_item_id not in dungeon_floor_items:
+            if seeded_item_id in dungeon_floor_items_after:
                 raise AssertionError(
-                    f"Seeded ration {seeded_item_id} missing after moving onto it"
+                    f"Angband did not auto-pick up ration {seeded_item_id} "
+                    f"when entering {item_xy}"
                 )
 
-            client.sendall(b"AUTOPICKUP\n")
-            dungeon_pickup_state, buffer = receive_state(
-                client, buffer, timeout=15, master=master, output=output
-            )
-            dungeon_floor_items_after = {
-                entity[0] for entity in dungeon_pickup_state.get("entities", [])
-                if len(entity) >= 10 and entity[3] == 2
-                and (entity[1], entity[2]) == item_xy
-            }
-            dungeon_removed_items = dungeon_floor_items - dungeon_floor_items_after
             dungeon_pickup_events = {
-                event[3] for event in dungeon_pickup_state.get("events", [])
+                event[3] for event in item_state.get("events", [])
                 if len(event) >= 9 and event[0] == 5 and event[2] == "1"
             }
-            if seeded_item_id not in dungeon_removed_items or not dungeon_removed_items.issubset(dungeon_pickup_events):
+            if seeded_item_id not in dungeon_pickup_events:
                 raise AssertionError(
-                    "AUTOPICKUP did not remove the seeded ration and emit its pickup event: "
-                    f"removed={dungeon_removed_items}, events={dungeon_pickup_events}"
+                    "Automatic pickup removed the ration without emitting "
+                    f"the matching event: item={seeded_item_id}, "
+                    f"events={dungeon_pickup_events}"
                 )
 
             client.sendall(b"GO_UP\n")
@@ -452,7 +444,7 @@ def main():
                 f"player {initial['player']} -> {updated['player']} -> "
                 f"{moved['player']} via {move_command}; "
                 f"movement event exported; "
-                f"town autopickup removed {len(removed_objects)}; dungeon pickup event verified; "
+                f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
                 f"new level visible monsters={dungeon_monster_count}, "
                 f"objects={dungeon_object_count}."
