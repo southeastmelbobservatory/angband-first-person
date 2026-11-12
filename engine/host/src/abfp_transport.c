@@ -130,8 +130,15 @@ bool abfp_transport_wait_command(abfp_command_type *out)
 }
 void abfp_transport_stop(void)
 {
-    pthread_mutex_lock(&mutex); running = false; pthread_cond_broadcast(&ready); pthread_mutex_unlock(&mutex);
+    int fd;
+    pthread_mutex_lock(&mutex);
+    running = false;
+    pthread_cond_broadcast(&ready);
     if (active_fd >= 0) shutdown(active_fd, SHUT_RDWR);
-    if (listen_fd >= 0) { shutdown(listen_fd, SHUT_RDWR); close(listen_fd); listen_fd = -1; }
+    fd = listen_fd;
+    if (fd >= 0) shutdown(fd, SHUT_RDWR);
+    listen_fd = -1;
+    pthread_mutex_unlock(&mutex);
+    if (fd >= 0) close(fd);
     if (worker_started) { pthread_join(worker, NULL); worker_started = false; }
 }
