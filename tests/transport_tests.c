@@ -13,6 +13,10 @@ static void test_parse(void)
     assert(command == ABFP_COMMAND_MOVE_SOUTH_EAST);
     assert(abfp_transport_parse_command("WAIT", &command));
     assert(command == ABFP_COMMAND_WAIT);
+    assert(abfp_transport_parse_command("GO_UP", &command));
+    assert(command == ABFP_COMMAND_GO_UP);
+    assert(abfp_transport_parse_command("GO_DOWN", &command));
+    assert(command == ABFP_COMMAND_GO_DOWN);
     assert(!abfp_transport_parse_command("MOVE_UP", &command));
     assert(!abfp_transport_parse_command("", &command));
     assert(!abfp_transport_parse_command(NULL, &command));
