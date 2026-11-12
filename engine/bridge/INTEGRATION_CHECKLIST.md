@@ -53,7 +53,8 @@
 - [x] Verify blocked movement returns a snapshot without moving or consuming a turn in the live CI build.
 - [x] Verify player bump-attacks use Angband combat, export monster HP damage and emit a death event when the monster is killed.
 - [x] Verify visible monster movement events from Angband AI in a running host.
-- [ ] Verify diagonal movement and monster interruption in a running build.
+- [x] Verify player movement into a visible monster routes to Angband's attack action (monster interruption).
+- [ ] Verify diagonal movement in a running build.
 - [x] Verify client disconnect/reconnect and fresh initial-state delivery.
 - [ ] Verify long-running play sessions and repeated reconnects.
 - [x] Verify one successful movement command advances exactly one Angband turn; blocked movement advances none.
