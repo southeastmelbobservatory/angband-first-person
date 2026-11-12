@@ -35,13 +35,16 @@
 - [x] Export visible floor objects with unidentified-item privacy.
 - [x] Distinguish rubble and shops from generic walls.
 - [ ] Add complete terrain feature identifiers (door states, traps, mineral veins, webs, etc.).
-- [ ] Export player statistics, status effects and equipment summary.
+- [x] Export core player statistics (HP, maximum HP, level and gold).
+- [ ] Export status effects and equipment summary.
 
 ## Movement proof
 - [x] Capture authoritative player coordinates before movement.
 - [x] Emit movement only after the host sync boundary.
 - [x] Clear pending command state for blocked and successful moves.
 - [x] Refresh snapshot after host sync.
+- [x] Derive visible monster movement and damage events from consecutive authoritative snapshots.
+- [x] Derive authoritative player-damage events from consecutive snapshots.
 - [ ] Verify blocked movement, diagonal movement and monster interruption in a running build.
 - [ ] Verify one submitted movement command corresponds to exactly one Angband turn.
 
@@ -51,5 +54,6 @@
 - [x] Render persistent 3D creature and item actors.
 - [x] Add first-person look and interpolated grid movement in the mock scene.
 - [ ] Connect Unreal input to the live host protocol.
+- [x] Wire authoritative damage events to visible creature hit reactions.
 - [ ] Verify authoritative turn timing in a running Angband host.
 - [ ] Replace placeholder meshes with production art, materials and creature-specific rigs.
