@@ -25,6 +25,10 @@ static bool pending_command;
 static bool observed_player_moved;
 static abfp_cell snapshot_cells[ABFP_SNAPSHOT_CELLS];
 static abfp_entity_state snapshot_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
+static abfp_entity_state previous_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
+static uint32_t previous_entity_count;
+static abfp_player_state previous_player;
+static bool snapshot_history_valid;
 
 static int abfp_direction(abfp_command_type command)
 {
@@ -64,6 +68,8 @@ void abfp_upstream_remove_handlers(void)
     if (!handlers_installed) return;
     event_remove_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
     handlers_installed = false;
+    snapshot_history_valid = false;
+    previous_entity_count = 0;
     pending_move = false;
     pending_command = false;
     observed_player_moved = false;
@@ -198,6 +204,61 @@ bool abfp_upstream_refresh_snapshot(void)
     next.cell_count = ABFP_SNAPSHOT_CELLS;
     next.entities = snapshot_entities;
     next.entity_count = entity_count;
+
+    if (snapshot_history_valid) {
+        uint32_t i, j;
+
+        if (next.player.hitpoints < previous_player.hitpoints) {
+            abfp_event event = {0};
+            event.type = ABFP_EVENT_DAMAGE;
+            event.turn = next.turn;
+            event.target_id = 1;
+            event.value = previous_player.hitpoints - next.player.hitpoints;
+            abfp_bridge_emit(&event);
+        }
+
+        for (i = 0; i < entity_count; ++i) {
+            const abfp_entity_state *current = &snapshot_entities[i];
+            const abfp_entity_state *previous = NULL;
+            for (j = 0; j < previous_entity_count; ++j) {
+                if (previous_entities[j].id == current->id) {
+                    previous = &previous_entities[j];
+                    break;
+                }
+            }
+            if (!previous || current->type != ABFP_ENTITY_MONSTER) continue;
+
+            if (current->x != previous->x || current->y != previous->y) {
+                abfp_event event = {0};
+                event.type = ABFP_EVENT_ENTITY_MOVED;
+                event.turn = next.turn;
+                event.subject_id = current->id;
+                event.from_x = previous->x;
+                event.from_y = previous->y;
+                event.to_x = current->x;
+                event.to_y = current->y;
+                abfp_bridge_emit(&event);
+            }
+            if (current->hitpoints < previous->hitpoints) {
+                abfp_event event = {0};
+                event.type = ABFP_EVENT_DAMAGE;
+                event.turn = next.turn;
+                event.target_id = current->id;
+                event.from_x = current->x;
+                event.from_y = current->y;
+                event.to_x = current->x;
+                event.to_y = current->y;
+                event.value = previous->hitpoints - current->hitpoints;
+                abfp_bridge_emit(&event);
+            }
+        }
+    }
+
+    memcpy(previous_entities, snapshot_entities,
+        entity_count * sizeof(*snapshot_entities));
+    previous_entity_count = entity_count;
+    previous_player = next.player;
+    snapshot_history_valid = true;
 
     abfp_bridge_set_snapshot(&next);
     return true;
