@@ -5,7 +5,7 @@
 #include "ABFPGameMode.generated.h"
 
 UCLASS()
-class ANG BANDFIRSTPERSON_API AABFPGameMode : public AGameModeBase
+class ANGBANDFIRSTPERSON_API AABFPGameMode : public AGameModeBase
 {
     GENERATED_BODY()
 
