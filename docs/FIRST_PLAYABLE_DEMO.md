@@ -24,7 +24,7 @@ This is the first end-to-end milestone for the project:
 On Linux:
 
 ```sh
-./tools/run-native-demo.sh
+bash tools/run-native-demo.sh
 ```
 
 Complete the ordinary Angband UI flow to create or load a character. When the game reaches its first dungeon command boundary, it waits for the presentation client on:
