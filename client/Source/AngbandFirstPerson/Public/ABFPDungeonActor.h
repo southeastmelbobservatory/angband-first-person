@@ -40,4 +40,5 @@ private:
     UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> DungeonFog;
     UPROPERTY() TObjectPtr<USkyLightComponent> AmbientSky;
     UPROPERTY(Transient) TMap<int64, TObjectPtr<AActor>> SpawnedEntities;
+    int32 LastDepth = INDEX_NONE;
 };
