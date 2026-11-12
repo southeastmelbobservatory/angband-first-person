@@ -20,7 +20,8 @@
 - [x] Implement a bounded, thread-safe loopback TCP command ingress queue and strict command-line parser (transport worker does not call Angband).
 - [x] Wire the game-thread `cmd_get_hook` to wait for one transport command and submit it through the bridge.
 - [x] Serialize the authoritative snapshot and queued events as newline-delimited JSON after each Angband game loop.
-- [ ] Implement the Unreal TCP client and decode/apply state packets.
+- [x] Implement the Unreal TCP client, command sender, and JSON snapshot/event decoder.
+- [ ] Compile the Unreal project and verify the live host/client connection.
 - [x] Compile and link the patched host executable in CI.
 - [ ] Run a live game and verify movement/turn behaviour end to end.
 
