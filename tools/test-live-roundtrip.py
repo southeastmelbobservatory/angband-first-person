@@ -468,11 +468,6 @@ def main():
                     f"got {up_state.get('depth')} after descending to {depth_after_down}"
                 )
 
-            dungeon_monsters = [
-                entity for entity in stair_state.get("entities", [])
-                if len(entity) >= 10 and entity[3] == 1
-            ]
-            dungeon_monster_count = len(dungeon_monsters)
             dungeon_object_count = sum(
                 1 for entity in stair_state.get("entities", [])
                 if len(entity) >= 10 and entity[3] == 2
@@ -498,8 +493,8 @@ def main():
                 f"movement event exported; "
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
-                f"new level objects={dungeon_object_count}; monster visibility and player damage event verified, "
-                f"objects={dungeon_object_count}."
+                f"new level objects={dungeon_object_count}; "
+                f"monster visibility and player damage event verified."
             )
         finally:
             if client is not None:
