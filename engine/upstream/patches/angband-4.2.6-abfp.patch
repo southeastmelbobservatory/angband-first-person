@@ -64,7 +64,7 @@ index 0000000..0000000 100644
 +)
 +target_include_directories(OurCoreLib PRIVATE
 +    "${CMAKE_CURRENT_SOURCE_DIR}/../../bridge/include"
-+    "${CMAKE_CURRENT_SOURCE_DIR}/../../protocol"
++    "${CMAKE_CURRENT_SOURCE_DIR}/../../../protocol"
 +    "${CMAKE_CURRENT_SOURCE_DIR}/../../host/include"
 +)
 +target_compile_definitions(OurCoreLib PRIVATE ABFP_WITH_ANGBAND=1)
