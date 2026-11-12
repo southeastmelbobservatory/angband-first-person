@@ -56,3 +56,15 @@ jobs:
           -DANGBAND_SRC_DIR=${{ github.workspace }}/engine/upstream/angband/src
       - name: Compile bridge and upstream adapter
         run: cmake --build build-upstream --target abfp_bridge --parallel
+      - name: Install Angband text frontend dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libncurses-dev pkg-config
+      - name: Configure patched Angband host
+        run: >-
+          cmake -S engine/upstream/angband -B build-angband
+          -DSUPPORT_GCU_FRONTEND=ON
+          -DSUPPORT_SPOIL_FRONTEND=OFF
+          -DSUPPORT_BORG=OFF
+      - name: Build patched Angband host executable
+        run: cmake --build build-angband --parallel
