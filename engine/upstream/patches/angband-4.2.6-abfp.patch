@@ -80,3 +80,24 @@ index 0000000..0000000 100644
 +target_link_libraries(OurExecutable PRIVATE Threads::Threads)
  
  # Allow for some introspection:  have rules to print out names that something
+
+diff --git a/src/mon-util.c b/src/mon-util.c
+index 0000000..0000000 100644
+--- a/src/mon-util.c
++++ b/src/mon-util.c
+@@ -30,6 +30,7 @@
+ #include "mon-spell.h"
+ #include "mon-summon.h"
+ #include "mon-timed.h"
+ #include "mon-util.h"
++#include "../../../bridge/include/abfp_upstream_adapter.h"
+ #include "obj-desc.h"
+ #include "obj-gear.h"
+@@ -953,6 +954,7 @@ void monster_death(struct monster *mon, struct player *p, bool stats)
+ 	struct object *obj = mon->held_obj;
+ 
+ 	bool visible = monster_is_visible(mon) || monster_is_unique(mon);
++	if (!stats && visible) abfp_upstream_monster_died(mon);
+ 
+ 	/* Delete any mimicked objects */
+ 	if (mon->mimicked_obj) {
