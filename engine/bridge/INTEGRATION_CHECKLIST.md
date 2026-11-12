@@ -16,11 +16,19 @@
 - [x] Preserve unknown vs remembered vs currently visible distinctions.
 - [x] Export lighting flag.
 - [x] Prevent unseen monster/object occupancy leakage.
-- [ ] Add safe monster/object identity and entity extraction.
-- [ ] Add complete terrain feature identifiers.
+- [x] Export visible monster identity and hit points.
+- [x] Export visible floor objects with unidentified-item privacy.
+- [x] Distinguish rubble and shops from generic walls.
+- [ ] Add complete terrain feature identifiers (door states, traps, mineral veins, webs, etc.).
 
 ## Movement proof
 - [x] Capture authoritative player coordinates before movement.
-- [x] Emit from/to coordinates on `EVENT_PLAYERMOVED`.
+- [x] Emit from/to coordinates on EVENT_PLAYERMOVED.
 - [x] Refresh snapshot after movement.
 - [ ] Verify blocked movement, diagonal movement, and monster interruption in a running build.
+
+## Entity/rendering integration
+- [x] Define protocol-level monster/object entity types and data IDs.
+- [ ] Map Angband race and object-kind IDs to renderer assets.
+- [ ] Add animated 3D creature rigs and object meshes.
+- [ ] Verify entity lifetime/copy semantics in the host.
