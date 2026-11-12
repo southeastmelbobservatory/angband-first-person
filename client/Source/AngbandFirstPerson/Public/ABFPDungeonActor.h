@@ -7,6 +7,8 @@
 
 class UInstancedStaticMeshComponent;
 class USceneComponent;
+class UExponentialHeightFogComponent;
+class USkyLightComponent;
 
 UCLASS()
 class ANGBANDFIRSTPERSON_API AABFPDungeonActor : public AActor
@@ -29,5 +31,7 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Floors;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Walls;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Doors;
+    UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> DungeonFog;
+    UPROPERTY() TObjectPtr<USkyLightComponent> AmbientSky;
     UPROPERTY(Transient) TMap<int64, TObjectPtr<AActor>> SpawnedEntities;
 };
