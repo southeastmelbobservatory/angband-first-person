@@ -152,6 +152,7 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
 
     FABFPSnapshot Snapshot;
     Snapshot.Turn = static_cast<int64>(Turn);
+    Root->TryGetBoolField(TEXT("initial"), Snapshot.bInitialState);
     Snapshot.DungeonDepth = static_cast<int32>(Depth);
 
     const TArray<TSharedPtr<FJsonValue>>* Player = nullptr;
