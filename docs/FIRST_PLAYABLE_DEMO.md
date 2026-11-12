@@ -4,7 +4,20 @@ This is the first end-to-end milestone for the project:
 
 > **The original Angband engine owns the game. The first-person client renders its authoritative state and sends one player action at a time.**
 
-## What currently works in the code
+## Verified native integration
+
+The GitHub Actions native-host workflow now builds the pinned Angband executable and runs a real interactive PTY + TCP session. The live test has verified:
+
+- Real Angband character creation and entry into the dungeon.
+- Initial 21×21 authoritative state snapshot (441 cells).
+- `WAIT` advances the Angband turn.
+- A legal directional move changes the authoritative player coordinates.
+- The corresponding player-movement event is exported with the state snapshot.
+- A move into a known wall returns a snapshot without moving or consuming a turn.
+
+Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43179405465).
+
+## Implemented behaviour (not all yet runtime-verified)
 
 - Normal Angband startup and character creation remain in the text UI.
 - In dungeon game context, the ABFP host waits for a presentation client.
@@ -71,13 +84,12 @@ This client receives the same authoritative snapshots and can submit movement an
 
 ## Remaining verification gate
 
-The source implementation is ready for the first real runtime verification, but this document does not claim that Unreal compilation/runtime validation has already happened. The next hard gate is:
+The native build, protocol tests, real character creation, initial snapshot, wait, movement, movement event and blocked movement are now verified in CI. Remaining gates are:
 
-1. successful native host build;
-2. successful CTest run;
-3. interactive Angband session;
-4. real client connection;
-5. verified movement, blocked movement, combat and reconnect;
-6. compiled Unreal session consuming those snapshots.
+1. runtime verification of stairs and autopickup;
+2. runtime verification of combat, monster movement/damage events and reconnect;
+3. clean local bootstrap/build on the target Linux host;
+4. compile the Unreal project and connect its live input/rendering path to the native host;
+5. replace placeholder meshes/materials with production art and creature-specific rigs.
 
-Only after those checks pass should the milestone be called a fully verified playable demo.
+The project has a verified native gameplay bridge, but it is not yet a fully verified 3D playable demo until the Unreal client is compiled and tested against it.
