@@ -101,6 +101,7 @@ def main():
                 "TERM": "xterm-256color",
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
+                "ABFP_TEST_AUTOEXPLORE_STAIRS": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
@@ -333,37 +334,45 @@ def main():
                     f"removed={removed_objects}, events={pickup_events}"
                 )
 
-            # Exercise both stair commands at the current tile. They may be
-            # valid transitions or no-ops depending on whether this generated
-            # character happens to be standing on a staircase.
-            depth_before_up = pickup_state.get("depth")
+            # Use Angband's native autoexplore-command option only in this
+            # CI process so GO_DOWN can path to a known town staircase. Keep
+            # asking Angband to navigate until it reaches and descends the
+            # staircase; the bridge never calculates or performs the path.
+            starting_depth = pickup_state.get("depth")
+            stair_state = pickup_state
+            descended = False
+            for _ in range(16):
+                client.sendall(b"GO_DOWN\n")
+                next_state, buffer = receive_state(
+                    client, buffer, timeout=15, master=master, output=output
+                )
+                if next_state.get("depth", starting_depth) > starting_depth:
+                    stair_state = next_state
+                    descended = True
+                    break
+                if tuple(next_state.get("player", [])) == tuple(stair_state.get("player", [])):
+                    raise AssertionError(
+                        "Angband could not path to a known downstairs from "
+                        f"{stair_state.get('player')}. Terminal: "
+                        f"{terminal_text(output)[-2500:]}"
+                    )
+                stair_state = next_state
+            if not descended:
+                raise AssertionError(
+                    "Angband did not descend after 16 native GO_DOWN navigation "
+                    f"commands; depth remains {stair_state.get('depth')}"
+                )
+
+            depth_after_down = stair_state.get("depth")
             client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
-                client, buffer, master=master, output=output
+                client, buffer, timeout=15, master=master, output=output
             )
-            if up_state.get("depth", depth_before_up) > depth_before_up:
-                raise AssertionError("GO_UP increased dungeon depth")
-
-            depth_before_down = up_state.get("depth")
-            client.sendall(b"GO_DOWN\n")
-            try:
-                down_state, buffer = receive_state(
-                    client, buffer, master=master, output=output
-                )
-            except TimeoutError as error:
-                readable, _, _ = select.select([master], [], [], 0.2)
-                if readable:
-                    try:
-                        output.extend(os.read(master, 8192))
-                    except OSError:
-                        pass
+            if up_state.get("depth") != starting_depth:
                 raise AssertionError(
-                    "No state returned after GO_DOWN. "
-                    f"Depth before={depth_before_down}, after GO_UP={up_state.get('depth')}. "
-                    f"Angband terminal: {terminal_text(output)[-3500:]}"
-                ) from error
-            if down_state.get("depth", depth_before_down) < depth_before_down:
-                raise AssertionError("GO_DOWN decreased dungeon depth")
+                    f"GO_UP did not return to starting depth {starting_depth}: "
+                    f"got {up_state.get('depth')} after descending to {depth_after_down}"
+                )
 
             print(
                 "Live Angband round trip passed: "
@@ -374,7 +383,7 @@ def main():
                 f"{moved['player']} via {move_command}; "
                 f"movement event exported; "
                 f"autopickup removed {len(removed_objects)} floor objects; "
-                f"stairs depth {depth_before_up}->{up_state['depth']}->{down_state['depth']}."
+                f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}."
             )
         finally:
             if client is not None:
