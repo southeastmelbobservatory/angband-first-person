@@ -4,6 +4,9 @@
 #include "ABFPItemActor.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkyLightComponent.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
 AABFPDungeonActor::AABFPDungeonActor()
@@ -18,6 +21,17 @@ AABFPDungeonActor::AABFPDungeonActor()
     Walls->SetupAttachment(SceneRoot);
     Doors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("DoorInstances"));
     Doors->SetupAttachment(SceneRoot);
+
+    DungeonFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("DungeonFog"));
+    DungeonFog->SetupAttachment(SceneRoot);
+    DungeonFog->FogDensity = 0.025f;
+    DungeonFog->FogHeightFalloff = 0.22f;
+    DungeonFog->StartDistance = 250.0f;
+    DungeonFog->bEnableVolumetricFog = true;
+
+    AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
+    AmbientSky->SetupAttachment(SceneRoot);
+    AmbientSky->SetIntensity(0.3f);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -34,6 +48,21 @@ AABFPDungeonActor::AABFPDungeonActor()
     Floors->SetCastShadow(true);
     Walls->SetCastShadow(true);
     Doors->SetCastShadow(true);
+
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    if (BasicMaterial.Succeeded())
+    {
+        UMaterialInstanceDynamic* FloorMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* WallMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* DoorMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        FloorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.075f, 0.085f, 0.10f));
+        WallMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.19f, 0.20f, 0.22f));
+        DoorMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.32f, 0.16f, 0.055f));
+        Floors->SetMaterial(0, FloorMaterial);
+        Walls->SetMaterial(0, WallMaterial);
+        Doors->SetMaterial(0, DoorMaterial);
+    }
 }
 
 FVector AABFPDungeonActor::GridToWorld(int32 X, int32 Y,
