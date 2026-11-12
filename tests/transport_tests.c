@@ -17,6 +17,8 @@ static void test_parse(void)
     assert(command == ABFP_COMMAND_GO_UP);
     assert(abfp_transport_parse_command("GO_DOWN", &command));
     assert(command == ABFP_COMMAND_GO_DOWN);
+    assert(abfp_transport_parse_command("AUTOPICKUP", &command));
+    assert(command == ABFP_COMMAND_AUTOPICKUP);
     assert(!abfp_transport_parse_command("MOVE_UP", &command));
     assert(!abfp_transport_parse_command("", &command));
     assert(!abfp_transport_parse_command(NULL, &command));
