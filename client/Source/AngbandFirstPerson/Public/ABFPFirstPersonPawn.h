@@ -20,6 +20,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
@@ -38,4 +39,6 @@ private:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPointLightComponent> Lantern;
     UPROPERTY() TObjectPtr<AABFPDungeonActor> Dungeon;
     FABFPSnapshot DemoSnapshot;
+    FVector TargetPawnLocation = FVector::ZeroVector;
+    bool bInterpolatingMove = false;
 };
