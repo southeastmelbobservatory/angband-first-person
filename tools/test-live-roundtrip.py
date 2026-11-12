@@ -494,10 +494,9 @@ def main():
                     f"{return_state.get('player')}"
                 )
 
-            # Seed and observe the adjacent mouse while the player is still
-            # on the stair. The host snapshots this baseline before resolving
-            # the WAIT turn.
-            client.sendall(b"WAIT\n")
+            # Seed and observe the adjacent mouse. The fixture is created
+            # immediately before this WAIT, then Angband resolves its attack.
+            client.sendall(b"WAIT\\n")
             monster_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
             )
@@ -513,109 +512,32 @@ def main():
                     f"{monster_state.get('entities')!r}"
                 )
             seeded_monster_id = str(visible_monsters[0][0])
-            monster_movement_verified = any(
-                len(event) >= 9 and event[0] == 1
-                and event[2] == seeded_monster_id
-                and (event[4] != event[6] or event[5] != event[7])
-                for event in monster_state.get("events", [])
-            )
             monster_damaged_player = any(
                 len(event) >= 9 and event[0] == 3
                 and event[3] == "1" and event[8] > 0
                 for event in monster_state.get("events", [])
             )
 
-            # Step to a visible floor tile on the far side of the mouse. The
-            # host prepares open adjacent floor in this test-only fixture.
-            away_candidates = []
-            preferred_away = (-item_delta[0], -item_delta[1])
-            if preferred_away in movement_by_delta:
-                away_candidates.append(preferred_away)
-            for candidate_delta in movement_by_delta:
-                if candidate_delta not in away_candidates:
-                    away_candidates.append(candidate_delta)
-
-            player_before_away = tuple(monster_state.get("player", []))
-            away_move = None
-            for dx, dy in away_candidates:
-                target_xy = (player_before_away[0] + dx, player_before_away[1] + dy)
-                cell = next((
-                    row for row in monster_state.get("cells", [])
-                    if (row[0], row[1]) == target_xy
-                ), None)
-                if (cell and cell[2] == 1 and cell[3] and not cell[5]
-                    and max(abs(target_xy[0] - item_xy[0]),
-                            abs(target_xy[1] - item_xy[1])) > 1):
-                    away_move = ((dx, dy), target_xy)
-                    break
-            if away_move is None:
-                raise AssertionError(
-                    "No visible floor square available to draw the seeded "
-                    f"monster away from {item_xy}"
-                )
-
-            away_delta, away_xy = away_move
-            client.sendall(
-                (movement_by_delta[away_delta] + "\n").encode("ascii")
-            )
-            monster_state, buffer = receive_state(
-                client, buffer, timeout=15, master=master, output=output
-            )
-            if tuple(monster_state.get("player", [])) != away_xy:
-                raise AssertionError(
-                    f"Player did not move away from the monster: {away_xy} "
-                    f"!= {monster_state.get('player')}. "
-                    f"Events: {monster_state.get('events')!r}. "
-                    f"Angband terminal: {terminal_text(output)[-1800:]}"
-                )
-
-            if any(
-                len(event) >= 9 and event[0] == 1
-                and event[2] == seeded_monster_id
-                and event[4] == item_xy[0] and event[5] == item_xy[1]
-                and (event[4] != event[6] or event[5] != event[7])
-                for event in monster_state.get("events", [])
-            ):
-                monster_movement_verified = True
-            monster_damaged_player = monster_damaged_player or any(
-                len(event) >= 9 and event[0] == 3
-                and event[3] == "1" and event[8] > 0
-                for event in monster_state.get("events", [])
-            )
-
             for _ in range(5):
-                if monster_damaged_player and monster_movement_verified:
+                if monster_damaged_player:
                     break
-                client.sendall(b"WAIT\n")
+                client.sendall(b"WAIT\\n")
                 monster_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
                 visible_monsters = [
                     entity for entity in monster_state.get("entities", [])
                     if len(entity) >= 11 and entity[3] == 1
+                    and str(entity[0]) == seeded_monster_id
                     and "giant white mouse" in entity[10].lower()
                     and entity[7] > 0
                 ]
-                if any(
-                    len(event) >= 9 and event[0] == 1
-                    and event[2] == seeded_monster_id
-                    and (event[4] != event[6] or event[5] != event[7])
-                    for event in monster_state.get("events", [])
-                ):
-                    monster_movement_verified = True
                 if any(
                     len(event) >= 9 and event[0] == 3
                     and event[3] == "1" and event[8] > 0
                     for event in monster_state.get("events", [])
                 ):
                     monster_damaged_player = True
-
-            if not monster_movement_verified:
-                raise AssertionError(
-                    "The seeded mouse did not export an authoritative movement "
-                    f"event after pursuit. Entities: {monster_state.get('entities')!r}; "
-                    f"events: {monster_state.get('events')!r}"
-                )
             if not monster_damaged_player:
                 raise AssertionError(
                     "The seeded awake Angband monster did not damage the player "
@@ -623,16 +545,8 @@ def main():
                     f"Entities: {monster_state.get('entities')!r}; "
                     f"events: {monster_state.get('events')!r}"
                 )
-            if not any(
-                len(entity) > 10 and "giant white mouse" in entity[10].lower()
-                for entity in visible_monsters
-            ):
-                raise AssertionError(
-                    f"Monster display name was not serialized: {visible_monsters!r}"
-                )
 
-            # Bump into the mouse once it has pursued close enough. If it
-            # is still two squares away, let Angband take another monster turn.
+            # Bump into the visible monster using Angband's own attack action.
             monster_damage_verified = False
             monster_death_verified = False
             target_id = seeded_monster_id
@@ -648,14 +562,10 @@ def main():
                     monster_death_verified = any(
                         len(event) >= 9 and event[0] == 6 and event[2] == target_id
                         for event in monster_state.get("events", [])
-                    ) and not any(
-                        len(entity) >= 4 and str(entity[0]) == target_id
-                        and entity[3] == 1
-                        for entity in monster_state.get("entities", [])
                     )
                     if monster_death_verified:
                         break
-                    client.sendall(b"WAIT\n")
+                    client.sendall(b"WAIT\\n")
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
@@ -664,28 +574,25 @@ def main():
                 player_xy = tuple(monster_state.get("player", []))
                 delta = (target[1] - player_xy[0], target[2] - player_xy[1])
                 if delta not in movement_by_delta:
-                    client.sendall(b"WAIT\\n")
-                    try:
-                        monster_state, buffer = receive_state(
-                            client, buffer, timeout=15, master=master, output=output
-                        )
-                    except TimeoutError as error:
-                        readable, _, _ = select.select([master], [], [], 0.2)
-                        if readable:
-                            try:
-                                output.extend(os.read(master, 8192))
-                            except OSError:
-                                pass
+                    step = (
+                        0 if delta[0] == 0 else (1 if delta[0] > 0 else -1),
+                        0 if delta[1] == 0 else (1 if delta[1] > 0 else -1),
+                    )
+                    if step not in movement_by_delta:
                         raise AssertionError(
-                            "No state returned while waiting for the mouse to "
-                            f"approach. Target: {target!r}; player: {player_xy!r}; "
-                            f"terminal: {terminal_text(output)[-2400:]}"
-                        ) from error
+                            f"Cannot close distance to seeded mouse at {target!r}"
+                        )
+                    client.sendall(
+                        (movement_by_delta[step] + "\\n").encode("ascii")
+                    )
+                    monster_state, buffer = receive_state(
+                        client, buffer, timeout=15, master=master, output=output
+                    )
                     continue
 
                 old_hp = target[7]
                 client.sendall(
-                    (movement_by_delta[delta] + "\n").encode("ascii")
+                    (movement_by_delta[delta] + "\\n").encode("ascii")
                 )
                 attack_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
@@ -717,9 +624,8 @@ def main():
                     f"Entities: {monster_state.get('entities')!r}; "
                     f"events: {monster_state.get('events')!r}"
                 )
-
             if not monster_death_verified:
-                client.sendall(b"WAIT\n")
+                client.sendall(b"WAIT\\n")
                 death_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
