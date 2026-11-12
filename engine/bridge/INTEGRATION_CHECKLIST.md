@@ -15,7 +15,9 @@
 - [x] Add explicit host sync callback after run_game_loop returns.
 - [x] Trace the pinned text frontend lifecycle and identify the supported command-hook seam (`cmd_get_hook`) plus required post-loop sync point in `play_game()`.
 - [ ] Add a revision-checked patch to `ui-game.c` that preserves `start_game()`, `pre_turn_refresh()`, `close_game()`, and the normal `play_game()` lifecycle while synchronizing after `run_game_loop()`.
-- [ ] Implement the ABFP command hook and thread-safe transport queue; only the game thread may submit bridge commands or read Angband state.
+- [x] Implement a bounded, thread-safe loopback TCP command ingress queue and strict command-line parser (transport worker does not call Angband).
+- [ ] Wire the game-thread cmd_get_hook to wait for one transport command and submit it through the bridge.
+- [ ] Add snapshot/event serialization and delivery to the client.
 - [ ] Link the bridge into a real Angband host and run the game.
 
 ## Snapshot
