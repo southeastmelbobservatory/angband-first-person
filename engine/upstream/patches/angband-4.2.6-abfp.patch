@@ -35,7 +35,7 @@ index 0000000..0000000 100644
 +#include "../../../bridge/include/abfp_frontend.h"
 +#include "../../../host/include/abfp_host.h"
  #include "ui-help.h"
-@@ -1038,8 +1040,10 @@ void play_game(enum game_mode_type mode)
+@@ -1038,8 +1040,11 @@ void play_game(enum game_mode_type mode)
  			pre_turn_refresh();
  			cmd_get_hook(CTX_GAME);
  			run_game_loop();
