@@ -17,9 +17,10 @@ The GitHub Actions native-host workflow now builds the pinned Angband executable
 - `AUTOPICKUP`, `GO_UP` and `GO_DOWN` commands are accepted and return to the client even when the player is not standing on a relevant item or staircase; the native host suppresses blocking text-UI `-more-` prompts in 3D mode.
 - A real Angband down-stair transition and return up-stair transition (`depth 0 → 1 → 0`).
 - An eligible floor ration is picked up by Angband when the player walks onto it, and the bridge exports the matching pickup event.
+- Visible Angband monsters and objects are exported with their Angband display names and authoritative state.
 - A visible Angband monster is exported with its live HP, and an attack produces a player-damage event.
 
-Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43187545073).
+Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43188637476).
 
 ## Implemented behaviour (not all yet runtime-verified)
 
@@ -34,8 +35,9 @@ Latest verified run: [Native bridge and Angband host](https://github.com/southea
 - The post-loop bridge synchronises state and sends the next snapshot.
 - Player movement is interpolated visually only after the authoritative state changes.
 - Visible monsters and objects are rendered as 3D actors.
+- Creature race names and object-kind names drive procedural silhouettes, proportions and material palettes.
 - Walking into a monster uses Angband's normal movement/combat behaviour.
-- Visible monster movement and HP loss are exported as events; the current creature placeholder plays a hit reaction.
+- Visible monster movement and HP loss are exported as events; creature hit reactions use the authoritative damage events.
 - HP, maximum HP, character level and gold are displayed from the authoritative snapshot.
 
 ## Native host
@@ -52,7 +54,7 @@ Complete the ordinary Angband UI flow to create or load a character. When the ga
 127.0.0.1:47652
 ```
 
-The connection is intentionally loopback-only.
+The host binds to loopback by default. For a separate Unreal client on a trusted LAN, set `ABFP_BIND_ADDRESS` on the Linux host and configure the pawn Blueprint's HostAddress; see [client connection instructions](../client/README.md#connecting-across-a-trusted-lan). The protocol has no authentication or encryption, so do not expose it to the internet.
 
 ## Unreal client
 
@@ -90,10 +92,10 @@ This client receives the same authoritative snapshots and can submit movement an
 
 The native build, protocol tests, real character creation, initial snapshot, wait, movement, movement event and blocked movement are now verified in CI. Remaining gates are:
 
-1. runtime verification of monster movement and death events;
-2. runtime verification of combat, monster movement/damage events and reconnect;
+1. runtime verification of monster movement and death events, plus player-initiated attack damage;
+2. verify client reconnect and long-running play sessions;
 3. clean local bootstrap/build on the target Linux host;
 4. compile the Unreal project and connect its live input/rendering path to the native host;
-5. replace placeholder meshes/materials with production art and creature-specific rigs.
+5. replace the procedural prototype meshes with production art, animation rigs and polished materials.
 
 The project has a verified native gameplay bridge, but it is not yet a fully verified 3D playable demo until the Unreal client is compiled and tested against it.
