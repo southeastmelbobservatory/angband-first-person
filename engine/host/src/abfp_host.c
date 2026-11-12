@@ -103,31 +103,47 @@ static bool abfp_host_seed_test_monster(void)
 {
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
+    static const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 };
+    static const int dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
+    size_t direction;
 
-    if (!race || !test_item_grid_valid ||
-        !square_in_bounds_fully(cave, test_item_grid) ||
-        !square_is_monster_walkable(cave, test_item_grid) ||
-        !square_isempty(cave, test_item_grid)) return false;
-    if (!place_new_monster(cave, test_item_grid, race, false, false,
-            group_info, ORIGIN_DROP_SPECIAL)) return false;
+    if (!race || !test_stair_grid_valid) return false;
 
-    {
-        struct monster *mon = square_monster(cave, test_item_grid);
+    /*
+     * Place the fixture two open squares away on a clear approach line.
+     * The first monster turn should therefore export a real movement event
+     * before it can attack the player.
+     */
+    for (direction = 0; direction < sizeof(dx) / sizeof(dx[0]); ++direction) {
+        struct loc middle = loc(test_stair_grid.x + dx[direction],
+            test_stair_grid.y + dy[direction]);
+        struct loc candidate = loc(test_stair_grid.x + 2 * dx[direction],
+            test_stair_grid.y + 2 * dy[direction]);
+        struct monster *mon;
+
+        if (!square_in_bounds_fully(cave, middle) ||
+            !square_in_bounds_fully(cave, candidate) ||
+            !square_ispassable(cave, middle) ||
+            !square_isempty(cave, middle) ||
+            !square_is_monster_walkable(cave, candidate) ||
+            !square_isempty(cave, candidate)) continue;
+
+        if (!place_new_monster(cave, candidate, race, false, false,
+                group_info, ORIGIN_DROP_SPECIAL)) continue;
+
+        mon = square_monster(cave, candidate);
         if (!mon) return false;
-        /*
-         * This is a deterministic combat fixture, not a balance test.
-         * Keep the real Angband race/attack/turn path but make the seeded
-         * target killable by the level-one character after one successful hit.
-         */
+        /* Deterministic test target; Angband still resolves the real attack. */
         mon->hp = 1;
         mon->maxhp = 1;
-        test_monster_midx = mon->midx;
         monster_wake(mon, true, 100);
+        update_monsters(true);
+        square_light_spot(cave, candidate);
+        test_monster_seeded = true;
+        return true;
     }
-    update_monsters(true);
-    square_light_spot(cave, test_item_grid);
-    test_monster_seeded = true;
-    return true;
+
+    return false;
 }
 
 static errr abfp_host_get_command(cmd_context context)
@@ -184,7 +200,8 @@ static errr abfp_host_get_command(cmd_context context)
             command == ABFP_COMMAND_WAIT && !test_monster_seeded &&
             player && cave && cave->depth > 0 && test_stair_grid_valid &&
             loc_eq(player->grid, test_stair_grid)) {
-            if (!abfp_host_seed_test_monster()) return -1;
+            if (!abfp_host_seed_test_monster() ||
+                !abfp_frontend_refresh_snapshot()) return -1;
         }
 
         if (test_monster_seeded && test_monster_midx > 0) {
