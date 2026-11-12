@@ -13,6 +13,7 @@
 static bool bridge_registered;
 static bool initial_state_sent;
 static bool test_floor_item_seeded;
+static bool test_down_stair_seeded;
 
 static bool abfp_host_seed_test_floor_item(void)
 {
@@ -62,9 +63,6 @@ static errr abfp_host_get_command(cmd_context context)
      */
     if (player) {
         OPT(player, auto_more) = true;
-        /* CI-only: exercise Angband's own path-to-stairs behaviour. */
-        if (getenv("ABFP_TEST_AUTOEXPLORE_STAIRS"))
-            OPT(player, autoexplore_commands) = true;
     }
 
     if (!bridge_registered) {
@@ -83,6 +81,22 @@ static errr abfp_host_get_command(cmd_context context)
             initial_state_sent = false;
             continue;
         }
+
+        /*
+         * CI-only fixture: put a real Angband down-stair under the player
+         * immediately before the native GO_DOWN command is queued. The
+         * command, level generation and return trip remain normal Angband.
+         */
+        if (getenv("ABFP_TEST_FORCE_STAIRS") &&
+            command == ABFP_COMMAND_GO_DOWN && !test_down_stair_seeded &&
+            player && cave && cave->depth == 0) {
+            square_set_feat(cave, player->grid, FEAT_MORE);
+            square_memorize(cave, player->grid);
+            square_light_spot(cave, player->grid);
+            test_down_stair_seeded = true;
+            (void)abfp_frontend_refresh_snapshot();
+        }
+
         if (abfp_frontend_submit_command(command)) return 0;
     }
 }
@@ -136,6 +150,7 @@ void abfp_host_game_closed(void)
     }
     initial_state_sent = false;
     test_floor_item_seeded = false;
+    test_down_stair_seeded = false;
 }
 
 void abfp_host_shutdown(void)
