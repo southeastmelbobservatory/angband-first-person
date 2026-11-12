@@ -12,6 +12,7 @@ This is the first end-to-end milestone for the project:
 - WASD movement sends one Angband movement command.
 - Space sends one authoritative wait command.
 - Page Up/Page Down use Angband's normal staircase commands when standing on the appropriate stairs.
+- E invokes Angband's normal autopickup command for floor loot.
 - Angband resolves the complete turn.
 - The post-loop bridge synchronises state and sends the next snapshot.
 - Player movement is interpolated visually only after the authoritative state changes.
@@ -51,6 +52,7 @@ Controls:
 - **W/A/S/D** — move one grid square relative to the camera
 - **Space** — wait one Angband turn
 - **Page Up/Page Down** — use stairs when standing on them
+- **E** — invoke autopickup for items on the current square
 - **Mouse** — look around
 
 When connected, the in-world status readout says **ANGBAND LIVE**. The player position is not predicted: each action waits for the next authoritative Angband snapshot.
