@@ -417,6 +417,19 @@ def main():
                     f"events={dungeon_pickup_events}"
                 )
 
+            return_delta = (-item_delta[0], -item_delta[1])
+            client.sendall(
+                (movement_by_delta[return_delta] + "\n").encode("ascii")
+            )
+            return_state, buffer = receive_state(
+                client, buffer, timeout=15, master=master, output=output
+            )
+            if tuple(return_state.get("player", [])) != dungeon_player_xy:
+                raise AssertionError(
+                    f"Player did not return to the up-stair tile {dungeon_player_xy}: "
+                    f"{return_state.get('player')}"
+                )
+
             client.sendall(b"GO_UP\n")
             up_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
