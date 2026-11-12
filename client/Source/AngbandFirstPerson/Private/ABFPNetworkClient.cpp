@@ -102,10 +102,23 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
 {
     if (!Socket) return false;
 
-    uint32 Pending = 0;
-    while (Socket->HasPendingData(Pending) && Pending > 0)
+    /*
+     * HasPendingData() reports payload bytes, but an orderly TCP close can
+     * make the socket readable with zero payload. Probe that case as well so
+     * the pawn's reconnect loop can recover after a host restart.
+     */
+    while (true)
     {
-        const int32 ToRead = static_cast<int32>(FMath::Min<uint32>(Pending, 8192));
+        uint32 Pending = 0;
+        const bool bHasPending = Socket->HasPendingData(Pending) && Pending > 0;
+        if (!bHasPending &&
+            !Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::Zero()))
+        {
+            break;
+        }
+
+        const int32 ToRead = bHasPending ?
+            static_cast<int32>(FMath::Min<uint32>(Pending, 8192)) : 8192;
         TArray<uint8> Bytes;
         Bytes.SetNumUninitialized(ToRead + 1);
         int32 Read = 0;
@@ -118,7 +131,7 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
         ReceiveBuffer.Append(UTF8_TO_TCHAR(reinterpret_cast<const char*>(Bytes.GetData())));
         if (ReceiveBuffer.Len() > 4 * 1024 * 1024)
         {
-            ReceiveBuffer.Reset();
+            Disconnect();
             return false;
         }
     }
@@ -126,7 +139,7 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
     bool bUpdated = false;
     while (true)
     {
-        const int32 Newline = ReceiveBuffer.Find(TEXT("\n"));
+        const int32 Newline = ReceiveBuffer.Find(TEXT("\\n"));
         if (Newline == INDEX_NONE) break;
         const FString Line = ReceiveBuffer.Left(Newline);
         ReceiveBuffer = ReceiveBuffer.Mid(Newline + 1);
