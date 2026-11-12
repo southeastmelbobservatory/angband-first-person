@@ -101,7 +101,7 @@ def main():
                 "TERM": "xterm-256color",
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
-                "ABFP_TEST_AUTOEXPLORE_STAIRS": "1",
+                "ABFP_TEST_FORCE_STAIRS": "1",
                 "ABFP_TEST_FLOOR_ITEM": "1",
             })
             os.execve(binary, [
@@ -335,33 +335,18 @@ def main():
                     f"removed={removed_objects}, events={pickup_events}"
                 )
 
-            # Use Angband's native autoexplore-command option only in this
-            # CI process so GO_DOWN can path to a known town staircase. Keep
-            # asking Angband to navigate until it reaches and descends the
-            # staircase; the bridge never calculates or performs the path.
+            # The test host places a real Angband down-stair on the
+            # player's square immediately before this command is submitted.
+            # Only the fixture is synthetic; Angband performs the transition.
             starting_depth = pickup_state.get("depth")
-            stair_state = pickup_state
-            descended = False
-            for _ in range(16):
-                client.sendall(b"GO_DOWN\n")
-                next_state, buffer = receive_state(
-                    client, buffer, timeout=15, master=master, output=output
-                )
-                if next_state.get("depth", starting_depth) > starting_depth:
-                    stair_state = next_state
-                    descended = True
-                    break
-                if tuple(next_state.get("player", [])) == tuple(stair_state.get("player", [])):
-                    raise AssertionError(
-                        "Angband could not path to a known downstairs from "
-                        f"{stair_state.get('player')}. Terminal: "
-                        f"{terminal_text(output)[-2500:]}"
-                    )
-                stair_state = next_state
-            if not descended:
+            client.sendall(b"GO_DOWN\n")
+            stair_state, buffer = receive_state(
+                client, buffer, timeout=15, master=master, output=output
+            )
+            if stair_state.get("depth") != starting_depth + 1:
                 raise AssertionError(
-                    "Angband did not descend after 16 native GO_DOWN navigation "
-                    f"commands; depth remains {stair_state.get('depth')}"
+                    f"GO_DOWN did not descend one level: "
+                    f"{starting_depth} -> {stair_state.get('depth')}"
                 )
 
             depth_after_down = stair_state.get("depth")
