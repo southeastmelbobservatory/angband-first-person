@@ -6,7 +6,6 @@
 #include "abfp_transport.h"
 #include "abfp_host.h"
 #include <stdlib.h>
-#include <stdio.h>
 
 static bool bridge_registered;
 static bool initial_state_sent;
@@ -14,9 +13,6 @@ static bool initial_state_sent;
 static errr abfp_host_get_command(cmd_context context)
 {
     abfp_command_type command;
-
-    fprintf(stderr, "ABFP: command hook entered (context=%d)\n", (int)context);
-    fflush(stderr);
 
     /* Birth, store, death and other non-game contexts retain the text UI. */
     if (context != CTX_GAME) return textui_get_cmd(context);
@@ -29,33 +25,22 @@ static errr abfp_host_get_command(cmd_context context)
     if (player) OPT(player, auto_more) = true;
 
     if (!bridge_registered) {
-        fprintf(stderr, "ABFP: registering bridge\n"); fflush(stderr);
         if (!abfp_frontend_register()) {
-            fprintf(stderr, "ABFP: bridge registration failed\n"); fflush(stderr);
             return -1;
         }
         bridge_registered = true;
-        fprintf(stderr, "ABFP: bridge registered\n"); fflush(stderr);
     }
 
     while (1) {
-        fprintf(stderr, "ABFP: waiting for client\n"); fflush(stderr);
         if (!abfp_transport_wait_for_client()) return -1;
-        fprintf(stderr, "ABFP: client connected\n"); fflush(stderr);
         if (!initial_state_sent) {
             initial_state_sent = abfp_host_publish_state(true);
-            fprintf(stderr, "ABFP: initial snapshot publish %s\n", initial_state_sent ? "succeeded" : "FAILED");
-            fflush(stderr);
         }
-        fprintf(stderr, "ABFP: waiting for command\n"); fflush(stderr);
         if (!abfp_transport_wait_command(&command)) {
-            fprintf(stderr, "ABFP: client disconnected while waiting\n"); fflush(stderr);
             initial_state_sent = false;
             continue;
         }
-        fprintf(stderr, "ABFP: command received (%d)\n", (int)command); fflush(stderr);
         if (abfp_frontend_submit_command(command)) return 0;
-        fprintf(stderr, "ABFP: command rejected\n"); fflush(stderr);
     }
 }
 
