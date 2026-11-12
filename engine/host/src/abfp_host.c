@@ -11,7 +11,6 @@
 #include "abfp_transport.h"
 #include "abfp_host.h"
 #include <stdlib.h>
-#include <stdio.h>
 
 static bool bridge_registered;
 static bool initial_state_sent;
@@ -183,14 +182,8 @@ bool abfp_host_publish_state(bool initial_state)
     }
     if (getenv("ABFP_TEST_FLOOR_ITEM") && !test_floor_item_seeded &&
         player && cave && cave->depth > 0) {
-        if (!abfp_host_seed_test_floor_item()) {
-            fprintf(stderr, "ABFP_TEST: floor item fixture failed at depth %d\n", cave->depth);
-            return false;
-        }
-        if (!abfp_frontend_refresh_snapshot()) {
-            fprintf(stderr, "ABFP_TEST: snapshot refresh failed after floor item fixture\n");
-            return false;
-        }
+        if (!abfp_host_seed_test_floor_item() ||
+            !abfp_frontend_refresh_snapshot()) return false;
     }
     snapshot = abfp_frontend_snapshot();
     size_t count = abfp_bridge_event_count();
