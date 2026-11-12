@@ -1,0 +1,48 @@
+diff --git a/src/main.c b/src/main.c
+index 0000000..0000000 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -20,6 +20,7 @@
+ #include "ui-prefs.h"
+ #include "ui-signals.h"
++#include "abfp_host.h"
+ 
+ #ifdef SOUND
+ #include "sound.h"
+@@ -468,6 +469,8 @@ int main(int argc, char *argv[])
+ 	init_angband();
+ 	textui_init();
+ 
++	if (!abfp_host_install(47652))
++		quit("Unable to start ABFP loopback command transport");
++
+ 	/* Wait for response */
+ 	pause_line(Term);
+ 
+@@ -476,6 +479,7 @@ int main(int argc, char *argv[])
+ 	play_game((select_game) ?
+ 		GAME_SELECT : ((new_game) ? GAME_NEW : GAME_LOAD));
+ 
++	abfp_host_shutdown();
+ 	/* Free resources */
+ 	textui_cleanup();
+diff --git a/src/ui-game.c b/src/ui-game.c
+index 0000000..0000000 100644
+--- a/src/ui-game.c
++++ b/src/ui-game.c
+@@ -52,6 +52,7 @@
+ #include "ui-game.h"
++#include "abfp_frontend.h"
++#include "abfp_host.h"
+ #include "ui-help.h"
+@@ -1038,6 +1039,7 @@ void play_game(enum game_mode_type mode)
+ 			pre_turn_refresh();
+ 			cmd_get_hook(CTX_GAME);
+ 			run_game_loop();
++			abfp_frontend_after_game_loop();
+ 		}
+ 
+ 		/* Close game on death or quitting */
+ 		close_game(true);
++		abfp_host_game_closed();
+ 
