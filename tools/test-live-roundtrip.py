@@ -495,7 +495,7 @@ def main():
                 if (cell and cell[2] == 1 and cell[3] and not cell[5]
                     and max(abs(target_xy[0] - item_xy[0]),
                             abs(target_xy[1] - item_xy[1])) > 1):
-                    away_move = (candidate_delta, target_xy)
+                    away_move = ((dx, dy), target_xy)
                     break
             if away_move is None:
                 raise AssertionError(
