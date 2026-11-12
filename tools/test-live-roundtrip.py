@@ -186,7 +186,7 @@ def main():
                 )
 
             move_command, expected_position = movement
-            client.sendall((move_command + "\\n").encode("ascii"))
+            client.sendall((move_command + "\n").encode("ascii"))
             moved, buffer = receive_state(client, buffer)
             if moved.get("type") != "state":
                 raise AssertionError(f"Expected movement state, got: {moved!r}")
