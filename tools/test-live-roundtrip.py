@@ -496,7 +496,7 @@ def main():
 
             # Seed and observe the adjacent mouse. The fixture is created
             # immediately before this WAIT, then Angband resolves its attack.
-            client.sendall(b"WAIT\\n")
+            client.sendall(b"WAIT\n")
             monster_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
             )
@@ -521,7 +521,7 @@ def main():
             for _ in range(5):
                 if monster_damaged_player:
                     break
-                client.sendall(b"WAIT\\n")
+                client.sendall(b"WAIT\n")
                 monster_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
@@ -565,7 +565,7 @@ def main():
                     )
                     if monster_death_verified:
                         break
-                    client.sendall(b"WAIT\\n")
+                    client.sendall(b"WAIT\n")
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
@@ -583,7 +583,7 @@ def main():
                             f"Cannot close distance to seeded mouse at {target!r}"
                         )
                     client.sendall(
-                        (movement_by_delta[step] + "\\n").encode("ascii")
+                        (movement_by_delta[step] + "\n").encode("ascii")
                     )
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
@@ -592,7 +592,7 @@ def main():
 
                 old_hp = target[7]
                 client.sendall(
-                    (movement_by_delta[delta] + "\\n").encode("ascii")
+                    (movement_by_delta[delta] + "\n").encode("ascii")
                 )
                 attack_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
@@ -625,7 +625,7 @@ def main():
                     f"events: {monster_state.get('events')!r}"
                 )
             if not monster_death_verified:
-                client.sendall(b"WAIT\\n")
+                client.sendall(b"WAIT\n")
                 death_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
