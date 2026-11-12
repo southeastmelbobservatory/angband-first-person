@@ -40,7 +40,7 @@ index 0000000..0000000 100644
  			cmd_get_hook(CTX_GAME);
  			run_game_loop();
 +			abfp_frontend_after_game_loop();
-+			abfp_host_publish_state();
++			abfp_host_publish_state(false);
  		}
  
  		/* Close game on death or quitting */
