@@ -166,6 +166,16 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
     Snapshot.PlayerX = ReadInt((*Player)[0]);
     Snapshot.PlayerY = ReadInt((*Player)[1]);
 
+    const TArray<TSharedPtr<FJsonValue>>* PlayerStats = nullptr;
+    if (Root->TryGetArrayField(TEXT("player_stats"), PlayerStats) && PlayerStats &&
+        PlayerStats->Num() >= 4)
+    {
+        Snapshot.PlayerHitPoints = ReadInt((*PlayerStats)[0]);
+        Snapshot.PlayerMaxHitPoints = ReadInt((*PlayerStats)[1]);
+        Snapshot.PlayerLevel = ReadInt((*PlayerStats)[2]);
+        Snapshot.PlayerGold = ReadInt((*PlayerStats)[3]);
+    }
+
     const TArray<TSharedPtr<FJsonValue>>* Cells = nullptr;
     if (!Root->TryGetArrayField(TEXT("cells"), Cells) || !Cells) return false;
     for (const TSharedPtr<FJsonValue>& Value : *Cells)
