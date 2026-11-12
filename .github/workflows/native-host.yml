@@ -32,8 +32,8 @@ jobs:
       - name: Install Angband build dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config libncurses-dev libncursesw5-dev
       - name: Bootstrap pinned upstream and apply bridge patch
-        run: ./tools/bootstrap-angband.sh
+        run: bash tools/bootstrap-angband.sh
       - name: Build complete Angband executable with bridge
-        run: ./tools/build-angband-host.sh
+        run: bash tools/build-angband-host.sh
       - name: Verify executable was linked
         run: test -x build-angband/game/angband
