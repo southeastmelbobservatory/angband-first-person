@@ -219,7 +219,7 @@ bool abfp_upstream_refresh_snapshot(void)
         }
     }
 
-    next.turn = (uint64_t)cave->turn;
+    next.turn = (uint64_t)turn;
     next.dungeon_depth = cave->depth;
     next.player_x = player->grid.x;
     next.player_y = player->grid.y;
@@ -339,7 +339,7 @@ void abfp_upstream_sync_after_game_loop(void)
             event.from_y = pending_from.y;
             event.to_x = player->grid.x;
             event.to_y = player->grid.y;
-            event.turn = (uint64_t)cave->turn;
+            event.turn = (uint64_t)turn;
             abfp_bridge_emit(&event);
         }
         (void)abfp_upstream_refresh_snapshot();
