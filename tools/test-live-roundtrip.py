@@ -302,6 +302,56 @@ def main():
                     f"{moved.get('turn')} -> {blocked_state.get('turn')}"
                 )
 
+            # Exercise the engine's own autopickup command. If an object
+            # actually disappears from the player's square, require the
+            # matching pickup event; an empty square is still a valid no-op.
+            player_xy = tuple(blocked_state["player"])
+            objects_before = {
+                entity[0] for entity in blocked_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 2
+                and (entity[1], entity[2]) == player_xy
+            }
+            client.sendall(b"AUTOPICKUP\\n")
+            pickup_state, buffer = receive_state(
+                client, buffer, master=master, output=output
+            )
+            if tuple(pickup_state.get("player", [])) != player_xy:
+                raise AssertionError("AUTOPICKUP unexpectedly moved the player")
+            objects_after = {
+                entity[0] for entity in pickup_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 2
+                and (entity[1], entity[2]) == player_xy
+            }
+            removed_objects = objects_before - objects_after
+            pickup_events = {
+                event[3] for event in pickup_state.get("events", [])
+                if len(event) >= 9 and event[0] == 5 and event[2] == "1"
+            }
+            if not removed_objects.issubset(pickup_events):
+                raise AssertionError(
+                    "AUTOPICKUP removed floor objects without matching pickup events: "
+                    f"removed={removed_objects}, events={pickup_events}"
+                )
+
+            # Exercise both stair commands at the current tile. They may be
+            # valid transitions or no-ops depending on whether this generated
+            # character happens to be standing on a staircase.
+            depth_before_up = pickup_state.get("depth")
+            client.sendall(b"GO_UP\\n")
+            up_state, buffer = receive_state(
+                client, buffer, master=master, output=output
+            )
+            if up_state.get("depth", depth_before_up) > depth_before_up:
+                raise AssertionError("GO_UP increased dungeon depth")
+
+            depth_before_down = up_state.get("depth")
+            client.sendall(b"GO_DOWN\\n")
+            down_state, buffer = receive_state(
+                client, buffer, master=master, output=output
+            )
+            if down_state.get("depth", depth_before_down) < depth_before_down:
+                raise AssertionError("GO_DOWN decreased dungeon depth")
+
             print(
                 "Live Angband round trip passed: "
                 f"initial turn {initial['turn']}, wait turn {updated['turn']}, "
