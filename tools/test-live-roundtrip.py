@@ -103,6 +103,7 @@ def main():
                 "LC_ALL": "C.UTF-8",
                 "ABFP_TEST_FORCE_STAIRS": "1",
                 "ABFP_TEST_FLOOR_ITEM": "1",
+                "ABFP_TEST_MONSTER": "1",
             })
             os.execve(binary, [
                 binary, "-n", "-uABFPRuntime",
@@ -363,6 +364,20 @@ def main():
 
             depth_after_down = stair_state.get("depth")
             dungeon_player_xy = tuple(stair_state.get("player", []))
+            visible_monsters = [
+                entity for entity in stair_state.get("entities", [])
+                if len(entity) >= 10 and entity[3] == 1
+                and max(
+                    abs(entity[1] - dungeon_player_xy[0]),
+                    abs(entity[2] - dungeon_player_xy[1])
+                ) <= 1
+            ]
+            if not visible_monsters or visible_monsters[0][7] <= 0:
+                raise AssertionError(
+                    "The live snapshot did not expose the seeded visible "
+                    f"monster with valid HP: {stair_state.get('entities')!r}"
+                )
+
             movement_by_delta = {
                 (0, -1): "MOVE_NORTH", (1, 0): "MOVE_EAST",
                 (0, 1): "MOVE_SOUTH", (-1, 0): "MOVE_WEST",
@@ -478,7 +493,7 @@ def main():
                 f"movement event exported; "
                 f"town AUTOPICKUP no-op accepted; movement-triggered pickup event verified; "
                 f"stairs depth {starting_depth}->{depth_after_down}->{up_state['depth']}; "
-                f"new level visible monsters={dungeon_monster_count}, "
+                f"new level visible monsters={dungeon_monster_count} (seeded monster visible), "
                 f"objects={dungeon_object_count}."
             )
         finally:
