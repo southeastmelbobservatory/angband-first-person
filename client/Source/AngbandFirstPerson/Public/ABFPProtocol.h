@@ -80,6 +80,10 @@ struct FABFPSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 DungeonDepth = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerX = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerY = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerHitPoints = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMaxHitPoints = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerLevel = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerGold = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPCell> Cells;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEntity> Entities;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEvent> Events;
