@@ -189,7 +189,7 @@ static bool abfp_host_seed_test_monster(void)
     }
 
     square_remove_all_traps(cave, test_stair_grid);
-    update_view();
+    update_view(cave, player);
     update_monsters(true);
     square_light_spot(cave, monster_grid);
     test_monster_seeded = true;
