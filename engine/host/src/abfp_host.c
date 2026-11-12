@@ -81,37 +81,45 @@ static bool abfp_host_seed_test_monster(void)
 {
     struct monster_race *race = lookup_monster("giant white mouse");
     struct monster_group_info group_info = {0};
-    int radius, dx, dy;
+    int dx = 0, dy = -1;
+    size_t direction;
 
     if (!race) return false;
+    if (test_item_grid_valid) {
+        dx = test_item_grid.x - player->grid.x;
+        dy = test_item_grid.y - player->grid.y;
+    }
 
-    /*
-     * Keep the fixture beside the player so it is visible immediately in
-     * the first dungeon snapshot. Search rings rather than assuming the
-     * generated arrival room has a walkable square in one chosen direction.
-     */
-    for (radius = 1; radius <= 4; ++radius) {
-        for (dy = -radius; dy <= radius; ++dy) {
-            for (dx = -radius; dx <= radius; ++dx) {
-                struct loc candidate;
-                if (abs(dx) != radius && abs(dy) != radius) continue;
-                candidate = loc(player->grid.x + dx, player->grid.y + dy);
-                if (!square_in_bounds_fully(cave, candidate) ||
-                    !square_is_monster_walkable(cave, candidate) ||
-                    square_isoccupied(cave, candidate) ||
-                    (test_item_grid_valid && loc_eq(candidate, test_item_grid))) {
-                    continue;
-                }
-                if (!place_new_monster(cave, candidate, race, true, false,
-                        group_info, ORIGIN_DROP_SPECIAL)) continue;
-                update_monsters(true);
-                square_light_spot(cave, candidate);
-                test_monster_grid = candidate;
-                test_monster_grid_valid = true;
-                test_monster_seeded = true;
-                return true;
-            }
+    /* Prefer the square two steps beyond the ration, so the awakened
+     * monster can move into the now-vacant item square. */
+    for (direction = 0; direction < 5; ++direction) {
+        int step_x = dx;
+        int step_y = dy;
+        struct loc middle, candidate;
+
+        if (direction > 0) {
+            static const int fallback_x[] = { 0, 1, 0, -1 };
+            static const int fallback_y[] = { -1, 0, 1, 0 };
+            step_x = fallback_x[direction - 1];
+            step_y = fallback_y[direction - 1];
         }
+        if (step_x == 0 && step_y == 0) continue;
+        middle = loc(player->grid.x + step_x, player->grid.y + step_y);
+        candidate = loc(player->grid.x + 2 * step_x,
+            player->grid.y + 2 * step_y);
+        if (!square_in_bounds_fully(cave, middle) ||
+            !square_ispassable(cave, middle) ||
+            !square_in_bounds_fully(cave, candidate) ||
+            !square_is_monster_walkable(cave, candidate) ||
+            square_isoccupied(cave, candidate)) continue;
+        if (!place_new_monster(cave, candidate, race, true, false,
+                group_info, ORIGIN_DROP_SPECIAL)) continue;
+        update_monsters(true);
+        square_light_spot(cave, candidate);
+        test_monster_grid = candidate;
+        test_monster_grid_valid = true;
+        test_monster_seeded = true;
+        return true;
     }
     return false;
 }
