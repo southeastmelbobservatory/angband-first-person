@@ -508,7 +508,9 @@ def main():
             if tuple(monster_state.get("player", [])) != away_xy:
                 raise AssertionError(
                     f"Player did not move away from the monster: {away_xy} "
-                    f"!= {monster_state.get('player')}"
+                    f"!= {monster_state.get('player')}. "
+                    f"Events: {monster_state.get('events')!r}. "
+                    f"Angband terminal: {terminal_text(output)[-1800:]}"
                 )
 
             if any(
