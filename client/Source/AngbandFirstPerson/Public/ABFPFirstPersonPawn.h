@@ -6,11 +6,12 @@
 #include "ABFPFirstPersonPawn.generated.h"
 
 class UCameraComponent;
+class USceneComponent;
 class UPointLightComponent;
 class AABFPDungeonActor;
 
 UCLASS()
-class ANG BANDFIRSTPERSON_API AABFPFirstPersonPawn : public APawn
+class ANGBANDFIRSTPERSON_API AABFPFirstPersonPawn : public APawn
 {
     GENERATED_BODY()
 
