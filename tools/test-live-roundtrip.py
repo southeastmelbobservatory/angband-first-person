@@ -446,7 +446,7 @@ def main():
             # Seed and observe the adjacent mouse while the player is still
             # on the stair. The host snapshots this baseline before resolving
             # the WAIT turn.
-            client.sendall(b"WAIT\\n")
+            client.sendall(b"WAIT\n")
             monster_state, buffer = receive_state(
                 client, buffer, timeout=15, master=master, output=output
             )
@@ -528,7 +528,7 @@ def main():
             for _ in range(5):
                 if monster_damaged_player and monster_movement_verified:
                     break
-                client.sendall(b"WAIT\\n")
+                client.sendall(b"WAIT\n")
                 monster_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
