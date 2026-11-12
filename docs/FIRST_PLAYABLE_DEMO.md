@@ -18,9 +18,9 @@ The GitHub Actions native-host workflow now builds the pinned Angband executable
 - A real Angband down-stair transition and return up-stair transition (`depth 0 → 1 → 0`).
 - An eligible floor ration is picked up by Angband when the player walks onto it, and the bridge exports the matching pickup event.
 - Visible Angband monsters and objects are exported with their Angband display names and authoritative state.
-- A visible Angband monster is exported with its live HP, and an attack produces a player-damage event.
+- A visible Angband monster is exported with its live HP, and its attack produces a player-damage event.
 
-Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43188637476).
+Latest verified run: [Native bridge and Angband host](https://github.com/southeastmelbobservatory/angband-first-person/actions/runs/43189238576).
 
 ## Implemented behaviour (not all yet runtime-verified)
 
@@ -90,12 +90,12 @@ This client receives the same authoritative snapshots and can submit movement an
 
 ## Remaining verification gate
 
-The native build, protocol tests, real character creation, initial snapshot, wait, movement, movement event and blocked movement are now verified in CI. Remaining gates are:
+Native host run #185 verifies the complete pinned Angband build, real character creation, authoritative snapshots, wait and movement, blocked movement, stair descent/ascent, floor-item pickup, visible monster state and monster-to-player damage. Remaining gates are:
 
-1. runtime verification of monster movement and death events, plus player-initiated attack damage;
-2. verify client reconnect and long-running play sessions;
-3. clean local bootstrap/build on the target Linux host;
-4. compile the Unreal project and connect its live input/rendering path to the native host;
-5. replace the procedural prototype meshes with production art, animation rigs and polished materials.
+1. verify player-initiated attacks, monster HP loss and monster death events in the live host (the next CI test is now exercising this);
+2. verify diagonal movement, reconnect and long-running play sessions;
+3. clean local bootstrap/build and interactive save/load/death/quit/restart paths on the target Linux host;
+4. compile the Unreal project in Unreal Engine 5 and connect its live input/rendering path to the native host;
+5. polish collision, production art, animation rigs, materials, audio and dungeon set dressing.
 
 The project has a verified native gameplay bridge, but it is not yet a fully verified 3D playable demo until the Unreal client is compiled and tested against it.
