@@ -21,6 +21,8 @@
 - [x] Publish the initial snapshot on client connection and publish refreshed snapshots/events after each completed game loop.
 - [x] Retain queued events when snapshot delivery fails; clear them only after successful delivery.
 - [x] Add CI jobs for standalone bridge tests and the complete pinned Angband host build.
+- [x] Add a standalone loopback transport command parser regression test.
+- [x] Add a minimal interactive protocol client for live native-host smoke testing.
 - [ ] Execute a live interactive host/client session and verify turn processing.
 - [ ] Compile the Unreal project and verify the live host/client connection.
 
