@@ -174,8 +174,7 @@ static errr abfp_host_get_command(cmd_context context)
             (void)abfp_frontend_refresh_snapshot();
         }
 
-        if (getenv("ABFP_TEST_MONSTER") &&
-            command == ABFP_COMMAND_WAIT && !test_monster_seeded &&
+        if (getenv("ABFP_TEST_MONSTER") && !test_monster_seeded &&
             player && cave && cave->depth > 0 && test_stair_grid_valid &&
             loc_eq(player->grid, test_stair_grid)) {
             if (!abfp_host_seed_test_monster() ||
