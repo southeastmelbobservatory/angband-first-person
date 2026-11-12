@@ -214,9 +214,18 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         TObjectPtr<AActor>* Existing = SpawnedEntities.Find(Entity.Id);
         if (Existing && IsValid(Existing->Get()))
         {
-            Existing->Get()->SetActorLocation(Location);
             if (Entity.Type == EABFPEntityType::Monster)
-                Existing->Get()->SetActorRotation(Facing);
+            {
+                if (AABFPCreatureActor* Creature =
+                    Cast<AABFPCreatureActor>(Existing->Get()))
+                    Creature->SetTargetLocation(Location, Facing);
+                else
+                    Existing->Get()->SetActorLocation(Location);
+            }
+            else
+            {
+                Existing->Get()->SetActorLocation(Location);
+            }
             continue;
         }
 
