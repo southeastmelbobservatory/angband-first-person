@@ -567,7 +567,7 @@ def main():
                     )
                     if monster_death_verified:
                         break
-                    client.sendall(b"WAIT\\n")
+                    client.sendall(b"WAIT\n")
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
                     )
@@ -585,7 +585,7 @@ def main():
                             f"Cannot close distance to seeded mouse at {target!r}"
                         )
                     client.sendall(
-                        (movement_by_delta[step] + "\\n").encode("ascii")
+                        (movement_by_delta[step] + "\n").encode("ascii")
                     )
                     monster_state, buffer = receive_state(
                         client, buffer, timeout=15, master=master, output=output
@@ -593,7 +593,7 @@ def main():
                     continue
 
                 client.sendall(
-                    (movement_by_delta[delta] + "\\n").encode("ascii")
+                    (movement_by_delta[delta] + "\n").encode("ascii")
                 )
                 attack_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
@@ -619,7 +619,7 @@ def main():
                     break
 
                 # The host's deterministic fixture now applies the lethal hit.
-                client.sendall(b"WAIT\\n")
+                client.sendall(b"WAIT\n")
                 death_state, buffer = receive_state(
                     client, buffer, timeout=15, master=master, output=output
                 )
