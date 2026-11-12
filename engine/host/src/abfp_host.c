@@ -1,5 +1,6 @@
 #include "angband.h"
 #include "cmd-core.h"
+#include "option.h"
 #include "ui-game.h"
 #include "abfp_frontend.h"
 #include "abfp_transport.h"
@@ -19,6 +20,13 @@ static errr abfp_host_get_command(cmd_context context)
 
     /* Birth, store, death and other non-game contexts retain the text UI. */
     if (context != CTX_GAME) return textui_get_cmd(context);
+
+    /*
+     * The 3D client receives authoritative state/events instead of reading
+     * Angband's message line. Do not block the game thread on a terminal
+     * "-more-" acknowledgement after messages such as "no staircase here".
+     */
+    if (player) OPT(player, auto_more) = true;
 
     if (!bridge_registered) {
         fprintf(stderr, "ABFP: registering bridge\n"); fflush(stderr);
