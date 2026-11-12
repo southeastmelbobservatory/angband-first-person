@@ -2,6 +2,8 @@
 
 ## Upstream
 - [x] Pin official Angband 4.2.6 release commit.
+- [x] Compile the adapter translation unit against the exact pinned Angband 4.2.6 headers in CI.
+- [ ] Link the bridge into a real Angband host and run the game.
 - [ ] Bootstrap exact revision and build unchanged.
 - [ ] Record local build/test result.
 
