@@ -17,6 +17,8 @@ static bool initial_state_sent;
 static bool test_floor_item_seeded;
 static bool test_down_stair_seeded;
 static bool test_monster_seeded;
+static bool test_monster_attacked;
+static bool test_monster_killed;
 static bool test_item_grid_valid;
 static struct loc test_item_grid;
 static bool test_stair_grid_valid;
@@ -73,6 +75,26 @@ static bool abfp_host_seed_test_floor_item(void)
     test_item_grid = item_grid;
     test_item_grid_valid = true;
     test_floor_item_seeded = true;
+    return true;
+}
+
+static bool abfp_host_move_target(abfp_command_type command,
+    struct loc *target)
+{
+    int dx = 0, dy = 0;
+    if (!target || !player) return false;
+    switch (command) {
+    case ABFP_COMMAND_MOVE_NORTH: dy = -1; break;
+    case ABFP_COMMAND_MOVE_SOUTH: dy = 1; break;
+    case ABFP_COMMAND_MOVE_WEST: dx = -1; break;
+    case ABFP_COMMAND_MOVE_EAST: dx = 1; break;
+    case ABFP_COMMAND_MOVE_NORTH_WEST: dx = -1; dy = -1; break;
+    case ABFP_COMMAND_MOVE_NORTH_EAST: dx = 1; dy = -1; break;
+    case ABFP_COMMAND_MOVE_SOUTH_WEST: dx = -1; dy = 1; break;
+    case ABFP_COMMAND_MOVE_SOUTH_EAST: dx = 1; dy = 1; break;
+    default: return false;
+    }
+    *target = loc(player->grid.x + dx, player->grid.y + dy);
     return true;
 }
 
@@ -159,6 +181,24 @@ static errr abfp_host_get_command(cmd_context context)
             if (!abfp_host_seed_test_monster()) return -1;
         }
 
+        if (test_monster_seeded) {
+            struct loc target;
+            if (abfp_host_move_target(command, &target) &&
+                loc_eq(target, test_item_grid) &&
+                square_monster(cave, test_item_grid))
+                test_monster_attacked = true;
+        }
+        if (getenv("ABFP_TEST_KILL_MONSTER") &&
+            command == ABFP_COMMAND_WAIT && test_monster_attacked &&
+            !test_monster_killed) {
+            struct monster *mon = square_monster(cave, test_item_grid);
+            if (mon) {
+                bool fear = false;
+                (void)mon_take_hit(mon, player, mon->hp, &fear, NULL);
+            }
+            test_monster_killed = true;
+        }
+
         if (abfp_frontend_submit_command(command)) return 0;
     }
 }
@@ -219,6 +259,8 @@ void abfp_host_game_closed(void)
     test_floor_item_seeded = false;
     test_down_stair_seeded = false;
     test_monster_seeded = false;
+    test_monster_attacked = false;
+    test_monster_killed = false;
     test_item_grid_valid = false;
     test_stair_grid_valid = false;
 }
