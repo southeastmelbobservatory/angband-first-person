@@ -245,7 +245,13 @@ bool abfp_upstream_refresh_snapshot(void)
             abfp_bridge_emit(&event);
         }
 
-        if (pending_command_type == ABFP_COMMAND_AUTOPICKUP) {
+        /*
+         * Angband performs pickup as a side effect of walking onto a square
+         * and waiting, as well as for the explicit AUTOPICKUP command.
+         */
+        if (pending_command_type == ABFP_COMMAND_AUTOPICKUP ||
+            pending_command_type == ABFP_COMMAND_WAIT ||
+            abfp_direction(pending_command_type) != DIR_UNKNOWN) {
             for (i = 0; i < previous_entity_count; ++i) {
                 const abfp_entity_state *previous = &previous_entities[i];
                 bool still_present = false;
