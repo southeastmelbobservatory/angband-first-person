@@ -24,13 +24,25 @@ The renderer must never decide game outcomes.
 
 ## Current implementation
 
-- Official Angband 4.2.6 source revision pinned in the repository.
-- Optional C bridge to translate movement/wait input into Angband commands.
+- Official Angband 4.2.6 source revision pinned, with a revision-checked frontend/CMake patch.
+- Native Angband host command hook that preserves Angband's character creation, save/load, and normal turn loop.
+- Loopback-only TCP command ingress with a bounded, thread-safe queue; commands are submitted only on Angband's game thread.
+- CI builds and links the patched Angband host executable against the bridge and adapter.
 - 21x21 player-centred dungeon snapshot with known terrain, visibility and lighting.
 - Visibility-gated monster and floor-object records, including known game IDs and monster hit points.
 - Protocol-level unit tests for snapshot handoff and event queue growth.
 
-The upstream adapter is not yet proven against a locally built Angband executable. The host must run Angband's normal game loop and copy snapshot data before the next refresh.
+The patched Angband host executable now compiles and links in CI. The host currently accepts movement/wait commands, but snapshot/event delivery to Unreal and an end-to-end runtime test are still outstanding.
+
+## Build the Angband host (Linux)
+
+Install CMake, a C compiler, pkg-config, and the ncurses development package (for Debian/Ubuntu: `sudo apt install build-essential cmake pkg-config libncurses-dev`). Then run:
+
+```sh
+./tools/build-angband-host.sh
+```
+
+The script checks out the pinned Angband 4.2.6 revision, applies the ABFP integration patch, and builds `build-angband/game/angband`. The host listens on `127.0.0.1:47652` for newline-delimited commands. It is command-ingress only at this stage; the Unreal client does not yet receive snapshots.
 
 ## Build the bridge tests
 
