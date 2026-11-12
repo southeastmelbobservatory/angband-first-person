@@ -29,5 +29,5 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Floors;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Walls;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Doors;
-    UPROPERTY(Transient) TMap<uint64, TObjectPtr<AActor>> SpawnedEntities;
+    UPROPERTY(Transient) TMap<int64, TObjectPtr<AActor>> SpawnedEntities;
 };
