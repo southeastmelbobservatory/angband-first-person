@@ -265,22 +265,38 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         if (Spawned) SpawnedEntities.Add(Entity.Id, Spawned);
     }
 
+    /*
+     * Apply combat reactions before pruning entities absent from this
+     * snapshot. A lethal hit removes the monster from the authoritative
+     * entity list in the same packet as its damage/death events.
+     */
+    for (const FABFPEvent& Event : Snapshot.Events)
+    {
+        if (Event.Type == EABFPEventType::Damage)
+        {
+            if (TObjectPtr<AActor>* Target = SpawnedEntities.Find(Event.TargetId))
+            {
+                if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Target->Get()))
+                    Creature->PlayHitReaction(Event.Value);
+            }
+        }
+        else if (Event.Type == EABFPEventType::Death)
+        {
+            if (TObjectPtr<AActor>* Target = SpawnedEntities.Find(Event.SubjectId))
+            {
+                if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Target->Get()))
+                    Creature->PlayDeathReaction();
+                SpawnedEntities.Remove(Event.SubjectId);
+            }
+        }
+    }
+
     for (auto It = SpawnedEntities.CreateIterator(); It; ++It)
     {
         if (!CurrentIds.Contains(It.Key()))
         {
             if (IsValid(It.Value())) It.Value()->Destroy();
             It.RemoveCurrent();
-        }
-    }
-
-    for (const FABFPEvent& Event : Snapshot.Events)
-    {
-        if (Event.Type != EABFPEventType::Damage) continue;
-        if (TObjectPtr<AActor>* Target = SpawnedEntities.Find(Event.TargetId))
-        {
-            if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Target->Get()))
-                Creature->PlayHitReaction(Event.Value);
         }
     }
 }
