@@ -51,6 +51,16 @@ The script checks out the pinned Angband 4.2.6 revision, applies the ABFP integr
 
 The host binds only to `127.0.0.1:47652`. It accepts one newline-delimited command at a time from the presentation client. Supported commands are `MOVE_NORTH`, `MOVE_SOUTH`, `MOVE_EAST`, `MOVE_WEST`, the four diagonal equivalents and `WAIT`. The host sends newline-delimited JSON state records back over the same connection.
 
+### Manual bridge smoke test
+
+After building, start Angband normally from the `build-angband/game` directory and complete the normal text UI steps until the character has entered the dungeon. In a second terminal run:
+
+```sh
+python3 tools/abfp-protocol-client.py
+```
+
+The client waits for the authoritative initial snapshot, then accepts `n`, `s`, `e`, `w`, `ne`, `nw`, `se`, `sw` and `.` for wait. Each command prints the resulting authoritative turn, player position, visible entity count and bridge events. This is the intended first live verification tool before Unreal is used.
+
 Angband's normal text UI remains responsible for birth, stores and other non-game contexts. Once in the dungeon, the host waits for the presentation client to submit game commands.
 
 ## Build and test the bridge
