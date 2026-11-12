@@ -11,6 +11,7 @@
 #include "abfp_transport.h"
 #include "abfp_host.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 static bool bridge_registered;
 static bool initial_state_sent;
@@ -192,13 +193,26 @@ bool abfp_host_publish_state(bool initial_state)
     const abfp_snapshot *snapshot;
     if (getenv("ABFP_TEST_FLOOR_ITEM") && !test_floor_item_seeded &&
         player && cave && cave->depth > 0) {
-        if (!abfp_host_seed_test_floor_item() ||
-            !abfp_frontend_refresh_snapshot()) return false;
+        if (!abfp_host_seed_test_floor_item()) {
+            fprintf(stderr, "ABFP_TEST: floor item fixture failed at depth %d\\n", cave->depth);
+            return false;
+        }
+        if (!abfp_frontend_refresh_snapshot()) {
+            fprintf(stderr, "ABFP_TEST: snapshot refresh failed after floor item fixture\\n");
+            return false;
+        }
     }
     if (getenv("ABFP_TEST_MONSTER") && !test_monster_seeded &&
         player && cave && cave->depth > 0) {
-        if (!abfp_host_seed_test_monster() ||
-            !abfp_frontend_refresh_snapshot()) return false;
+        if (!abfp_host_seed_test_monster()) {
+            fprintf(stderr, "ABFP_TEST: monster fixture failed at depth %d near (%d,%d)\\n",
+                cave->depth, player->grid.x, player->grid.y);
+            return false;
+        }
+        if (!abfp_frontend_refresh_snapshot()) {
+            fprintf(stderr, "ABFP_TEST: snapshot refresh failed after monster fixture\\n");
+            return false;
+        }
     }
     snapshot = abfp_frontend_snapshot();
     size_t count = abfp_bridge_event_count();
