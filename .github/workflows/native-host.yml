@@ -1,0 +1,39 @@
+name: Native bridge and Angband host
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge-tests:
+    name: Bridge protocol tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  angband-host:
+    name: Build pinned Angband host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Angband build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config libncurses-dev libncursesw5-dev
+      - name: Bootstrap pinned upstream and apply bridge patch
+        run: ./tools/bootstrap-angband.sh
+      - name: Build complete Angband executable with bridge
+        run: ./tools/build-angband-host.sh
+      - name: Verify executable was linked
+        run: test -x build-angband/game/angband
