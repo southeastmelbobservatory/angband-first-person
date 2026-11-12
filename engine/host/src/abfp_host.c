@@ -149,12 +149,9 @@ static bool abfp_host_seed_test_monster(void)
         if (!square_in_bounds_fully(cave, approach) ||
             loc_eq(approach, test_item_grid) ||
             !square_isempty(cave, approach)) continue;
-        if (!square_isobjectholding(cave, approach) ||
-            !square_ispassable(cave, approach)) {
-            square_set_feat(cave, approach, FEAT_FLOOR);
-            square_memorize(cave, approach);
-            square_light_spot(cave, approach);
-        }
+        square_set_feat(cave, approach, FEAT_FLOOR);
+        square_memorize(cave, approach);
+        square_light_spot(cave, approach);
     }
 
     update_monsters(true);
