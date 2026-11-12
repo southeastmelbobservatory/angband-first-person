@@ -28,6 +28,8 @@ bool abfp_transport_parse_command(const char *line, abfp_command_type *out)
 {
     static const struct { const char *name; abfp_command_type command; } names[] = {
         {"WAIT", ABFP_COMMAND_WAIT},
+        {"GO_UP", ABFP_COMMAND_GO_UP},
+        {"GO_DOWN", ABFP_COMMAND_GO_DOWN},
         {"MOVE_NORTH", ABFP_COMMAND_MOVE_NORTH},
         {"MOVE_SOUTH", ABFP_COMMAND_MOVE_SOUTH},
         {"MOVE_WEST", ABFP_COMMAND_MOVE_WEST},
