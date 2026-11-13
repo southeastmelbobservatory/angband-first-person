@@ -17,7 +17,7 @@ The presentation client targets Unreal Engine 5. The renderer is deliberately se
 - Creature death events play a short scale/fade/spin reaction before the procedural actor is destroyed.
 - Procedural articulated creature actor with idle motion (not a billboard).
 - Procedural floating item actor.
-- First-person camera, mouse look, warm lantern light, one-grid-step WASD controls and Space to wait.
+- First-person camera, warm lantern light, discrete arrow-key tank controls and Space to wait.
 
 At startup, the pawn attempts to connect to the configured Angband host (default 127.0.0.1:47652). It keeps retrying if the host is not running yet, and reconnects after a dropped connection. If no host is available, it shows a clearly labelled local mock snapshot until a live host becomes available; mock movement is a renderer test only and must not be mistaken for Angband gameplay. The pawn's HostAddress and HostPort defaults can be overridden in a Blueprint child.
 
@@ -70,7 +70,7 @@ Allow TCP port `47652` through the host firewall on the private LAN only. The br
 
 ## Open the project
 
-Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. W/A/S/D move one grid cell relative to the camera; simultaneous keys produce diagonal moves. Space waits one turn; mouse movement looks around.
+Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. Arrow Up moves one grid cell forward, Arrow Down moves one grid cell backward, and Left/Right rotate the facing direction by 45 degrees. Eight-direction movement is achieved by turning to the desired diagonal before moving. Mouse-look and WASD movement are disabled. Space waits one turn, E picks up items, and Page Up/Page Down use stairs.
 
 ## Next integration
 
