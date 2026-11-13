@@ -149,9 +149,6 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         }
     }
 
-    if (!bInterpolatingMove && !PendingMoveInput.IsNearlyZero())
-        MoveRelative(PendingMoveInput);
-
     if (Lantern)
         Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
             FLinearColor(1.0f, 0.045f, 0.025f) :
@@ -181,24 +178,42 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-    PlayerInputComponent->BindAxis("MoveForward", this, &AABFPFirstPersonPawn::MoveForwardAxis);
-    PlayerInputComponent->BindAxis("MoveRight", this, &AABFPFirstPersonPawn::MoveRightAxis);
+    PlayerInputComponent->BindAction("MoveForward", IE_Pressed, this, &AABFPFirstPersonPawn::MoveForward);
+    PlayerInputComponent->BindAction("MoveBackward", IE_Pressed, this, &AABFPFirstPersonPawn::MoveBackward);
+    PlayerInputComponent->BindAction("TurnLeft", IE_Pressed, this, &AABFPFirstPersonPawn::TurnLeft);
+    PlayerInputComponent->BindAction("TurnRight", IE_Pressed, this, &AABFPFirstPersonPawn::TurnRight);
     PlayerInputComponent->BindAction("WaitTurn", IE_Pressed, this, &AABFPFirstPersonPawn::WaitTurn);
     PlayerInputComponent->BindAction("GoUp", IE_Pressed, this, &AABFPFirstPersonPawn::GoUp);
     PlayerInputComponent->BindAction("GoDown", IE_Pressed, this, &AABFPFirstPersonPawn::GoDown);
     PlayerInputComponent->BindAction("AutoPickup", IE_Pressed, this, &AABFPFirstPersonPawn::AutoPickup);
-    PlayerInputComponent->BindAxis("Turn", this, &AABFPFirstPersonPawn::Turn);
-    PlayerInputComponent->BindAxis("LookUp", this, &AABFPFirstPersonPawn::LookUp);
 }
 
-void AABFPFirstPersonPawn::MoveForwardAxis(float Value)
+void AABFPFirstPersonPawn::MoveForward()
 {
-    PendingMoveInput.X = FMath::Clamp(Value, -1.0f, 1.0f);
+    MoveRelative(FVector2D(1.0f, 0.0f));
 }
 
-void AABFPFirstPersonPawn::MoveRightAxis(float Value)
+void AABFPFirstPersonPawn::MoveBackward()
 {
-    PendingMoveInput.Y = FMath::Clamp(Value, -1.0f, 1.0f);
+    MoveRelative(FVector2D(-1.0f, 0.0f));
+}
+
+void AABFPFirstPersonPawn::TurnLeft()
+{
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        const float NewYaw = PC->GetControlRotation().Yaw - 45.0f;
+        PC->SetControlRotation(FRotator(0.0f, NewYaw, 0.0f));
+    }
+}
+
+void AABFPFirstPersonPawn::TurnRight()
+{
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        const float NewYaw = PC->GetControlRotation().Yaw + 45.0f;
+        PC->SetControlRotation(FRotator(0.0f, NewYaw, 0.0f));
+    }
 }
 
 void AABFPFirstPersonPawn::SendSimpleCommand(const FString& Command)
@@ -270,16 +285,6 @@ void AABFPFirstPersonPawn::AutoPickup()
         if (Dungeon) Dungeon->ApplySnapshot(DemoSnapshot);
         UpdateStatusReadout();
     }
-}
-
-void AABFPFirstPersonPawn::Turn(float Value)
-{
-    AddControllerYawInput(Value);
-}
-
-void AABFPFirstPersonPawn::LookUp(float Value)
-{
-    AddControllerPitchInput(Value);
 }
 
 void AABFPFirstPersonPawn::MoveRelative(FVector2D LocalDirection)
