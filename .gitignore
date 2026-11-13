@@ -12,3 +12,4 @@ out/
 *.exe
 .DS_Store
 Thumbs.db
+build-angband/

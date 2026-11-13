@@ -30,7 +30,9 @@ AABFPItemActor::AABFPItemActor()
     };
 
     UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
-    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object : Sphere;
+    UStaticMesh* Cone = ConeMesh.Succeeded()
+    ? ConeMesh.Object.Get()
+    : Sphere;
     Core = MakePart(TEXT("Core"), Sphere, FVector(0, 0, 35), FVector(0.22f, 0.22f, 0.22f));
     ShardA = MakePart(TEXT("ShardA"), Cone, FVector(0, -16, 43), FVector(0.10f, 0.10f, 0.20f));
     ShardB = MakePart(TEXT("ShardB"), Cone, FVector(0, 16, 43), FVector(0.10f, 0.10f, 0.20f));

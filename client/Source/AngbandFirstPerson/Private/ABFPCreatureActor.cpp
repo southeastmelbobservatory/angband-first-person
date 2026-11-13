@@ -33,8 +33,13 @@ AABFPCreatureActor::AABFPCreatureActor()
     };
 
     UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
-    UStaticMesh* Cylinder = CylinderMesh.Succeeded() ? CylinderMesh.Object : Sphere;
-    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object : Sphere;
+    UStaticMesh* Cylinder = CylinderMesh.Succeeded()
+    ? CylinderMesh.Object.Get()
+    : Sphere;
+
+    UStaticMesh* Cone = ConeMesh.Succeeded()
+    ? ConeMesh.Object.Get()
+    : Sphere;
 
     Body = MakePart(TEXT("Body"), Sphere, FVector(0, 0, 105), FVector(0.48f, 0.38f, 0.66f));
     Head = MakePart(TEXT("Head"), Sphere, FVector(0, 0, 205), FVector(0.30f, 0.29f, 0.32f));
