@@ -27,15 +27,15 @@ protected:
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
-    void MoveForwardAxis(float Value);
-    void MoveRightAxis(float Value);
+    void MoveForward();
+    void MoveBackward();
+    void TurnLeft();
+    void TurnRight();
     void WaitTurn();
     void GoUp();
     void GoDown();
     void AutoPickup();
     void SendSimpleCommand(const FString& Command);
-    void Turn(float Value);
-    void LookUp(float Value);
     void MoveRelative(FVector2D LocalDirection);
     void BuildDemoSnapshot();
     void TryDemoStep(int32 DX, int32 DY);
@@ -50,7 +50,6 @@ private:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UTextRenderComponent> StatusReadout;
     UPROPERTY() TObjectPtr<AABFPDungeonActor> Dungeon;
     FABFPSnapshot DemoSnapshot;
-    FVector2D PendingMoveInput = FVector2D::ZeroVector;
     FVector TargetPawnLocation = FVector::ZeroVector;
     bool bInterpolatingMove = false;
     bool bLiveMode = false;
