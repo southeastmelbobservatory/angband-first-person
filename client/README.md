@@ -70,10 +70,41 @@ Allow TCP port `47652` through the host firewall on the private LAN only. The br
 
 ## Open the project
 
-Open client/AngbandFirstPerson.uproject in Unreal Engine 5 and allow the C++ module to compile. Arrow Up moves one grid cell forward, Arrow Down moves one grid cell backward, and Left/Right rotate the facing direction by 45 degrees. Eight-direction movement is achieved by turning to the desired diagonal before moving. Mouse-look and WASD movement are disabled. Space waits one turn, E picks up items, and Page Up/Page Down use stairs.
+Open `client/AngbandFirstPerson.uproject` in Unreal Engine and allow the C++ module to compile (or run `.\tools\build-unreal-client.ps1` first).
 
-## Next integration
+### Controls
 
-The basic TCP command/state path is wired, including authoritative player status, combat damage and death reactions. The native host CI verifies cardinal and diagonal movement, blocked movement, movement-triggered pickup, real Angband combat, death events and host-side reconnect. A live monster movement event was also verified in run #249. The Unreal C++ input and rendering path still needs an editor build and runtime test. Remaining work is to compile and run the Unreal project, verify its live socket reconnect behaviour and event-driven animations in-editor, and exercise the complete gameplay lifecycle. Do not predict movement or locally move monsters in live mode.
+- **Up / Down** — step one grid cell forward or backward (bump into monsters to attack, or closed doors to open)
+- **Left / Right** — smoothly turn 45° left or right for 8-direction movement
+- **F** — interact with the square ahead (`ALTER`: open/close doors, disarm visible traps, clear rubble, open chests)
+- **E** — pick up items on the current square (`AUTOPICKUP`)
+- **Space** — wait one authoritative turn (`WAIT`)
+- **Page Up / Page Down** — ascend / descend staircases (`GO_UP` / `GO_DOWN`)
+- **H** — toggle the on-screen controls reference
 
-The Unreal project has not yet been compiled or run in an Unreal Editor environment. It currently uses Unreal's built-in basic meshes as procedural placeholders. Production art, materials, creature-specific rigs, animation blueprints, audio, dungeon set dressing and collision are later art/engineering passes.
+### HUD
+
+`AABFPHUD` renders a 2D overlay directly from the authoritative snapshot:
+- Bottom-left: connection status, HP/MP bars, depth, level, gold, and turn
+- Bottom-right: scrolling Angband message log (`EVENT_MESSAGE`)
+- Top-right: 21×21 roguelike minimap with facing arrow, monsters, items, doors, veins, traps, and stairs
+- Center-top: look-ahead monster nameplate + HP bar, plus contextual interaction prompts
+
+## Wiring high-fidelity meshes & assets (`ABFPVisualCatalog`)
+
+The renderer works out of the box with procedural fallback geometry, and is wired for drop-in high-fidelity PBR meshes, skeletal rigs, Animation Blueprints, and audio via `UABFPVisualCatalog`:
+
+1. In the Unreal Content Browser, create `Content/Data/` → right-click → **Miscellaneous → Data Asset** → choose **`ABFPVisualCatalog`** and name it `DA_DungeonVisualCatalog`.
+2. Populate any combination of:
+   - **DungeonTerrain / TownTerrain:** `FloorVariants`, `CeilingVariants`, `WallVariants`, `VeinWallVariants`, `WallPillarVariants`, `DoorFrame`, `DoorClosedPanel`, `DoorOpenPanel`, `DoorBrokenPanel`, `StairsUp`, `StairsDown`, `Rubble`, `ShopFacade`, `TrapMarker`, and `WallTorchProp`. Unassigned slots keep their procedural fallback.
+   - **Creatures:** map Angband `KindId` (`ridx`) or `NameContains` (e.g. `"goblin"`, `"skeleton"`, `"mouse"`, `"orc"`) to a `USkeletalMesh` + `AnimClass`/`IdleAnim` + `HitMontage`/`DeathMontage`, a `StaticMeshFallback`, or a custom `AABFPCreatureActor` Blueprint subclass.
+   - **Items:** map `KindId`, `CategoryId`/`VariantId` (`tval`/`sval`), or `NameContains` (e.g. `"potion"`, `"scroll"`, `"ration"`, `"sword"`) to a `UStaticMesh` with optional subtle point light and pickup sound.
+   - **Audio:** assign `FootstepSound`, `AttackSwingSound`, `PlayerHitSound`, `DoorOpenSound`, `StairsSound`, and `PickupDefaultSound`.
+3. Enable your catalog in `client/Config/DefaultGame.ini`:
+
+```ini
+[/Script/AngbandFirstPerson.ABFPFirstPersonPawn]
+VisualCatalogAsset=/Game/Data/DA_DungeonVisualCatalog.DA_DungeonVisualCatalog
+```
+
+For a first-person lantern or weapon mesh, create a Blueprint child of `AABFPFirstPersonPawn` and attach your mesh to `ViewModelMount` (it automatically sways and swings on `ATTACK` events).

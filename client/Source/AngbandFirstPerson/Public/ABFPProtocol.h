@@ -6,14 +6,18 @@
 UENUM(BlueprintType)
 enum class EABFPTerrain : uint8
 {
-    Unknown,
-    Floor,
-    Wall,
-    Door,
-    StairsUp,
-    StairsDown,
-    Rubble,
-    Shop
+    Unknown = 0,
+    Floor = 1,
+    Wall = 2,
+    Door = 3,
+    StairsUp = 4,
+    StairsDown = 5,
+    Rubble = 6,
+    Shop = 7,
+    DoorOpen = 8,
+    DoorBroken = 9,
+    Trap = 10,
+    Vein = 11
 };
 
 UENUM(BlueprintType)
@@ -59,14 +63,14 @@ struct FABFPEntity
 UENUM(BlueprintType)
 enum class EABFPEventType : uint8
 {
-    None,
-    EntityMoved,
-    Attack,
-    Damage,
-    Spell,
-    Pickup,
-    Death,
-    TerrainChanged
+    None = 0,
+    EntityMoved = 1,
+    Attack = 2,
+    Damage = 3,
+    Spell = 4,
+    Pickup = 5,
+    Death = 6,
+    TerrainChanged = 7
 };
 
 USTRUCT(BlueprintType)
@@ -86,6 +90,15 @@ struct FABFPEvent
 };
 
 USTRUCT(BlueprintType)
+struct FABFPMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Type = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Text;
+};
+
+USTRUCT(BlueprintType)
 struct FABFPSnapshot
 {
     GENERATED_BODY()
@@ -99,7 +112,11 @@ struct FABFPSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMaxHitPoints = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerLevel = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerGold = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMana = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMaxMana = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bPlayerDead = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPCell> Cells;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEntity> Entities;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEvent> Events;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPMessage> Messages;
 };

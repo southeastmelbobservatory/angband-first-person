@@ -25,6 +25,10 @@ static void test_parse(void)
     assert(command == ABFP_COMMAND_GO_DOWN);
     assert(abfp_transport_parse_command("AUTOPICKUP", &command));
     assert(command == ABFP_COMMAND_AUTOPICKUP);
+    assert(abfp_transport_parse_command("ALTER_NORTH", &command));
+    assert(command == ABFP_COMMAND_ALTER_NORTH);
+    assert(abfp_transport_parse_command("ALTER_SOUTH_WEST\n", &command));
+    assert(command == ABFP_COMMAND_ALTER_SOUTH_WEST);
     assert(!abfp_transport_parse_command("MOVE_UP", &command));
     assert(!abfp_transport_parse_command("", &command));
     assert(!abfp_transport_parse_command(NULL, &command));
@@ -37,6 +41,7 @@ static void test_loopback_round_trip(void)
     struct sockaddr_in address = {0};
     struct timeval timeout = {3, 0};
     abfp_cell cell = {0};
+    abfp_message message = {0};
     abfp_snapshot snapshot = {0};
     abfp_command_type command = ABFP_COMMAND_WAIT;
     char response[4096];
@@ -46,9 +51,11 @@ static void test_loopback_round_trip(void)
 
     cell.x = 12;
     cell.y = 7;
-    cell.terrain = ABFP_TERRAIN_FLOOR;
+    cell.terrain = ABFP_TERRAIN_DOOR_OPEN;
     cell.visible = 1;
     cell.lit = 1;
+    message.type = 2;
+    strcpy(message.text, "You open the \"oak\" door.");
     snapshot.turn = 99;
     snapshot.dungeon_depth = 5;
     snapshot.player_x = 12;
@@ -57,8 +64,13 @@ static void test_loopback_round_trip(void)
     snapshot.player.max_hitpoints = 45;
     snapshot.player.level = 7;
     snapshot.player.gold = 1234;
+    snapshot.player.mana = 12;
+    snapshot.player.max_mana = 20;
+    snapshot.player.is_dead = 0;
     snapshot.cells = &cell;
     snapshot.cell_count = 1;
+    snapshot.messages = &message;
+    snapshot.message_count = 1;
 
     assert(abfp_transport_start(port));
 
@@ -83,6 +95,8 @@ static void test_loopback_round_trip(void)
     assert(strstr(response, "\"turn\":99") != NULL);
     assert(strstr(response, "\"depth\":5") != NULL);
     assert(strstr(response, "\"player\":[12,7]") != NULL);
+    assert(strstr(response, "\"player_stats\":[31,45,7,1234,12,20,0]") != NULL);
+    assert(strstr(response, "\"messages\":[[2,\"You open the \\\"oak\\\" door.\"]]") != NULL);
     assert(strstr(response, "\"initial\":true") != NULL);
 
     assert(send(fd, "INVALID\nWAIT\n", 13, 0) == 13);

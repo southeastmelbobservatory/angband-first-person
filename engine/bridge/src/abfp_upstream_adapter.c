@@ -16,6 +16,7 @@
 #define ABFP_SNAPSHOT_SIDE (ABFP_SNAPSHOT_RADIUS * 2 + 1)
 #define ABFP_SNAPSHOT_CELLS (ABFP_SNAPSHOT_SIDE * ABFP_SNAPSHOT_SIDE)
 #define ABFP_MAX_SNAPSHOT_ENTITIES 1024
+#define ABFP_MAX_SNAPSHOT_MESSAGES 16
 
 #define ABFP_MONSTER_ID_BASE UINT64_C(0x1000000000000000)
 #define ABFP_OBJECT_ID_BASE  UINT64_C(0x2000000000000000)
@@ -23,13 +24,22 @@
 static bool handlers_installed;
 static struct loc pending_from;
 static bool pending_move;
+static bool pending_attack;
+static uint64_t pending_attack_target_id;
+static struct loc pending_attack_target;
 static bool pending_command;
 static abfp_command_type pending_command_type;
 static bool observed_player_moved;
 static abfp_cell snapshot_cells[ABFP_SNAPSHOT_CELLS];
+static abfp_cell previous_cells[ABFP_SNAPSHOT_CELLS];
+static uint32_t previous_cell_count;
 static abfp_entity_state snapshot_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
 static abfp_entity_state previous_entities[ABFP_MAX_SNAPSHOT_ENTITIES];
 static uint32_t previous_entity_count;
+static abfp_message pending_messages[ABFP_MAX_SNAPSHOT_MESSAGES];
+static uint32_t pending_message_count;
+static abfp_message snapshot_messages[ABFP_MAX_SNAPSHOT_MESSAGES];
+static uint32_t snapshot_message_count;
 static abfp_player_state previous_player;
 static int32_t previous_depth;
 static bool snapshot_history_valid;
@@ -49,6 +59,21 @@ static int abfp_direction(abfp_command_type command)
     }
 }
 
+static int abfp_alter_direction(abfp_command_type command)
+{
+    switch (command) {
+    case ABFP_COMMAND_ALTER_NORTH: return DIR_N;
+    case ABFP_COMMAND_ALTER_SOUTH: return DIR_S;
+    case ABFP_COMMAND_ALTER_WEST: return DIR_W;
+    case ABFP_COMMAND_ALTER_EAST: return DIR_E;
+    case ABFP_COMMAND_ALTER_NORTH_WEST: return DIR_NW;
+    case ABFP_COMMAND_ALTER_NORTH_EAST: return DIR_NE;
+    case ABFP_COMMAND_ALTER_SOUTH_WEST: return DIR_SW;
+    case ABFP_COMMAND_ALTER_SOUTH_EAST: return DIR_SE;
+    default: return DIR_UNKNOWN;
+    }
+}
+
 static void abfp_player_moved(game_event_type type,
     game_event_data *data, void *user)
 {
@@ -58,10 +83,30 @@ static void abfp_player_moved(game_event_type type,
     observed_player_moved = true;
 }
 
+static void abfp_message_received(game_event_type type,
+    game_event_data *data, void *user)
+{
+    abfp_message *slot;
+    (void)type;
+    (void)user;
+    if (!data || !data->message.msg || !data->message.msg[0]) return;
+
+    if (pending_message_count >= ABFP_MAX_SNAPSHOT_MESSAGES) {
+        memmove(&pending_messages[0], &pending_messages[1],
+            (ABFP_MAX_SNAPSHOT_MESSAGES - 1) * sizeof(*pending_messages));
+        pending_message_count = ABFP_MAX_SNAPSHOT_MESSAGES - 1;
+    }
+    slot = &pending_messages[pending_message_count++];
+    memset(slot, 0, sizeof(*slot));
+    slot->type = data->message.type;
+    strncpy(slot->text, data->message.msg, sizeof(slot->text) - 1);
+}
+
 bool abfp_upstream_install_handlers(void)
 {
     if (handlers_installed) return true;
     event_add_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
+    event_add_handler(EVENT_MESSAGE, abfp_message_received, NULL);
     handlers_installed = true;
     (void)abfp_upstream_refresh_snapshot();
     return true;
@@ -71,11 +116,17 @@ void abfp_upstream_remove_handlers(void)
 {
     if (!handlers_installed) return;
     event_remove_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
+    event_remove_handler(EVENT_MESSAGE, abfp_message_received, NULL);
     handlers_installed = false;
     snapshot_history_valid = false;
+    previous_cell_count = 0;
     previous_entity_count = 0;
+    pending_message_count = 0;
+    snapshot_message_count = 0;
     previous_depth = 0;
     pending_move = false;
+    pending_attack = false;
+    pending_attack_target_id = 0;
     pending_command = false;
     pending_command_type = ABFP_COMMAND_WAIT;
     observed_player_moved = false;
@@ -84,24 +135,53 @@ void abfp_upstream_remove_handlers(void)
 bool abfp_upstream_queue_command(abfp_command_type command)
 {
     int dir = abfp_direction(command);
+    int alter_dir = abfp_alter_direction(command);
 
     if (!player || !cave || pending_command) return false;
 
+    pending_message_count = 0;
+    pending_attack = false;
+    pending_attack_target_id = 0;
+
     if (dir != DIR_UNKNOWN) {
         struct loc target = loc_sum(player->grid, ddgrid[dir]);
+        struct monster *mon = square_in_bounds(cave, target) ?
+            square_monster(cave, target) : NULL;
         /*
          * Use Angband's explicit alter action for an occupied monster grid.
          * It calls py_attack() directly and avoids the walk-test's visibility
          * gate; ordinary empty-square movement remains CMD_WALK.
          */
-        const bool attacking = square_monster(cave, target) != NULL;
+        const bool attacking = mon != NULL;
         if (cmdq_push(attacking ? CMD_ALTER : CMD_WALK) != 0) return false;
         cmd_set_arg_direction(cmdq_peek(), "direction", dir);
         pending_from = player->grid;
         pending_move = true;
+        if (attacking) {
+            pending_attack = true;
+            pending_attack_target_id = ABFP_MONSTER_ID_BASE | (uint64_t)(uint32_t)mon->midx;
+            pending_attack_target = target;
+        }
         pending_command = true;
         pending_command_type = command;
         observed_player_moved = false;
+        return true;
+    }
+
+    if (alter_dir != DIR_UNKNOWN) {
+        struct loc target = loc_sum(player->grid, ddgrid[alter_dir]);
+        struct monster *mon = square_in_bounds(cave, target) ?
+            square_monster(cave, target) : NULL;
+        if (cmdq_push(CMD_ALTER) != 0) return false;
+        cmd_set_arg_direction(cmdq_peek(), "direction", alter_dir);
+        pending_from = player->grid;
+        if (mon) {
+            pending_attack = true;
+            pending_attack_target_id = ABFP_MONSTER_ID_BASE | (uint64_t)(uint32_t)mon->midx;
+            pending_attack_target = target;
+        }
+        pending_command = true;
+        pending_command_type = command;
         return true;
     }
 
@@ -141,12 +221,19 @@ static abfp_terrain_type abfp_terrain_at(struct loc grid)
     if (!square_in_bounds(cave, grid) || !square_isknown(cave, grid))
         return ABFP_TERRAIN_UNKNOWN;
 
+    /* Never leak secret doors: Angband presents them as solid rock walls. */
+    if (square_issecretdoor(cave, grid)) return ABFP_TERRAIN_WALL;
+
     if (square_isupstairs(cave, grid)) return ABFP_TERRAIN_STAIRS_UP;
     if (square_isdownstairs(cave, grid)) return ABFP_TERRAIN_STAIRS_DOWN;
-    if (square_isdoor(cave, grid)) return ABFP_TERRAIN_DOOR;
+    if (square_iscloseddoor(cave, grid)) return ABFP_TERRAIN_DOOR;
+    if (square_isopendoor(cave, grid)) return ABFP_TERRAIN_DOOR_OPEN;
+    if (square_isbrokendoor(cave, grid)) return ABFP_TERRAIN_DOOR_BROKEN;
     if (square_isrubble(cave, grid)) return ABFP_TERRAIN_RUBBLE;
     if (square_isshop(cave, grid)) return ABFP_TERRAIN_SHOP;
+    if (square_isvisibletrap(cave, grid)) return ABFP_TERRAIN_TRAP;
     if (square_isfloor(cave, grid)) return ABFP_TERRAIN_FLOOR;
+    if (square_ismineral(cave, grid)) return ABFP_TERRAIN_VEIN;
     if (square_isrock(cave, grid)) return ABFP_TERRAIN_WALL;
 
     return ABFP_TERRAIN_WALL;
@@ -251,6 +338,13 @@ bool abfp_upstream_refresh_snapshot(void)
         }
     }
 
+    if (pending_message_count > 0) {
+        memcpy(snapshot_messages, pending_messages,
+            pending_message_count * sizeof(*pending_messages));
+        snapshot_message_count = pending_message_count;
+        pending_message_count = 0;
+    }
+
     next.turn = (uint64_t)turn;
     next.dungeon_depth = cave->depth;
     next.player_x = player->grid.x;
@@ -259,10 +353,15 @@ bool abfp_upstream_refresh_snapshot(void)
     next.player.max_hitpoints = player->mhp;
     next.player.level = player->lev;
     next.player.gold = player->au;
+    next.player.mana = player->csp;
+    next.player.max_mana = player->msp;
+    next.player.is_dead = player->is_dead ? 1 : 0;
     next.cells = snapshot_cells;
     next.cell_count = ABFP_SNAPSHOT_CELLS;
     next.entities = snapshot_entities;
     next.entity_count = entity_count;
+    next.messages = snapshot_messages;
+    next.message_count = snapshot_message_count;
 
     if (snapshot_history_valid && next.dungeon_depth == previous_depth) {
         uint32_t i, j;
@@ -274,6 +373,29 @@ bool abfp_upstream_refresh_snapshot(void)
             event.target_id = 1;
             event.value = previous_player.hitpoints - next.player.hitpoints;
             abfp_bridge_emit(&event);
+        }
+
+        /* Emit terrain changes for previously known cells that changed feature
+         * (e.g. closed door opened, door smashed, rubble tunneled, trap disarmed). */
+        for (i = 0; i < ABFP_SNAPSHOT_CELLS; ++i) {
+            const abfp_cell *current = &snapshot_cells[i];
+            if (!current->visible || current->terrain == ABFP_TERRAIN_UNKNOWN) continue;
+            for (j = 0; j < previous_cell_count; ++j) {
+                const abfp_cell *previous = &previous_cells[j];
+                if (previous->x == current->x && previous->y == current->y) {
+                    if (previous->terrain != ABFP_TERRAIN_UNKNOWN &&
+                        previous->terrain != current->terrain) {
+                        abfp_event event = {0};
+                        event.type = ABFP_EVENT_TERRAIN_CHANGED;
+                        event.turn = next.turn;
+                        event.from_x = event.to_x = current->x;
+                        event.from_y = event.to_y = current->y;
+                        event.value = (int32_t)current->terrain;
+                        abfp_bridge_emit(&event);
+                    }
+                    break;
+                }
+            }
         }
 
         /*
@@ -348,6 +470,8 @@ bool abfp_upstream_refresh_snapshot(void)
         }
     }
 
+    memcpy(previous_cells, snapshot_cells, sizeof(snapshot_cells));
+    previous_cell_count = ABFP_SNAPSHOT_CELLS;
     memcpy(previous_entities, snapshot_entities,
         entity_count * sizeof(*snapshot_entities));
     previous_entity_count = entity_count;
@@ -367,6 +491,18 @@ bool abfp_upstream_refresh_snapshot(void)
 void abfp_upstream_sync_after_game_loop(void)
 {
     if (player && cave) {
+        if (pending_attack) {
+            abfp_event event = {0};
+            event.type = ABFP_EVENT_ATTACK;
+            event.subject_id = 1;
+            event.target_id = pending_attack_target_id;
+            event.from_x = pending_from.x;
+            event.from_y = pending_from.y;
+            event.to_x = pending_attack_target.x;
+            event.to_y = pending_attack_target.y;
+            event.turn = (uint64_t)turn;
+            abfp_bridge_emit(&event);
+        }
         if (pending_move && observed_player_moved &&
             (player->grid.x != pending_from.x ||
              player->grid.y != pending_from.y)) {
@@ -380,10 +516,15 @@ void abfp_upstream_sync_after_game_loop(void)
             event.turn = (uint64_t)turn;
             abfp_bridge_emit(&event);
         }
+        if (pending_message_count == 0) {
+            snapshot_message_count = 0;
+        }
         (void)abfp_upstream_refresh_snapshot();
     }
 
     pending_move = false;
+    pending_attack = false;
+    pending_attack_target_id = 0;
     pending_command = false;
     pending_command_type = ABFP_COMMAND_WAIT;
     observed_player_moved = false;

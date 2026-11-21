@@ -56,7 +56,7 @@ bool FABFPNetworkClient::Connect(const FString& Host, int32 Port)
 
     Socket->SetNonBlocking(true);
     Socket->SetNoDelay(true);
-    ReceiveBuffer.Reset();
+    RawReceiveBuffer.Reset();
     return true;
 }
 
@@ -69,7 +69,7 @@ void FABFPNetworkClient::Disconnect()
             Subsystem->DestroySocket(Socket);
         Socket = nullptr;
     }
-    ReceiveBuffer.Reset();
+    RawReceiveBuffer.Reset();
 }
 
 bool FABFPNetworkClient::IsConnected() const
@@ -119,17 +119,17 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
 
         const int32 ToRead = bHasPending ?
             static_cast<int32>(FMath::Min<uint32>(Pending, 8192)) : 8192;
-        TArray<uint8> Bytes;
-        Bytes.SetNumUninitialized(ToRead + 1);
+        const int32 OldNum = RawReceiveBuffer.Num();
+        RawReceiveBuffer.SetNumUninitialized(OldNum + ToRead);
         int32 Read = 0;
-        if (!Socket->Recv(Bytes.GetData(), ToRead, Read) || Read <= 0)
+        if (!Socket->Recv(RawReceiveBuffer.GetData() + OldNum, ToRead, Read) || Read <= 0)
         {
+            RawReceiveBuffer.SetNum(OldNum, EAllowShrinking::No);
             Disconnect();
             return false;
         }
-        Bytes[Read] = 0;
-        ReceiveBuffer.Append(UTF8_TO_TCHAR(reinterpret_cast<const char*>(Bytes.GetData())));
-        if (ReceiveBuffer.Len() > 4 * 1024 * 1024)
+        RawReceiveBuffer.SetNum(OldNum + Read, EAllowShrinking::No);
+        if (RawReceiveBuffer.Num() > 4 * 1024 * 1024)
         {
             Disconnect();
             return false;
@@ -137,19 +137,42 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
     }
 
     bool bUpdated = false;
-    while (true)
+    int32 ConsumeOffset = 0;
+    while (ConsumeOffset < RawReceiveBuffer.Num())
     {
-        const int32 Newline = ReceiveBuffer.Find(TEXT("\n"));
-        if (Newline == INDEX_NONE) break;
-        const FString Line = ReceiveBuffer.Left(Newline);
-        ReceiveBuffer = ReceiveBuffer.Mid(Newline + 1);
-        FABFPSnapshot Parsed;
-        if (ParseStateLine(Line, Parsed))
+        int32 NewlineIndex = INDEX_NONE;
+        for (int32 Idx = ConsumeOffset; Idx < RawReceiveBuffer.Num(); ++Idx)
         {
-            OutSnapshot = MoveTemp(Parsed);
-            bUpdated = true;
+            if (RawReceiveBuffer[Idx] == static_cast<uint8>('\n'))
+            {
+                NewlineIndex = Idx;
+                break;
+            }
         }
+        if (NewlineIndex == INDEX_NONE) break;
+
+        const int32 LineLength = NewlineIndex - ConsumeOffset;
+        if (LineLength > 0)
+        {
+            FUTF8ToTCHAR Converter(
+                reinterpret_cast<const ANSICHAR*>(RawReceiveBuffer.GetData() + ConsumeOffset),
+                LineLength);
+            const FString Line(Converter.Length(), Converter.Get());
+            FABFPSnapshot Parsed;
+            if (ParseStateLine(Line, Parsed))
+            {
+                OutSnapshot = MoveTemp(Parsed);
+                bUpdated = true;
+            }
+        }
+        ConsumeOffset = NewlineIndex + 1;
     }
+
+    if (ConsumeOffset > 0)
+    {
+        RawReceiveBuffer.RemoveAt(0, ConsumeOffset, EAllowShrinking::No);
+    }
+
     return bUpdated;
 }
 
@@ -188,10 +211,20 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
         Snapshot.PlayerMaxHitPoints = ReadInt((*PlayerStats)[1]);
         Snapshot.PlayerLevel = ReadInt((*PlayerStats)[2]);
         Snapshot.PlayerGold = ReadInt((*PlayerStats)[3]);
+        if (PlayerStats->Num() >= 6)
+        {
+            Snapshot.PlayerMana = ReadInt((*PlayerStats)[4]);
+            Snapshot.PlayerMaxMana = ReadInt((*PlayerStats)[5]);
+        }
+        if (PlayerStats->Num() >= 7)
+        {
+            Snapshot.bPlayerDead = ReadInt((*PlayerStats)[6]) != 0;
+        }
     }
 
     const TArray<TSharedPtr<FJsonValue>>* Cells = nullptr;
     if (!Root->TryGetArrayField(TEXT("cells"), Cells) || !Cells) return false;
+    Snapshot.Cells.Reserve(Cells->Num());
     for (const TSharedPtr<FJsonValue>& Value : *Cells)
     {
         TArray<TSharedPtr<FJsonValue>> Row;
@@ -199,7 +232,10 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
         FABFPCell Cell;
         Cell.X = ReadInt(Row[0]);
         Cell.Y = ReadInt(Row[1]);
-        Cell.Terrain = static_cast<EABFPTerrain>(ReadInt(Row[2]));
+        const int32 TerrainValue = ReadInt(Row[2]);
+        Cell.Terrain = (TerrainValue >= 0 && TerrainValue <= static_cast<int32>(EABFPTerrain::Vein))
+            ? static_cast<EABFPTerrain>(TerrainValue)
+            : EABFPTerrain::Wall;
         Cell.bVisible = ReadInt(Row[3]) != 0;
         Cell.bLit = ReadInt(Row[4]) != 0;
         Cell.bOccupiedByMonster = ReadInt(Row[5]) != 0;
@@ -209,6 +245,7 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
 
     const TArray<TSharedPtr<FJsonValue>>* Entities = nullptr;
     if (!Root->TryGetArrayField(TEXT("entities"), Entities) || !Entities) return false;
+    Snapshot.Entities.Reserve(Entities->Num());
     for (const TSharedPtr<FJsonValue>& Value : *Entities)
     {
         TArray<TSharedPtr<FJsonValue>> Row;
@@ -233,6 +270,7 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
     const TArray<TSharedPtr<FJsonValue>>* Events = nullptr;
     if (Root->TryGetArrayField(TEXT("events"), Events) && Events)
     {
+        Snapshot.Events.Reserve(Events->Num());
         for (const TSharedPtr<FJsonValue>& Value : *Events)
         {
             TArray<TSharedPtr<FJsonValue>> Row;
@@ -248,6 +286,25 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
             Event.ToY = ReadInt(Row[7]);
             Event.Value = ReadInt(Row[8]);
             Snapshot.Events.Add(Event);
+        }
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* Messages = nullptr;
+    if (Root->TryGetArrayField(TEXT("messages"), Messages) && Messages)
+    {
+        Snapshot.Messages.Reserve(Messages->Num());
+        for (const TSharedPtr<FJsonValue>& Value : *Messages)
+        {
+            TArray<TSharedPtr<FJsonValue>> Row;
+            if (!ReadRow(Value, Row) || Row.Num() < 2) continue;
+            if (!Row[1].IsValid() || Row[1]->Type != EJson::String) continue;
+            FABFPMessage Msg;
+            Msg.Type = ReadInt(Row[0]);
+            Msg.Text = Row[1]->AsString();
+            if (!Msg.Text.IsEmpty())
+            {
+                Snapshot.Messages.Add(MoveTemp(Msg));
+            }
         }
     }
 

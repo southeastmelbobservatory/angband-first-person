@@ -38,7 +38,15 @@ bool abfp_transport_parse_command(const char *line, abfp_command_type *out)
         {"MOVE_NORTH_WEST", ABFP_COMMAND_MOVE_NORTH_WEST},
         {"MOVE_NORTH_EAST", ABFP_COMMAND_MOVE_NORTH_EAST},
         {"MOVE_SOUTH_WEST", ABFP_COMMAND_MOVE_SOUTH_WEST},
-        {"MOVE_SOUTH_EAST", ABFP_COMMAND_MOVE_SOUTH_EAST}
+        {"MOVE_SOUTH_EAST", ABFP_COMMAND_MOVE_SOUTH_EAST},
+        {"ALTER_NORTH", ABFP_COMMAND_ALTER_NORTH},
+        {"ALTER_SOUTH", ABFP_COMMAND_ALTER_SOUTH},
+        {"ALTER_WEST", ABFP_COMMAND_ALTER_WEST},
+        {"ALTER_EAST", ABFP_COMMAND_ALTER_EAST},
+        {"ALTER_NORTH_WEST", ABFP_COMMAND_ALTER_NORTH_WEST},
+        {"ALTER_NORTH_EAST", ABFP_COMMAND_ALTER_NORTH_EAST},
+        {"ALTER_SOUTH_WEST", ABFP_COMMAND_ALTER_SOUTH_WEST},
+        {"ALTER_SOUTH_EAST", ABFP_COMMAND_ALTER_SOUTH_EAST}
     };
     size_t i, length;
     if (!line || !out) return false;
@@ -275,9 +283,12 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
 
     if (!snapshot || (snapshot->cell_count && !snapshot->cells) ||
         (snapshot->entity_count && !snapshot->entities) ||
+        (snapshot->message_count && !snapshot->messages) ||
         (event_count && !events) || event_count > 4096) return false;
     capacity = 512 + (size_t)snapshot->cell_count * 96 +
-        (size_t)snapshot->entity_count * 512 + event_count * 192;
+        (size_t)snapshot->entity_count * 512 +
+        (size_t)snapshot->message_count * (ABFP_MAX_MESSAGE_LENGTH * 6 + 32) +
+        event_count * 192;
     buffer = (char *)malloc(capacity);
     if (!buffer) return false;
     cursor = buffer;
@@ -286,11 +297,13 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     if (!append_json(&cursor, &remaining,
         "{\"type\":\"state\",\"turn\":%" PRIu64
         ",\"depth\":%d,\"initial\":%s,\"player\":[%d,%d]"
-        ",\"player_stats\":[%d,%d,%d,%d],\"cells\":[",
+        ",\"player_stats\":[%d,%d,%d,%d,%d,%d,%u],\"cells\":[",
         snapshot->turn, snapshot->dungeon_depth,
         initial_state ? "true" : "false", snapshot->player_x, snapshot->player_y,
         snapshot->player.hitpoints, snapshot->player.max_hitpoints,
-        snapshot->player.level, snapshot->player.gold)) goto done;
+        snapshot->player.level, snapshot->player.gold,
+        snapshot->player.mana, snapshot->player.max_mana,
+        (unsigned)snapshot->player.is_dead)) goto done;
 
     for (i = 0; i < snapshot->cell_count; ++i) {
         const abfp_cell *cell = &snapshot->cells[i];
@@ -322,6 +335,15 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
             i ? "," : "", (int)event->type, event->turn,
             event->subject_id, event->target_id, event->from_x,
             event->from_y, event->to_x, event->to_y, event->value)) goto done;
+    }
+    if (!append_json(&cursor, &remaining, "],\"messages\":[")) goto done;
+    for (i = 0; i < snapshot->message_count; ++i) {
+        const abfp_message *message = &snapshot->messages[i];
+        if (!append_json(&cursor, &remaining, "%s[%d,", i ? "," : "",
+                message->type) ||
+            !append_json_string(&cursor, &remaining, message->text,
+                sizeof(message->text)) ||
+            !append_json(&cursor, &remaining, "]")) goto done;
     }
     if (!append_json(&cursor, &remaining, "]}\n")) goto done;
 

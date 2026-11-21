@@ -17,5 +17,5 @@ private:
     bool ParseStateLine(const FString& Line, FABFPSnapshot& OutSnapshot) const;
 
     FSocket* Socket = nullptr;
-    FString ReceiveBuffer;
+    TArray<uint8> RawReceiveBuffer;
 };

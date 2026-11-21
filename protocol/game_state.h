@@ -13,8 +13,19 @@ typedef enum abfp_terrain_type {
     ABFP_TERRAIN_STAIRS_UP,
     ABFP_TERRAIN_STAIRS_DOWN,
     ABFP_TERRAIN_RUBBLE,
-    ABFP_TERRAIN_SHOP
+    ABFP_TERRAIN_SHOP,
+    ABFP_TERRAIN_DOOR_OPEN,
+    ABFP_TERRAIN_DOOR_BROKEN,
+    ABFP_TERRAIN_TRAP,
+    ABFP_TERRAIN_VEIN
 } abfp_terrain_type;
+
+#define ABFP_MAX_MESSAGE_LENGTH 160
+
+typedef struct abfp_message {
+    int32_t type;
+    char text[ABFP_MAX_MESSAGE_LENGTH];
+} abfp_message;
 
 typedef enum abfp_entity_type {
     ABFP_ENTITY_MONSTER = 1,
@@ -47,6 +58,8 @@ typedef struct abfp_player_state {
     int32_t hitpoints, max_hitpoints;
     int32_t level;
     int32_t gold;
+    int32_t mana, max_mana;
+    uint8_t is_dead;
 } abfp_player_state;
 
 typedef struct abfp_snapshot {
@@ -58,6 +71,8 @@ typedef struct abfp_snapshot {
     uint32_t cell_count;
     const abfp_entity_state* entities;
     uint32_t entity_count;
+    const abfp_message* messages;
+    uint32_t message_count;
 } abfp_snapshot;
 
 #ifdef __cplusplus

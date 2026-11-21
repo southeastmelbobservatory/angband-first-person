@@ -15,6 +15,9 @@ VALID = {
     "nw": "MOVE_NORTH_WEST", "ne": "MOVE_NORTH_EAST",
     "sw": "MOVE_SOUTH_WEST", "se": "MOVE_SOUTH_EAST", ".": "WAIT",
     "<": "GO_UP", ">": "GO_DOWN", "g": "AUTOPICKUP",
+    "an": "ALTER_NORTH", "as": "ALTER_SOUTH", "aw": "ALTER_WEST", "ae": "ALTER_EAST",
+    "anw": "ALTER_NORTH_WEST", "ane": "ALTER_NORTH_EAST",
+    "asw": "ALTER_SOUTH_WEST", "ase": "ALTER_SOUTH_EAST",
 }
 
 def receive_line(sock, buffer):
@@ -28,13 +31,17 @@ def receive_line(sock, buffer):
 
 def describe(state):
     entities = state.get("entities", [])
+    messages = state.get("messages", [])
     print(
         f"turn={state.get('turn')} depth={state.get('depth')} "
         f"player={state.get('player')} cells={len(state.get('cells', []))} "
-        f"entities={len(entities)} events={len(state.get('events', []))}"
+        f"entities={len(entities)} events={len(state.get('events', []))} "
+        f"messages={len(messages)}"
     )
     for event in state.get("events", []):
         print("  event:", event)
+    for msg in messages:
+        print("  msg:", msg[1] if len(msg) > 1 else msg)
 
 def main():
     parser = argparse.ArgumentParser()

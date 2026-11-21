@@ -1,15 +1,31 @@
 #include "ABFPItemActor.h"
+#include "ABFPVisualCatalog.h"
 
+#include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/ConstructorHelpers.h"
 
 AABFPItemActor::AABFPItemActor()
 {
     PrimaryActorTick.bCanEverTick = true;
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
+
+    CustomMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CustomItemMesh"));
+    CustomMeshComp->SetupAttachment(SceneRoot);
+    CustomMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    CustomMeshComp->SetCastShadow(true);
+    CustomMeshComp->SetVisibility(false);
+
+    AccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AccentLight"));
+    AccentLight->SetupAttachment(SceneRoot);
+    AccentLight->SetRelativeLocation(FVector(0.0f, 0.0f, 32.0f));
+    AccentLight->SetIntensity(350.0f);
+    AccentLight->SetAttenuationRadius(260.0f);
+    AccentLight->SetCastShadows(false);
+    AccentLight->SetVisibility(false);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -30,9 +46,7 @@ AABFPItemActor::AABFPItemActor()
     };
 
     UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
-    UStaticMesh* Cone = ConeMesh.Succeeded()
-    ? ConeMesh.Object.Get()
-    : Sphere;
+    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : Sphere;
     Core = MakePart(TEXT("Core"), Sphere, FVector(0, 0, 35), FVector(0.22f, 0.22f, 0.22f));
     ShardA = MakePart(TEXT("ShardA"), Cone, FVector(0, -16, 43), FVector(0.10f, 0.10f, 0.20f));
     ShardB = MakePart(TEXT("ShardB"), Cone, FVector(0, 16, 43), FVector(0.10f, 0.10f, 0.20f));
@@ -51,6 +65,56 @@ AABFPItemActor::AABFPItemActor()
     }
 }
 
+void AABFPItemActor::ApplyVisualEntry(const FABFPItemVisualEntry* Entry)
+{
+    if (!Entry || (!Entry->StaticMesh && !Entry->ActorClassOverride))
+    {
+        bUsingCustomVisual = false;
+        bFloatAndSpin = true;
+        BaseHeightZ = 38.0f;
+        if (CustomMeshComp) CustomMeshComp->SetVisibility(false);
+        if (AccentLight) AccentLight->SetVisibility(false);
+        if (Core) Core->SetVisibility(true);
+        return;
+    }
+
+    bUsingCustomVisual = true;
+    bFloatAndSpin = Entry->bFloatAndSpin;
+    BaseHeightZ = Entry->LocationOffset.Z;
+
+    if (Core) Core->SetVisibility(false);
+    if (ShardA) ShardA->SetVisibility(false);
+    if (ShardB) ShardB->SetVisibility(false);
+
+    if (Entry->StaticMesh && CustomMeshComp)
+    {
+        CustomMeshComp->SetStaticMesh(Entry->StaticMesh);
+        CustomMeshComp->SetRelativeLocation(FVector(Entry->LocationOffset.X, Entry->LocationOffset.Y, 0.0f));
+        CustomMeshComp->SetRelativeRotation(Entry->RotationOffset);
+        CustomMeshComp->SetRelativeScale3D(Entry->Scale);
+        if (Entry->MaterialOverride)
+        {
+            CustomMeshComp->SetMaterial(0, Entry->MaterialOverride);
+        }
+        CustomMeshComp->SetVisibility(true);
+    }
+
+    if (AccentLight)
+    {
+        AccentLight->SetLightColor(Entry->AccentLightColor);
+        AccentLight->SetVisibility(Entry->bEmitSubtleLight);
+    }
+
+    const FVector Loc = GetActorLocation();
+    SetActorLocation(FVector(Loc.X, Loc.Y, BaseHeightZ));
+}
+
+void AABFPItemActor::UpdateEntityState(const FABFPEntity& Entity)
+{
+    SetItemAppearance(Entity.Name, Entity.CategoryId, Entity.VariantId);
+    OnItemConfigured(Entity);
+}
+
 void AABFPItemActor::SetItemAppearance(const FString& Name,
     int32 CategoryId, int32 VariantId)
 {
@@ -60,8 +124,10 @@ void AABFPItemActor::SetItemAppearance(const FString& Name,
     ItemName = Name;
     ItemCategoryId = CategoryId;
     ItemVariantId = VariantId;
-    const FString Lower = Name.ToLower();
 
+    if (bUsingCustomVisual) return;
+
+    const FString Lower = Name.ToLower();
     const bool bPotion = Lower.Contains(TEXT("potion"));
     const bool bScroll = Lower.Contains(TEXT("scroll"));
     const bool bFood = Lower.Contains(TEXT("food")) ||
@@ -122,8 +188,10 @@ void AABFPItemActor::SetItemAppearance(const FString& Name,
 void AABFPItemActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    if (!bFloatAndSpin) return;
+
     Elapsed += DeltaSeconds;
     SetActorRotation(FRotator(0, Elapsed * 32.0f, 0));
     SetActorLocation(FVector(GetActorLocation().X, GetActorLocation().Y,
-        38.0f + FMath::Sin(Elapsed * 2.0f) * 4.0f));
+        BaseHeightZ + FMath::Sin(Elapsed * 2.0f) * 4.0f));
 }

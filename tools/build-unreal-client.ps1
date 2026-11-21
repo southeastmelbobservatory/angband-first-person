@@ -15,7 +15,8 @@ if (-not $EngineRoot) {
     $InstalledEngines = @()
 
     if (Test-Path $EpicGamesRoot) {
-        $InstalledEngines = Get-ChildItem -Path $EpicGamesRoot -Directory -Filter "UE_5.*" |
+        $InstalledEngines = Get-ChildItem -Path $EpicGamesRoot -Directory |
+            Where-Object { $_.Name -match '^UE_[56]\.' } |
             Sort-Object {
                 [version]($_.Name -replace '^UE_', '')
             } -Descending

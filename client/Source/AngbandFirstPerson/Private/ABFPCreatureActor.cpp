@@ -1,9 +1,16 @@
 #include "ABFPCreatureActor.h"
+#include "ABFPVisualCatalog.h"
 
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "UObject/ConstructorHelpers.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Sound/SoundBase.h"
+#include "UObject/ConstructorHelpers.h"
 
 AABFPCreatureActor::AABFPCreatureActor()
 {
@@ -11,6 +18,18 @@ AABFPCreatureActor::AABFPCreatureActor()
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
+
+    SkeletalMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMesh"));
+    SkeletalMeshComp->SetupAttachment(SceneRoot);
+    SkeletalMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    SkeletalMeshComp->SetCastShadow(true);
+    SkeletalMeshComp->SetVisibility(false);
+
+    CustomStaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CustomStaticMesh"));
+    CustomStaticMeshComp->SetupAttachment(SceneRoot);
+    CustomStaticMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    CustomStaticMeshComp->SetCastShadow(true);
+    CustomStaticMeshComp->SetVisibility(false);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -33,13 +52,8 @@ AABFPCreatureActor::AABFPCreatureActor()
     };
 
     UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
-    UStaticMesh* Cylinder = CylinderMesh.Succeeded()
-    ? CylinderMesh.Object.Get()
-    : Sphere;
-
-    UStaticMesh* Cone = ConeMesh.Succeeded()
-    ? ConeMesh.Object.Get()
-    : Sphere;
+    UStaticMesh* Cylinder = CylinderMesh.Succeeded() ? CylinderMesh.Object.Get() : Sphere;
+    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : Sphere;
 
     Body = MakePart(TEXT("Body"), Sphere, FVector(0, 0, 105), FVector(0.48f, 0.38f, 0.66f));
     Head = MakePart(TEXT("Head"), Sphere, FVector(0, 0, 205), FVector(0.30f, 0.29f, 0.32f));
@@ -87,11 +101,127 @@ AABFPCreatureActor::AABFPCreatureActor()
     }
 }
 
+void AABFPCreatureActor::SetProceduralPartsVisible(bool bVisible)
+{
+    if (Body) Body->SetVisibility(bVisible);
+    if (Head) Head->SetVisibility(bVisible);
+    if (LeftArm) LeftArm->SetVisibility(bVisible);
+    if (RightArm) RightArm->SetVisibility(bVisible);
+    if (LeftLeg) LeftLeg->SetVisibility(bVisible);
+    if (RightLeg) RightLeg->SetVisibility(bVisible);
+    if (LeftEye) LeftEye->SetVisibility(bVisible);
+    if (RightEye) RightEye->SetVisibility(bVisible);
+    if (!bVisible)
+    {
+        if (Tail) Tail->SetVisibility(false);
+        if (LeftWing) LeftWing->SetVisibility(false);
+        if (RightWing) RightWing->SetVisibility(false);
+        if (LeftHorn) LeftHorn->SetVisibility(false);
+        if (RightHorn) RightHorn->SetVisibility(false);
+    }
+}
+
+void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
+{
+    ActiveHitMontage = nullptr;
+    ActiveDeathMontage = nullptr;
+    ActiveHitSound = nullptr;
+    ActiveDeathSound = nullptr;
+
+    if (!Entry)
+    {
+        bUsingCustomVisual = false;
+        bUsingSkeletalVisual = false;
+        if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
+        if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
+        SetProceduralPartsVisible(true);
+        return;
+    }
+
+    ActiveHitMontage = Entry->HitMontage;
+    ActiveDeathMontage = Entry->DeathMontage;
+    ActiveHitSound = Entry->HitSound;
+    ActiveDeathSound = Entry->DeathSound;
+
+    if (Entry->SkeletalMesh && SkeletalMeshComp)
+    {
+        bUsingCustomVisual = true;
+        bUsingSkeletalVisual = true;
+        SetProceduralPartsVisible(false);
+        if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
+
+        SkeletalMeshComp->SetSkeletalMeshAsset(Entry->SkeletalMesh);
+        SkeletalMeshComp->SetRelativeLocation(Entry->LocationOffset);
+        SkeletalMeshComp->SetRelativeRotation(Entry->RotationOffset);
+        SkeletalMeshComp->SetRelativeScale3D(Entry->Scale);
+        if (Entry->MaterialOverride)
+        {
+            SkeletalMeshComp->SetMaterial(0, Entry->MaterialOverride);
+        }
+        if (Entry->AnimClass)
+        {
+            SkeletalMeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+            SkeletalMeshComp->SetAnimInstanceClass(Entry->AnimClass.Get());
+        }
+        else if (Entry->IdleAnim)
+        {
+            SkeletalMeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+            SkeletalMeshComp->PlayAnimation(Entry->IdleAnim, true);
+        }
+        SkeletalMeshComp->SetVisibility(true);
+        return;
+    }
+
+    if (Entry->StaticMeshFallback && CustomStaticMeshComp)
+    {
+        bUsingCustomVisual = true;
+        bUsingSkeletalVisual = false;
+        SetProceduralPartsVisible(false);
+        if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
+
+        CustomStaticMeshComp->SetStaticMesh(Entry->StaticMeshFallback);
+        CustomStaticMeshComp->SetRelativeLocation(Entry->LocationOffset);
+        CustomStaticMeshComp->SetRelativeRotation(Entry->RotationOffset);
+        CustomStaticMeshComp->SetRelativeScale3D(Entry->Scale);
+        if (Entry->MaterialOverride)
+        {
+            CustomStaticMeshComp->SetMaterial(0, Entry->MaterialOverride);
+        }
+        CustomStaticMeshComp->SetVisibility(true);
+        return;
+    }
+
+    if (Entry->ActorClassOverride)
+    {
+        /* A custom Blueprint actor subclass owns its own mesh hierarchy. */
+        bUsingCustomVisual = true;
+        bUsingSkeletalVisual = false;
+        SetProceduralPartsVisible(false);
+        return;
+    }
+
+    bUsingCustomVisual = false;
+    bUsingSkeletalVisual = false;
+    if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
+    if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
+    SetProceduralPartsVisible(true);
+}
+
+void AABFPCreatureActor::UpdateEntityState(const FABFPEntity& Entity)
+{
+    CurrentHitPoints = Entity.HitPoints;
+    MaxHitPoints = Entity.MaxHitPoints;
+    SetCreatureAppearance(Entity.Name, Entity.KindId);
+    OnCreatureConfigured(Entity);
+}
+
 void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId)
 {
     if (CreatureName == Name && CreatureKindId == KindId) return;
     CreatureName = Name;
     CreatureKindId = KindId;
+
+    if (bUsingCustomVisual) return;
 
     const FString Lower = Name.ToLower();
     const bool bDragon = Lower.Contains(TEXT("dragon")) || Lower.Contains(TEXT("wyrm"));
@@ -153,9 +283,21 @@ void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId
 
 void AABFPCreatureActor::PlayHitReaction(int32 Damage)
 {
-    (void)Damage;
     if (bDying) return;
     DamageFlashSeconds = 0.22f;
+
+    if (bUsingSkeletalVisual && SkeletalMeshComp && ActiveHitMontage)
+    {
+        if (UAnimInstance* AnimInst = SkeletalMeshComp->GetAnimInstance())
+        {
+            AnimInst->Montage_Play(ActiveHitMontage);
+        }
+    }
+    if (ActiveHitSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, ActiveHitSound, GetActorLocation());
+    }
+    OnCreatureDamaged(Damage, CurrentHitPoints, MaxHitPoints);
 }
 
 void AABFPCreatureActor::PlayDeathReaction()
@@ -163,8 +305,30 @@ void AABFPCreatureActor::PlayDeathReaction()
     if (bDying) return;
     bDying = true;
     DeathSeconds = 0.0f;
-    bInterpolating = false;
+    DeathDuration = 0.72f;
+    if (bInterpolating)
+    {
+        bInterpolating = false;
+        OnCreatureMovementChanged(false);
+    }
     SetActorEnableCollision(false);
+
+    if (bUsingSkeletalVisual && SkeletalMeshComp && ActiveDeathMontage)
+    {
+        if (UAnimInstance* AnimInst = SkeletalMeshComp->GetAnimInstance())
+        {
+            const float PlayedDuration = AnimInst->Montage_Play(ActiveDeathMontage);
+            if (PlayedDuration > 0.1f)
+            {
+                DeathDuration = PlayedDuration;
+            }
+        }
+    }
+    if (ActiveDeathSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, ActiveDeathSound, GetActorLocation());
+    }
+    OnCreatureDied();
 }
 
 void AABFPCreatureActor::SetTargetLocation(const FVector& Location,
@@ -172,8 +336,13 @@ void AABFPCreatureActor::SetTargetLocation(const FVector& Location,
 {
     TargetLocation = Location;
     TargetRotation = Rotation;
+    const bool bWasMoving = bInterpolating;
     bInterpolating = FVector::DistSquared(GetActorLocation(), TargetLocation) > 4.0f;
     if (!bInterpolating) SetActorRotation(TargetRotation);
+    if (bWasMoving != bInterpolating)
+    {
+        OnCreatureMovementChanged(bInterpolating);
+    }
 }
 
 void AABFPCreatureActor::Tick(float DeltaSeconds)
@@ -182,14 +351,19 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
     if (bDying)
     {
         DeathSeconds += DeltaSeconds;
-        const float Alpha = FMath::Clamp(DeathSeconds / 0.72f, 0.0f, 1.0f);
-        const float RemainingScale = 1.0f - Alpha * 0.78f;
-        SetActorScale3D(FVector(RemainingScale, RemainingScale, RemainingScale));
-        AddActorLocalRotation(FRotator(0.0f, 0.0f, 190.0f * DeltaSeconds));
-        if (CreatureMaterial)
-            CreatureMaterial->SetVectorParameterValue(TEXT("Color"),
-                FLinearColor::LerpUsingHSV(BaseColor, FLinearColor(0.015f, 0.012f, 0.01f), Alpha));
-        if (DeathSeconds >= 0.72f) Destroy();
+        if (!bUsingSkeletalVisual || !ActiveDeathMontage)
+        {
+            const float Alpha = FMath::Clamp(DeathSeconds / DeathDuration, 0.0f, 1.0f);
+            const float RemainingScale = 1.0f - Alpha * 0.78f;
+            SetActorScale3D(FVector(RemainingScale, RemainingScale, RemainingScale));
+            AddActorLocalRotation(FRotator(0.0f, 0.0f, 190.0f * DeltaSeconds));
+            if (!bUsingCustomVisual && CreatureMaterial)
+            {
+                CreatureMaterial->SetVectorParameterValue(TEXT("Color"),
+                    FLinearColor::LerpUsingHSV(BaseColor, FLinearColor(0.015f, 0.012f, 0.01f), Alpha));
+            }
+        }
+        if (DeathSeconds >= DeathDuration) Destroy();
         return;
     }
 
@@ -209,7 +383,13 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
             SetActorLocation(TargetLocation);
             SetActorRotation(TargetRotation);
             bInterpolating = false;
+            OnCreatureMovementChanged(false);
         }
+    }
+
+    if (bUsingCustomVisual)
+    {
+        return;
     }
 
     const float Breath = FMath::Sin(Elapsed * 2.1f) * 3.0f;

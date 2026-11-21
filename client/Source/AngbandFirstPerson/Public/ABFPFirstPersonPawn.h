@@ -9,10 +9,10 @@
 class UCameraComponent;
 class USceneComponent;
 class UPointLightComponent;
-class UTextRenderComponent;
 class AABFPDungeonActor;
+class UABFPVisualCatalog;
 
-UCLASS(Config=Game)
+UCLASS(Config=Game, Blueprintable)
 class ANGBANDFIRSTPERSON_API AABFPFirstPersonPawn : public APawn
 {
     GENERATED_BODY()
@@ -20,41 +20,116 @@ class ANGBANDFIRSTPERSON_API AABFPFirstPersonPawn : public APawn
 public:
     AABFPFirstPersonPawn();
 
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    const FABFPSnapshot& GetCurrentSnapshot() const { return CurrentSnapshot; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    const TArray<FABFPMessage>& GetMessageHistory() const { return MessageHistory; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool IsLiveMode() const { return bLiveMode; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool HasAuthoritativeState() const { return bHaveAuthoritativeState; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool IsAwaitingServerTurn() const { return bAwaitingServerTurn; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    float GetDamageFlashAlpha() const { return FMath::Clamp(PlayerDamageFlashSeconds / 0.35f, 0.0f, 1.0f); }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool IsHelpVisible() const { return bShowHelpOverlay; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    FIntPoint GetFacingGridDelta() const;
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    float GetFacingYawDegrees() const { return TargetControlYaw; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|Visuals")
+    UABFPVisualCatalog* GetVisualCatalog() const { return LoadedVisualCatalog; }
+
+    UFUNCTION(BlueprintCallable, Category="Angband|Presentation")
+    void PlayPlayerAttackSwing();
+
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+    UFUNCTION(BlueprintImplementableEvent, Category="Angband|Presentation")
+    void OnPlayerAttackSwing();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Angband|Presentation")
+    void OnPlayerDamaged(int32 Damage);
+
+    UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="Angband|Connection")
+    FString HostAddress = TEXT("127.0.0.1");
+
+    UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="Angband|Connection")
+    int32 HostPort = 47652;
+
+    /**
+     * Optional DataAsset mapping Angband terrain, monsters, and items to
+     * high-fidelity Static/Skeletal Meshes, Materials, and Audio.
+     * Can be set in a Pawn Blueprint or in Config/DefaultGame.ini.
+     */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="Angband|Visuals")
+    TSoftObjectPtr<UABFPVisualCatalog> VisualCatalogAsset;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<USceneComponent> SceneRoot;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UCameraComponent> Camera;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UPointLightComponent> Lantern;
+
+    /** Mount point for an optional first-person lantern/weapon Blueprint mesh. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<USceneComponent> ViewModelMount;
+
 private:
     void MoveForward();
     void MoveBackward();
     void TurnLeft();
     void TurnRight();
+    void InteractForward();
     void WaitTurn();
     void GoUp();
     void GoDown();
     void AutoPickup();
+    void ToggleHelp();
     void SendSimpleCommand(const FString& Command);
     void MoveRelative(FVector2D LocalDirection);
     void BuildDemoSnapshot();
     void TryDemoStep(int32 DX, int32 DY);
-    void UpdateStatusReadout();
+    void TryDemoInteract(int32 DX, int32 DY);
+    void AddStatusMessage(const FString& Text);
+    void AppendMessages(const TArray<FABFPMessage>& NewMessages);
+    static FString DirectionCommandName(const TCHAR* Prefix, int32 DX, int32 DY);
 
-    UPROPERTY(Config, EditAnywhere, Category="Angband|Connection") FString HostAddress = TEXT("127.0.0.1");
-    UPROPERTY(Config, EditAnywhere, Category="Angband|Connection") int32 HostPort = 47652;
-
-    UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<UPointLightComponent> Lantern;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<UTextRenderComponent> StatusReadout;
+    UPROPERTY(Transient) TObjectPtr<UABFPVisualCatalog> LoadedVisualCatalog;
     UPROPERTY() TObjectPtr<AABFPDungeonActor> Dungeon;
-    FABFPSnapshot DemoSnapshot;
+
+    FABFPSnapshot CurrentSnapshot;
+    TArray<FABFPMessage> MessageHistory;
     FVector TargetPawnLocation = FVector::ZeroVector;
+    float TargetControlYaw = -90.0f;
+    float CurrentControlYaw = -90.0f;
+    float CameraBaseHeight = 170.0f;
+    float StepBobElapsed = 0.0f;
+    float LanternElapsed = 0.0f;
+    float AttackSwingSeconds = 0.0f;
     bool bInterpolatingMove = false;
     bool bLiveMode = false;
     bool bAwaitingServerTurn = false;
+    float AwaitingTurnSeconds = 0.0f;
     bool bHaveAuthoritativeState = false;
+    bool bShowHelpOverlay = true;
     float ReconnectRetrySeconds = 0.0f;
     float PlayerDamageFlashSeconds = 0.0f;
     FABFPNetworkClient NetworkClient;
