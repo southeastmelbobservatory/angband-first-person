@@ -124,9 +124,10 @@ AABFPDungeonActor::AABFPDungeonActor()
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     if (BasicMaterial.Succeeded())
     {
-        auto MakeColorMat = [this, &BasicMaterial](const FLinearColor& Color) -> UMaterialInstanceDynamic*
+        UMaterialInterface* BaseMat = BasicMaterial.Object;
+        auto MakeColorMat = [this, BaseMat](const FLinearColor& Color) -> UMaterialInstanceDynamic*
         {
-            UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+            UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(BaseMat, this);
             Mat->SetVectorParameterValue(TEXT("Color"), Color);
             return Mat;
         };
