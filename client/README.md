@@ -104,19 +104,24 @@ Open `client/AngbandFirstPerson.uproject` in Unreal Engine and allow the C++ mod
 
 ## Wiring high-fidelity meshes & assets (`ABFPVisualCatalog`)
 
-The renderer works out of the box with procedural fallback geometry, and is wired for drop-in high-fidelity PBR meshes, skeletal rigs, Animation Blueprints, and audio via `UABFPVisualCatalog`:
+The renderer works out of the box with procedural fallback geometry, and includes a curated **CC0 (Public Domain)** asset manifest ([assets/manifest.json](../assets/manifest.json)) with automated fetch and Unreal Editor import scripts:
 
-1. In the Unreal Content Browser, create `Content/Data/` → right-click → **Miscellaneous → Data Asset** → choose **`ABFPVisualCatalog`** and name it `DA_DungeonVisualCatalog`.
-2. Populate any combination of:
-   - **DungeonTerrain / TownTerrain:** `FloorVariants`, `CeilingVariants`, `WallVariants`, `VeinWallVariants`, `WallPillarVariants`, `DoorFrame`, `DoorClosedPanel`, `DoorOpenPanel`, `DoorBrokenPanel`, `StairsUp`, `StairsDown`, `Rubble`, `ShopFacade`, `TrapMarker`, and `WallTorchProp`. Unassigned slots keep their procedural fallback.
-   - **Creatures:** map Angband `KindId` (`ridx`) or `NameContains` (e.g. `"goblin"`, `"skeleton"`, `"mouse"`, `"orc"`) to a `USkeletalMesh` + `AnimClass`/`IdleAnim` + `HitMontage`/`DeathMontage`, a `StaticMeshFallback`, or a custom `AABFPCreatureActor` Blueprint subclass.
-   - **Items:** map `KindId`, `CategoryId`/`VariantId` (`tval`/`sval`), or `NameContains` (e.g. `"potion"`, `"scroll"`, `"ration"`, `"sword"`) to a `UStaticMesh` with optional subtle point light and pickup sound.
-   - **Audio:** assign `FootstepSound`, `AttackSwingSound`, `PlayerHitSound`, `DoorOpenSound`, `StairsSound`, and `PickupDefaultSound`.
-3. Enable your catalog in `client/Config/DefaultGame.ini`:
+1. Download and verify all CC0 2K PBR textures, modular dungeon meshes, 20 rigged/3D creatures, floor items, and audio cues into `assets/raw/`:
+   ```powershell
+   .\tools\setup-assets.ps1
+   # Or directly via Python on any OS:
+   python3 tools/fetch-assets.py
+   ```
+2. Import all assets, build the 2K PBR Materials, and auto-populate `/Game/Data/DA_DungeonVisualCatalog` in Unreal Editor:
+   - Inside Unreal Editor (with **Python Editor Script Plugin** enabled): **Tools → Execute Python Script → `tools/import-assets-to-unreal.py`**
+   - Or headless from PowerShell: `.\tools\setup-assets.ps1 -AutoImport`
+3. Enable the generated catalog in `client/Config/DefaultGame.ini`:
 
 ```ini
 [/Script/AngbandFirstPerson.ABFPFirstPersonPawn]
 VisualCatalogAsset=/Game/Data/DA_DungeonVisualCatalog.DA_DungeonVisualCatalog
 ```
 
-For a first-person lantern or weapon mesh, create a Blueprint child of `AABFPFirstPersonPawn` and attach your mesh to `ViewModelMount` (it automatically sways and swings on `ATTACK` events).
+You can inspect or replace any mesh, skeletal rig, Animation Blueprint, material override, or sound directly in `/Game/Data/DA_DungeonVisualCatalog` (`UABFPVisualCatalog`). Unassigned slots keep their procedural fallback.
+
+For a first-person lantern or weapon mesh, create a Blueprint child of `AABFPFirstPersonPawn` and attach `/Game/Assets/Props/Lantern_01` or `/Game/Assets/Items/AntiqueEstoc` to `ViewModelMount` (it automatically sways and swings on `ATTACK` events).

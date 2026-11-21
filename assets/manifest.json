@@ -1,0 +1,846 @@
+{
+  "schema_version": 1,
+  "description": "Curated CC0 3D meshes, 2K PBR texture sets, and audio cues for Angband: First Person (Town + Depth 1-10 vertical slice).",
+  "pbr_materials": [
+    {
+      "id": "stone_wall_02",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/stone_wall_02",
+      "unreal_material_name": "M_DungeonWall_Ashlar",
+      "role": "Dungeon stone walls (primary)",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "stone_brick_wall_001",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/stone_brick_wall_001",
+      "unreal_material_name": "M_DungeonWall_Brick",
+      "role": "Dungeon stone walls (variant)",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "slate_floor_02",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/slate_floor_02",
+      "unreal_material_name": "M_DungeonFloor_Slate",
+      "role": "Dungeon flagstone floor (primary)",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "stone_floor",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/stone_floor",
+      "unreal_material_name": "M_DungeonFloor_Worn",
+      "role": "Dungeon flagstone floor (variant)",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "stone_wall_04",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/stone_wall_04",
+      "unreal_material_name": "M_DungeonCeiling_Stone",
+      "role": "Subterranean dungeon ceiling",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "rock_face",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/rock_face",
+      "unreal_material_name": "M_DungeonVein_Rock",
+      "role": "Mineral / ore vein walls",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cobblestone_floor_08",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/cobblestone_floor_08",
+      "unreal_material_name": "M_TownFloor_Cobble",
+      "role": "Town outdoor cobblestone floor",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "dark_wood",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/dark_wood",
+      "unreal_material_name": "M_DungeonDoor_Wood",
+      "role": "Heavy dungeon oak doors and shop beams",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "rusty_metal_02",
+      "source": "polyhaven_texture",
+      "resolution": "2k",
+      "format": "jpg",
+      "maps": ["Diffuse", "nor_dx", "arm"],
+      "dest_dir": "materials/rusty_metal_02",
+      "unreal_material_name": "M_DungeonIron_Rusted",
+      "role": "Iron gates, sconces, traps, hardware",
+      "license": "CC0-1.0"
+    }
+  ],
+  "polyhaven_models": [
+    {
+      "id": "Lantern_01",
+      "source": "polyhaven_model",
+      "resolution": "2k",
+      "format": "gltf",
+      "dest_dir": "props/Lantern_01",
+      "unreal_dest": "/Game/Assets/Props/Lantern_01",
+      "role": "First-person held lantern (ViewModelMount) & prop",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "antique_estoc",
+      "source": "polyhaven_model",
+      "resolution": "2k",
+      "format": "gltf",
+      "dest_dir": "items/antique_estoc",
+      "unreal_dest": "/Game/Assets/Items/AntiqueEstoc",
+      "role": "Hero steel sword loot & weapon viewmodel",
+      "catalog_item": {
+        "entry_name": "Sword_Hero",
+        "name_contains": "sword",
+        "scale": [1.2, 1.2, 1.2],
+        "location_offset": [0, 0, 14],
+        "rotation_offset": [0, 0, 90],
+        "float_and_spin": false,
+        "emit_light": false
+      },
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "boulder_01",
+      "source": "polyhaven_model",
+      "resolution": "2k",
+      "format": "gltf",
+      "dest_dir": "terrain/boulder_01",
+      "unreal_dest": "/Game/Assets/Terrain/Boulder",
+      "role": "Photorealistic dungeon rubble boulder",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "brass_goblets",
+      "source": "polyhaven_model",
+      "resolution": "2k",
+      "format": "gltf",
+      "dest_dir": "items/brass_goblets",
+      "unreal_dest": "/Game/Assets/Items/BrassGoblets",
+      "role": "Treasure / chalice loot prop",
+      "catalog_item": {
+        "entry_name": "Treasure_Goblet",
+        "name_contains": "treasure",
+        "scale": [1.8, 1.8, 1.8],
+        "location_offset": [0, 0, 4],
+        "rotation_offset": [0, 0, 0],
+        "float_and_spin": false,
+        "emit_light": true,
+        "light_color": [1.0, 0.78, 0.22]
+      },
+      "license": "CC0-1.0"
+    }
+  ],
+  "terrain_meshes": [
+    {
+      "id": "kk_floor_tile_large",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf.glb",
+      "dest": "terrain/floor_tile_large.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.floor",
+      "material_override": "M_DungeonFloor_Slate",
+      "scale": [1.0, 1.0, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_floor_tile_rocks",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large_rocks.gltf.glb",
+      "dest": "terrain/floor_tile_large_rocks.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.floor",
+      "material_override": "M_DungeonFloor_Worn",
+      "scale": [1.0, 1.0, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_floor_tile_grate",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_big_grate.gltf.glb",
+      "dest": "terrain/floor_tile_big_grate.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.floor",
+      "scale": [1.0, 1.0, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_floor_town_dirt",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_dirt_large.gltf.glb",
+      "dest": "terrain/floor_dirt_large.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "town.floor",
+      "material_override": "M_TownFloor_Cobble",
+      "scale": [1.0, 1.0, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wall",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf.glb",
+      "dest": "terrain/wall.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.wall",
+      "material_override": "M_DungeonWall_Ashlar",
+      "scale": [1.0, 4.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wall_cracked",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_cracked.gltf.glb",
+      "dest": "terrain/wall_cracked.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.wall",
+      "material_override": "M_DungeonWall_Brick",
+      "scale": [1.0, 4.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wall_broken",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_broken.gltf.glb",
+      "dest": "terrain/wall_broken.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.vein",
+      "material_override": "M_DungeonVein_Rock",
+      "scale": [1.0, 4.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_pillar",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf.glb",
+      "dest": "terrain/pillar.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.pillar",
+      "material_override": "M_DungeonWall_Ashlar",
+      "scale": [0.65, 0.65, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_pillar_decorated",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf.glb",
+      "dest": "terrain/pillar_decorated.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.pillar",
+      "scale": [0.65, 0.65, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wall_doorway",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_doorway.glb",
+      "dest": "terrain/wall_doorway.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.door_frame",
+      "scale": [1.0, 1.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wall_gated",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_gated.gltf.glb",
+      "dest": "terrain/wall_gated.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.door_closed",
+      "scale": [1.0, 1.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wall_doorway_open",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_doorway_sides.gltf.glb",
+      "dest": "terrain/wall_doorway_sides.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.door_open",
+      "scale": [1.0, 1.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_stairs_up",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/stairs_walled.gltf.glb",
+      "dest": "terrain/stairs_walled.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.stairs_up",
+      "scale": [0.8, 1.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_stairs_down",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/stairs_wide.gltf.glb",
+      "dest": "terrain/stairs_wide.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.stairs_down",
+      "scale": [1.0, 1.0, 0.8],
+      "rotation_offset": [0, 180, 0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_rubble_large",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/rubble_large.gltf.glb",
+      "dest": "terrain/rubble_large.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.rubble",
+      "scale": [1.2, 1.2, 1.2],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_trap_spikes",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_big_spikes.glb",
+      "dest": "terrain/floor_tile_big_spikes.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.trap",
+      "scale": [1.0, 1.0, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_shop_facade",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_archedwindow_open.gltf.glb",
+      "dest": "terrain/wall_archedwindow_open.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.shop",
+      "scale": [1.0, 1.0, 0.8],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_torch_mounted",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf.glb",
+      "dest": "terrain/torch_mounted.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.wall_torch",
+      "scale": [1.1, 1.1, 1.1],
+      "license": "CC0-1.0"
+    }
+  ],
+  "creatures": [
+    {
+      "id": "quaternius_orc",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/models/Orc.gltf",
+      "dest": "creatures/Orc.gltf",
+      "unreal_dest": "/Game/Assets/Creatures/Orc",
+      "rigged": true,
+      "keywords": ["orc", "goblin", "kobold", "snaga", "uruk"],
+      "scale": [0.95, 0.95, 0.95],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "quaternius_demon",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/models/Demon.gltf",
+      "dest": "creatures/Demon.gltf",
+      "unreal_dest": "/Game/Assets/Creatures/Demon",
+      "rigged": true,
+      "keywords": ["demon", "imp", "devil", "balrog"],
+      "scale": [1.05, 1.05, 1.05],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "quaternius_blue_demon",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/models/BlueDemon.gltf",
+      "dest": "creatures/BlueDemon.gltf",
+      "unreal_dest": "/Game/Assets/Creatures/Brute",
+      "rigged": true,
+      "keywords": ["troll", "ogre", "giant"],
+      "scale": [1.25, 1.25, 1.25],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "quaternius_creep",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/models/CreepCreature.glb",
+      "dest": "creatures/CreepCreature.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Creep",
+      "rigged": true,
+      "keywords": ["eye", "mold", "mushroom", "crawler"],
+      "scale": [0.9, 0.9, 0.9],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kaykit_skeleton_warrior",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb",
+      "dest": "creatures/Skeleton_Warrior.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonWarrior",
+      "rigged": true,
+      "keywords": ["skeleton"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kaykit_skeleton_mage",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Mage.glb",
+      "dest": "creatures/Skeleton_Mage.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonMage",
+      "rigged": true,
+      "keywords": ["wraith", "ghost", "lich", "necromancer", "spectre"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kaykit_skeleton_minion",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Minion.glb",
+      "dest": "creatures/Skeleton_Minion.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonMinion",
+      "rigged": true,
+      "keywords": ["ghoul", "wight", "barrow"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kaykit_rogue_hooded",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb",
+      "dest": "creatures/Rogue_Hooded.glb",
+      "unreal_dest": "/Game/Assets/Creatures/RogueHooded",
+      "rigged": true,
+      "keywords": ["thief", "rogue", "bandit", "cutpurse", "cultist", "novice", "street"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kaykit_mage",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb",
+      "dest": "creatures/Mage.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Mage",
+      "rigged": true,
+      "keywords": ["mage", "priest", "acolyte", "sorcerer", "town"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_giant_rat",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/evil-giant-rat/rat_2.glb",
+      "dest": "creatures/giant_rat.glb",
+      "unreal_dest": "/Game/Assets/Creatures/GiantRat",
+      "rigged": false,
+      "keywords": ["mouse", "rat", "rodent"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_slime",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/fbx-blend-lowpoly-animated-slime/slime.glb",
+      "dest": "creatures/slime.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Slime",
+      "rigged": true,
+      "keywords": ["slime", "jelly", "ooze", "icky", "blob"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_spider",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/pixispider/pixispider.glb",
+      "dest": "creatures/spider.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Spider",
+      "rigged": false,
+      "keywords": ["spider", "centipede", "ant", "beetle", "lice", "worm mass"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_vampire_bat",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/vampire-bat-animated/bat_v5.glb",
+      "dest": "creatures/bat.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Bat",
+      "rigged": true,
+      "keywords": ["bat", "bird", "harpy", "crow"],
+      "scale": [1.0, 1.0, 1.0],
+      "location_offset": [0, 0, 120],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_cobra",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cobra-0/cobra.glb",
+      "dest": "creatures/cobra.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Cobra",
+      "rigged": false,
+      "keywords": ["snake", "worm", "naga", "viper", "serpent"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_wolf",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/animated-animales-low-poly/wolf.glb",
+      "dest": "creatures/wolf.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Wolf",
+      "rigged": true,
+      "keywords": ["wolf", "hound", "dog", "jackal", "hyena", "canine"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_zombie",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/stylized-zombie/rigged/stylized-zombie-rigged.glb",
+      "dest": "creatures/zombie_rigged.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Zombie",
+      "rigged": true,
+      "keywords": ["zombie", "mummy", "corpse"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_stone_golem",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/stone-golem/rigged/stone-golem-rigged.glb",
+      "dest": "creatures/stone_golem_rigged.glb",
+      "unreal_dest": "/Game/Assets/Creatures/StoneGolem",
+      "rigged": true,
+      "keywords": ["golem", "elemental"],
+      "scale": [1.15, 1.15, 1.15],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_gargoyle",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/gargoyle/gargoyle.glb",
+      "dest": "creatures/gargoyle.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Gargoyle",
+      "rigged": false,
+      "keywords": ["gargoyle"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_mimic",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/mimic-chest/mimic-chest.glb",
+      "dest": "creatures/mimic.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Mimic",
+      "rigged": false,
+      "keywords": ["mimic"],
+      "scale": [1.0, 1.0, 1.0],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_dragon",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cethiels-dragon-3d/dragon.glb",
+      "dest": "creatures/dragon.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Dragon",
+      "rigged": true,
+      "keywords": ["dragon", "wyrm", "drake"],
+      "scale": [1.3, 1.3, 1.3],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0"
+    }
+  ],
+  "item_meshes": [
+    {
+      "id": "kk_potion_green",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/bottle_A_green.gltf.glb",
+      "dest": "items/bottle_A_green.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Potion",
+      "name_contains": "potion",
+      "scale": [1.4, 1.4, 1.4],
+      "location_offset": [0, 0, 8],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [0.22, 0.85, 0.45],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_potion_brown",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/bottle_A_brown.gltf.glb",
+      "dest": "items/bottle_A_brown.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Flask",
+      "name_contains": "flask",
+      "scale": [1.4, 1.4, 1.4],
+      "location_offset": [0, 0, 8],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_gold_coins",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf.glb",
+      "dest": "items/coin_stack_large.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Gold",
+      "name_contains": "gold",
+      "scale": [1.6, 1.6, 1.6],
+      "location_offset": [0, 0, 4],
+      "float_and_spin": false,
+      "emit_light": true,
+      "light_color": [1.0, 0.82, 0.25],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_chest_gold",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/chest_gold.glb",
+      "dest": "items/chest_gold.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Chest",
+      "name_contains": "chest",
+      "scale": [0.9, 0.9, 0.9],
+      "location_offset": [0, 0, 0],
+      "float_and_spin": false,
+      "emit_light": true,
+      "light_color": [1.0, 0.78, 0.25],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_food_ration",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/plate_food_A.gltf.glb",
+      "dest": "items/plate_food_A.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Food",
+      "name_contains": "ration",
+      "scale": [1.4, 1.4, 1.4],
+      "location_offset": [0, 0, 4],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_key",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/key.gltf.glb",
+      "dest": "items/key.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Ring_Key",
+      "name_contains": "ring",
+      "scale": [1.5, 1.5, 1.5],
+      "location_offset": [0, 0, 18],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [1.0, 0.85, 0.35],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_spellbook",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/spellbook_closed.fbx",
+      "dest": "items/spellbook_closed.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Scroll_Book",
+      "name_contains": "scroll",
+      "scale": [1.5, 1.5, 1.5],
+      "location_offset": [0, 0, 8],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [0.45, 0.72, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_dagger",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/dagger.fbx",
+      "dest": "items/dagger.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Dagger",
+      "name_contains": "dagger",
+      "scale": [1.4, 1.4, 1.4],
+      "location_offset": [0, 0, 10],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_axe",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/axe_1handed.fbx",
+      "dest": "items/axe_1handed.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Axe",
+      "name_contains": "axe",
+      "scale": [1.4, 1.4, 1.4],
+      "location_offset": [0, 0, 10],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_staff",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/staff.fbx",
+      "dest": "items/staff.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Staff",
+      "name_contains": "staff",
+      "scale": [1.2, 1.2, 1.2],
+      "location_offset": [0, 0, 10],
+      "float_and_spin": false,
+      "emit_light": true,
+      "light_color": [0.55, 0.45, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wand",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/wand.fbx",
+      "dest": "items/wand.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Wand",
+      "name_contains": "wand",
+      "scale": [1.4, 1.4, 1.4],
+      "location_offset": [0, 0, 12],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [0.35, 0.82, 1.0],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_shield",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/shield_round.fbx",
+      "dest": "items/shield_round.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Shield_Armor",
+      "name_contains": "shield",
+      "scale": [1.3, 1.3, 1.3],
+      "location_offset": [0, 0, 12],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_arrows",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/arrow_bundle.fbx",
+      "dest": "items/arrow_bundle.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Ammo",
+      "name_contains": "arrow",
+      "scale": [1.3, 1.3, 1.3],
+      "location_offset": [0, 0, 8],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    }
+  ],
+  "support_textures": [
+    {
+      "id": "kk_adv_knight_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/knight_texture.png",
+      "dest": "items/knight_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_adv_mage_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/mage_texture.png",
+      "dest": "items/mage_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_adv_rogue_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/rogue_texture.png",
+      "dest": "items/rogue_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_adv_barbarian_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/barbarian_texture.png",
+      "dest": "items/barbarian_texture.png",
+      "license": "CC0-1.0"
+    }
+  ],
+  "audio": [
+    {
+      "id": "footstep_a",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/footstep_a.wav",
+      "dest": "audio/footstep_a.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "catalog_slot": "footstep_sound",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "hit",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/hit.wav",
+      "dest": "audio/hit.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "catalog_slot": "attack_swing_sound",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "grunt_hurt",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/grunt_hurt.wav",
+      "dest": "audio/grunt_hurt.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "catalog_slot": "player_hit_sound",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "grunt_death",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/grunt_death.wav",
+      "dest": "audio/grunt_death.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "brute_hurt",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/brute_hurt.wav",
+      "dest": "audio/brute_hurt.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "brute_death",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/brute_death.wav",
+      "dest": "audio/brute_death.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "imp_hurt",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/imp_hurt.wav",
+      "dest": "audio/imp_hurt.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "imp_death",
+      "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/audio/imp_death.wav",
+      "dest": "audio/imp_death.wav",
+      "unreal_dest": "/Game/Assets/Audio",
+      "license": "CC0-1.0"
+    }
+  ]
+}
