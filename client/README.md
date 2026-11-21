@@ -31,13 +31,25 @@ ABFP_BIND_ADDRESS=192.168.0.120 bash tools/run-native-demo.sh
 
 Then set the pawn Blueprint's HostAddress to `192.168.0.120` and HostPort to `47652`. Allow inbound TCP port 47652 in the host firewall. Binding to `0.0.0.0` is also supported but exposes the listener on every IPv4 interface. The protocol currently has no authentication or encryption: only expose it to a trusted private LAN, never directly to the internet.
 
-## Build the Windows editor target
+## Build and run on Windows (WSL host + Unreal Editor)
 
-From the repository root in PowerShell, with Unreal Engine 5 installed:
+From the repository root in PowerShell, with Unreal Engine and WSL installed:
+
+```powershell
+# Builds the Unreal C++ module, launches the Angband host in WSL, and opens Unreal Editor:
+.\tools\run-demo.ps1
+
+# Optional flags:
+# .\tools\run-demo.ps1 -EngineRoot "C:\Program Files\Epic Games\UE_5.8"
+# .\tools\run-demo.ps1 -SkipBuild
+# .\tools\run-demo.ps1 -ProjectPath "C:\Users\you\angband-first-person\client 5.8\AngbandFirstPerson.uproject"
+```
+
+To compile only the Unreal C++ editor target without launching the host or editor:
 
 ```powershell
 # Optional if the script cannot auto-detect your engine installation:
-$env:UE_5_ROOT = "C:\Program Files\Epic Games\UE_5.6"
+$env:UE_5_ROOT = "C:\Program Files\Epic Games\UE_5.8"
 
 .\tools\build-unreal-client.ps1
 ```

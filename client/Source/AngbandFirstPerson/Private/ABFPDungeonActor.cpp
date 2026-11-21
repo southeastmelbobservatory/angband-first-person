@@ -86,14 +86,14 @@ AABFPDungeonActor::AABFPDungeonActor()
 
     DungeonFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("DungeonFog"));
     DungeonFog->SetupAttachment(SceneRoot);
-    DungeonFog->FogDensity = 0.022f;
-    DungeonFog->FogHeightFalloff = 0.22f;
-    DungeonFog->StartDistance = 260.0f;
+    DungeonFog->FogDensity = 0.005f;
+    DungeonFog->FogHeightFalloff = 0.18f;
+    DungeonFog->StartDistance = 450.0f;
     DungeonFog->bEnableVolumetricFog = true;
 
     AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
     AmbientSky->SetupAttachment(SceneRoot);
-    AmbientSky->SetIntensity(0.22f);
+    AmbientSky->SetIntensity(0.45f);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -132,11 +132,11 @@ AABFPDungeonActor::AABFPDungeonActor()
             return Mat;
         };
 
-        FallbackFloorMat = MakeColorMat(FLinearColor(0.085f, 0.095f, 0.11f));
-        FallbackMemoryFloorMat = MakeColorMat(FLinearColor(0.025f, 0.03f, 0.04f));
-        FallbackCeilingMat = MakeColorMat(FLinearColor(0.055f, 0.06f, 0.07f));
-        FallbackWallMat = MakeColorMat(FLinearColor(0.19f, 0.20f, 0.22f));
-        FallbackMemoryWallMat = MakeColorMat(FLinearColor(0.055f, 0.06f, 0.07f));
+        FallbackFloorMat = MakeColorMat(FLinearColor(0.14f, 0.15f, 0.17f));
+        FallbackMemoryFloorMat = MakeColorMat(FLinearColor(0.045f, 0.05f, 0.065f));
+        FallbackCeilingMat = MakeColorMat(FLinearColor(0.10f, 0.11f, 0.13f));
+        FallbackWallMat = MakeColorMat(FLinearColor(0.28f, 0.29f, 0.32f));
+        FallbackMemoryWallMat = MakeColorMat(FLinearColor(0.08f, 0.09f, 0.11f));
         FallbackVeinMat = MakeColorMat(FLinearColor(0.46f, 0.36f, 0.16f));
         FallbackDoorFrameMat = MakeColorMat(FLinearColor(0.14f, 0.13f, 0.12f));
         FallbackDoorMat = MakeColorMat(FLinearColor(0.32f, 0.16f, 0.055f));
@@ -196,8 +196,8 @@ void AABFPDungeonActor::EnsureRoomLightPool(int32 DesiredCount)
         Light->SetupAttachment(SceneRoot);
         Light->SetMobility(EComponentMobility::Movable);
         Light->SetCastShadows(false);
-        Light->SetIntensity(VisualCatalog ? VisualCatalog->RoomTorchIntensity : 1600.0f);
-        Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1100.0f);
+        Light->SetIntensity(VisualCatalog ? VisualCatalog->RoomTorchIntensity : 12000.0f);
+        Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1600.0f);
         Light->SetLightColor(VisualCatalog ? VisualCatalog->RoomTorchColor : FLinearColor(1.0f, 0.62f, 0.28f));
         Light->SetVisibility(false);
         Light->RegisterComponent();
@@ -299,11 +299,11 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
 
     if (AmbientSky)
     {
-        AmbientSky->SetIntensity(DungeonDepth == 0 ? 0.85f : 0.16f);
+        AmbientSky->SetIntensity(DungeonDepth == 0 ? 1.0f : 0.35f);
     }
     if (DungeonFog)
     {
-        DungeonFog->SetFogDensity(DungeonDepth == 0 ? 0.008f : 0.022f);
+        DungeonFog->SetFogDensity(DungeonDepth == 0 ? 0.002f : 0.005f);
     }
 
     if (!VisualCatalog) return;
@@ -410,7 +410,7 @@ void AABFPDungeonActor::UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
         {
             Light->SetWorldLocation(Tile + SconceOffset - FVector(WallDir.X * 26.0f, WallDir.Y * 26.0f, -8.0f));
             Light->SetLightColor(VisualCatalog ? VisualCatalog->RoomTorchColor : FLinearColor(1.0f, 0.62f, 0.28f));
-            Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1100.0f);
+            Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1600.0f);
             Light->SetVisibility(true);
         }
 
@@ -434,7 +434,7 @@ void AABFPDungeonActor::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     FlickerElapsed += DeltaSeconds;
 
-    const float BaseIntensity = VisualCatalog ? VisualCatalog->RoomTorchIntensity : 1600.0f;
+    const float BaseIntensity = VisualCatalog ? VisualCatalog->RoomTorchIntensity : 12000.0f;
     for (int32 Idx = 0; Idx < RoomLights.Num(); ++Idx)
     {
         UPointLightComponent* Light = RoomLights[Idx];

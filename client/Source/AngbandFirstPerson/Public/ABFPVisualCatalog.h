@@ -242,10 +242,10 @@ public:
     int32 MaxDynamicRoomLights = 12;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
-    float RoomTorchIntensity = 1800.0f;
+    float RoomTorchIntensity = 12000.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
-    float RoomTorchRadius = 1100.0f;
+    float RoomTorchRadius = 1600.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
     FLinearColor RoomTorchColor = FLinearColor(1.0f, 0.62f, 0.28f);

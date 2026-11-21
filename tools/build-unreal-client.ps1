@@ -1,14 +1,18 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$EngineRoot = $env:UE_5_ROOT
+    [string]$EngineRoot = $env:UE_5_ROOT,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ProjectPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-$ProjectPath = [System.IO.Path]::GetFullPath(
-    (Join-Path $PSScriptRoot "..\client\AngbandFirstPerson.uproject")
-)
+if (-not $ProjectPath) {
+    $ProjectPath = Join-Path $PSScriptRoot "..\client\AngbandFirstPerson.uproject"
+}
+$ProjectPath = [System.IO.Path]::GetFullPath($ProjectPath)
 
 if (-not $EngineRoot) {
     $EpicGamesRoot = Join-Path $env:ProgramFiles "Epic Games"
