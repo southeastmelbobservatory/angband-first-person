@@ -3,7 +3,7 @@
 
 Automates Angband's ncurses startup/character-birth flow inside a PTY so the
 ABFP TCP bridge reaches CTX_GAME and starts serving Unreal immediately with no
-manual terminal input.
+manual terminal input. Immune to Windows CRLF line endings when invoked from WSL.
 """
 
 import argparse
@@ -19,11 +19,14 @@ import socket
 import struct
 import subprocess
 import sys
+import tempfile
 import termios
 import time
 from pathlib import Path
 
 DEFAULT_PORT = 47652
+UPSTREAM_URL = "https://github.com/angband/angband.git"
+UPSTREAM_COMMIT = "f3082213b73f3e463e3d0d60bff4b00462beae6e"
 
 
 def strip_ansi(raw: bytes) -> str:
@@ -55,7 +58,7 @@ def drain_pty(master_fd: int, output: bytearray, wait_seconds: float = 0.05) -> 
 
 def check_linux_prerequisites() -> list[str]:
     missing = []
-    for tool in ("gcc", "cmake", "pkg-config"):
+    for tool in ("git", "gcc", "cmake", "pkg-config"):
         if shutil.which(tool) is None:
             missing.append(tool)
     if shutil.which("pkg-config") is not None:
@@ -68,34 +71,113 @@ def check_linux_prerequisites() -> list[str]:
     return missing
 
 
-def ensure_angband_built(repo_root: Path, build_dir: Path, rebuild: bool) -> Path:
+def bootstrap_upstream_angband(repo_root: Path) -> Path:
+    dest = repo_root / "engine" / "upstream" / "angband"
+    if (dest / ".git").is_dir():
+        head = subprocess.run(
+            ["git", "-C", str(dest), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        if head != UPSTREAM_COMMIT:
+            print("[abfp-host] Fetching upstream Angband tags...", flush=True)
+            subprocess.run(["git", "-C", str(dest), "fetch", "--tags"], check=True)
+    else:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        print("[abfp-host] Cloning pinned Angband 4.2.6 source...", flush=True)
+        subprocess.run(
+            ["git", "clone", "--filter=blob:none", UPSTREAM_URL, str(dest)],
+            check=True,
+        )
+
+    head = subprocess.run(
+        ["git", "-C", str(dest), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if head != UPSTREAM_COMMIT:
+        subprocess.run(["git", "-C", str(dest), "checkout", "--detach", UPSTREAM_COMMIT], check=True)
+
+    # Normalize patch line endings to LF in a temp file so Windows core.autocrlf never breaks git apply.
+    patch_src = repo_root / "engine" / "upstream" / "patches" / "angband-4.2.6-abfp.patch"
+    patch_bytes = patch_src.read_bytes().replace(b"\r\n", b"\n")
+    with tempfile.NamedTemporaryFile(prefix="abfp-patch-", suffix=".patch", delete=False) as tmp:
+        tmp.write(patch_bytes)
+        tmp_patch = Path(tmp.name)
+
+    try:
+        can_apply = subprocess.run(
+            ["git", "-C", str(dest), "apply", "--check", str(tmp_patch)],
+            capture_output=True,
+            check=False,
+        ).returncode == 0
+        already_applied = subprocess.run(
+            ["git", "-C", str(dest), "apply", "--reverse", "--check", str(tmp_patch)],
+            capture_output=True,
+            check=False,
+        ).returncode == 0
+
+        if can_apply:
+            print("[abfp-host] Applying ABFP frontend integration patch...", flush=True)
+            subprocess.run(["git", "-C", str(dest), "apply", str(tmp_patch)], check=True)
+        elif already_applied:
+            print("[abfp-host] ABFP patch already applied.", flush=True)
+        else:
+            raise RuntimeError("ABFP patch does not apply cleanly to engine/upstream/angband")
+    finally:
+        tmp_patch.unlink(missing_ok=True)
+
+    return dest
+
+
+def ensure_angband_built(repo_root: Path, build_dir: Path, rebuild: bool) -> tuple[Path, Path]:
+    upstream_dir = repo_root / "engine" / "upstream" / "angband"
     binary = build_dir / "game" / "angband"
-    if binary.is_file() and os.access(binary, os.X_OK) and not rebuild:
-        return binary
+    if (
+        binary.is_file()
+        and os.access(binary, os.X_OK)
+        and (upstream_dir / "lib" / "screens" / "news.txt").is_file()
+        and not rebuild
+    ):
+        return binary, upstream_dir
 
     missing = check_linux_prerequisites()
     if missing:
         print(
             f"[abfp-host] Missing Linux build prerequisites: {' '.join(missing)}\n"
             "Install them once in Linux/WSL with:\n"
-            "  sudo apt update && sudo apt install -y build-essential cmake pkg-config libncurses-dev",
+            "  wsl -u root -- bash -c \"apt update && apt install -y build-essential cmake pkg-config libncurses-dev\"",
             file=sys.stderr,
             flush=True,
         )
         raise SystemExit(1)
 
-    print("[abfp-host] Building patched Angband 4.2.6 host...", flush=True)
-    env = os.environ.copy()
-    env["ABFP_BUILD_DIR"] = str(build_dir)
+    upstream_dir = bootstrap_upstream_angband(repo_root)
+    build_dir.mkdir(parents=True, exist_ok=True)
+
+    jobs = os.environ.get("ABFP_BUILD_JOBS") or str(max(2, os.cpu_count() or 2))
+    print(f"[abfp-host] Configuring & building Angband in {build_dir} ({jobs} jobs)...", flush=True)
     subprocess.run(
-        ["bash", str(repo_root / "tools" / "build-angband-host.sh")],
-        cwd=str(repo_root),
-        env=env,
+        [
+            "cmake",
+            "-S", str(upstream_dir),
+            "-B", str(build_dir),
+            "-DSUPPORT_GCU_FRONTEND=ON",
+            "-DSUPPORT_X11_FRONTEND=OFF",
+            "-DSUPPORT_SPOIL_FRONTEND=OFF",
+            "-DSUPPORT_BORG=OFF",
+        ],
+        check=True,
+    )
+    subprocess.run(
+        ["cmake", "--build", str(build_dir), "--parallel", jobs],
         check=True,
     )
     if not binary.is_file():
         raise RuntimeError(f"Expected Angband binary was not produced at {binary}")
-    return binary
+    return binary, upstream_dir
 
 
 def probe_initial_snapshot(host: str, port: int, timeout: float = 1.5) -> dict | None:
@@ -115,9 +197,7 @@ def probe_initial_snapshot(host: str, port: int, timeout: float = 1.5) -> dict |
             data = json.loads(line.decode("utf-8", errors="replace"))
             if data.get("type") == "state":
                 return data
-    except OSError:
-        return None
-    except ValueError:
+    except (OSError, ValueError):
         return None
     return None
 
@@ -134,9 +214,17 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
-    build_dir = Path(os.environ.get("ABFP_BUILD_DIR", str(repo_root / "build-angband")))
-    binary = ensure_angband_built(repo_root, build_dir, args.rebuild)
-    upstream_dir = repo_root / "engine" / "upstream" / "angband"
+
+    # When running in WSL against a /mnt/* Windows path, keep the CMake build
+    # directory on native Linux ext4 for 10x faster compiles and proper POSIX perms.
+    if os.environ.get("ABFP_BUILD_DIR"):
+        build_dir = Path(os.environ["ABFP_BUILD_DIR"])
+    elif str(repo_root).startswith("/mnt/"):
+        build_dir = Path.home() / ".cache" / "angband-first-person" / "build-angband"
+    else:
+        build_dir = repo_root / "build-angband"
+
+    binary, upstream_dir = ensure_angband_built(repo_root, build_dir, args.rebuild)
 
     if not (upstream_dir / "lib" / "screens" / "news.txt").is_file():
         print(f"[abfp-host] Missing Angband data directory: {upstream_dir / 'lib'}", file=sys.stderr, flush=True)
@@ -144,12 +232,11 @@ def main() -> int:
 
     probe_host = "127.0.0.1" if args.bind in ("0.0.0.0", "") else args.bind
 
-    # If a host is already serving on this port, report and exit cleanly.
     existing = probe_initial_snapshot(probe_host, args.port, timeout=0.6)
     if existing is not None:
         print(
-            f"[abfp-host] Angband host already listening on {probe_host}:{args.port} "
-            f"(depth={existing.get('depth')} turn={existing.get('turn')})",
+            f"[abfp-host] READY on {probe_host}:{args.port} (already running) | "
+            f"depth={existing.get('depth')} turn={existing.get('turn')}",
             flush=True,
         )
         return 0
@@ -199,7 +286,6 @@ def main() -> int:
     output = bytearray()
 
     try:
-        # 1. Wait for Angband's ABFP TCP socket to open (before startup splash).
         listener_ready = False
         deadline = time.monotonic() + 20.0
         while time.monotonic() < deadline and not stopping:
@@ -223,7 +309,6 @@ def main() -> int:
             print("[abfp-host] Timed out waiting for ABFP TCP listener.", file=sys.stderr, flush=True)
             return 1
 
-        # 2. Drive splash & birth screens automatically until CTX_GAME publishes a snapshot.
         time.sleep(0.25)
         os.write(master_fd, b" ")
 
@@ -279,7 +364,6 @@ def main() -> int:
             flush=True,
         )
 
-        # 3. Stay running quietly, continuously draining the PTY so Angband never blocks.
         while not stopping:
             waited, status = os.waitpid(pid, os.WNOHANG)
             if waited:

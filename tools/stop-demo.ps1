@@ -17,5 +17,5 @@ if ($WslDistro) {
 }
 
 Write-Host "Stopping any background Angband ABFP host in WSL..."
-& wsl.exe @WslPrefixArgs -- bash -c 'pkill -f "run-angband-headless.py" 2>/dev/null || true; pkill -f "build-angband/game/angband" 2>/dev/null || true'
+& wsl.exe @WslPrefixArgs -- bash -c 'pkill -f "run-angband-headless.py" 2>/dev/null || true; pkill -f "game/angband" 2>/dev/null || true'
 Write-Host "Done."

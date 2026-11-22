@@ -1,0 +1,9 @@
+# Keep POSIX shell scripts, patches, Python, and C sources with LF line endings
+# so WSL builds never fail due to Windows Git core.autocrlf=true.
+*.sh text eol=lf
+*.patch text eol=lf
+*.py text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+CMakeLists.txt text eol=lf
+*.ps1 text eol=crlf
