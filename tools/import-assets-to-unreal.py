@@ -142,6 +142,7 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
 
     mel = unreal.MaterialEditingLibrary
     mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
 
     if diff_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -240)
@@ -165,6 +166,50 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
     return mat
+
+
+def enable_instanced_mesh_usage_in_folder(folder_path: str) -> int:
+    """Ensure every Material (including base materials of Interchange MaterialInstances)
+    under folder_path has bUsedWithInstancedStaticMeshes=True so UInstancedStaticMeshComponent
+    never falls back to WorldGridMaterial."""
+    if not unreal.EditorAssetLibrary.does_directory_exist(folder_path):
+        return 0
+
+    mel = unreal.MaterialEditingLibrary
+    updated_paths = set()
+    for asset_path in unreal.EditorAssetLibrary.list_assets(folder_path, recursive=True, include_folder=False):
+        obj = unreal.EditorAssetLibrary.load_asset(asset_path)
+        base_mat = None
+        if isinstance(obj, unreal.Material):
+            base_mat = obj
+        elif isinstance(obj, unreal.MaterialInterface):
+            try:
+                base_mat = obj.get_base_material()
+            except Exception:
+                base_mat = None
+        if not isinstance(base_mat, unreal.Material):
+            continue
+        base_path = base_mat.get_path_name().split(".")[0]
+        if base_path in updated_paths or not base_path.startswith("/Game/"):
+            continue
+        try:
+            if not base_mat.get_editor_property("used_with_instanced_static_meshes"):
+                base_mat.set_editor_property("used_with_instanced_static_meshes", True)
+                mel.recompile_material(base_mat)
+                unreal.EditorAssetLibrary.save_loaded_asset(base_mat)
+                updated_paths.add(base_path)
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Could not enable InstancedStaticMeshes on {base_path}: {exc}")
+
+    # Also resave any MaterialInstances under the folder so they don't recompile every editor launch.
+    for asset_path in unreal.EditorAssetLibrary.list_assets(folder_path, recursive=True, include_folder=False):
+        obj = unreal.EditorAssetLibrary.load_asset(asset_path)
+        if isinstance(obj, unreal.MaterialInstanceConstant):
+            try:
+                unreal.EditorAssetLibrary.save_loaded_asset(obj)
+            except Exception:
+                pass
+    return len(updated_paths)
 
 
 def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0)):
@@ -436,7 +481,12 @@ def main():
 
     catalog.set_editor_property("creatures", creature_entries)
 
-    # 8. Wire Global Audio Cues
+    # 8. Ensure all terrain and PBR materials have bUsedWithInstancedStaticMeshes=True
+    ism_fixed = enable_instanced_mesh_usage_in_folder("/Game/Assets/Terrain")
+    ism_fixed += enable_instanced_mesh_usage_in_folder("/Game/Assets/Materials")
+    unreal.log(f"[ABFP] Enabled InstancedStaticMeshes usage flag on {ism_fixed} materials.")
+
+    # 9. Wire Global Audio Cues
     if "footstep_a" in audio_by_id:
         catalog.set_editor_property("footstep_sound", audio_by_id["footstep_a"])
     if "hit" in audio_by_id:
