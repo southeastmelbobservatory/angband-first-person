@@ -53,6 +53,15 @@ void AABFPFirstPersonPawn::BeginPlay()
     if (!VisualCatalogAsset.IsNull())
     {
         LoadedVisualCatalog = VisualCatalogAsset.LoadSynchronous();
+        if (LoadedVisualCatalog)
+        {
+            UE_LOG(LogTemp, Log, TEXT("ABFP: Loaded visual catalog %s"), *LoadedVisualCatalog->GetName());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ABFP: VisualCatalogAsset %s not found; using procedural fallback."),
+                *VisualCatalogAsset.ToString());
+        }
     }
 
     FActorSpawnParameters Params;

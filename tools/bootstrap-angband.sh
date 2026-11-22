@@ -9,13 +9,17 @@ UPSTREAM_COMMIT="f3082213b73f3e463e3d0d60bff4b00462beae6e"
 DEST="engine/upstream/angband"
 
 if [ -d "$DEST/.git" ]; then
-  git -C "$DEST" fetch --tags
+  if [ "$(git -C "$DEST" rev-parse HEAD 2>/dev/null || true)" != "$UPSTREAM_COMMIT" ]; then
+    git -C "$DEST" fetch --tags
+  fi
 else
   mkdir -p "$(dirname "$DEST")"
   git clone --filter=blob:none "$UPSTREAM_URL" "$DEST"
 fi
 
-git -C "$DEST" checkout --detach "$UPSTREAM_COMMIT"
+if [ "$(git -C "$DEST" rev-parse HEAD 2>/dev/null || true)" != "$UPSTREAM_COMMIT" ]; then
+  git -C "$DEST" checkout --detach "$UPSTREAM_COMMIT"
+fi
 test "$(git -C "$DEST" rev-parse HEAD)" = "$UPSTREAM_COMMIT"
 
 echo "Angband 4.2.6 pinned at: $(git -C "$DEST" rev-parse HEAD)"
