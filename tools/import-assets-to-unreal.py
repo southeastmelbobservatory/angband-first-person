@@ -212,6 +212,90 @@ def enable_instanced_mesh_usage_in_folder(folder_path: str) -> int:
     return len(updated_paths)
 
 
+def build_instanced_master_material(unreal_mat_folder: str):
+    """Build a lightweight ISM-safe master Material for glTF/KayKit terrain meshes so they
+    never reference Interchange base materials that lack bUsedWithInstancedStaticMeshes."""
+    if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):
+        unreal.EditorAssetLibrary.make_directory(unreal_mat_folder)
+
+    mat_name = "M_ABFP_InstancedMaster"
+    mat_asset_path = f"{unreal_mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, unreal_mat_folder, unreal.Material, factory
+        )
+
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+
+    tex_param = mel.create_material_expression(
+        mat, unreal.MaterialExpressionTextureSampleParameter2D, -420, -140
+    )
+    tex_param.set_editor_property("parameter_name", "BaseColorTexture")
+    mel.connect_material_property(tex_param, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+
+    rough_const = mel.create_material_expression(
+        mat, unreal.MaterialExpressionConstant, -320, 140
+    )
+    rough_const.set_editor_property("r", 0.78)
+    mel.connect_material_property(rough_const, "", unreal.MaterialProperty.MP_ROUGHNESS)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
+def make_instanced_material_for_mesh(entry_id: str, imported_paths: list, dest_sub: str, master_mat):
+    """Create a saved MaterialInstanceConstant derived from M_ABFP_InstancedMaster using the
+    mesh's own imported BaseColor Texture2D."""
+    if not master_mat:
+        return None
+    inst_folder = "/Game/Assets/Materials/Instances"
+    if not unreal.EditorAssetLibrary.does_directory_exist(inst_folder):
+        unreal.EditorAssetLibrary.make_directory(inst_folder)
+
+    inst_name = f"MI_{entry_id}"
+    inst_path = f"{inst_folder}/{inst_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(inst_path):
+        mic = unreal.EditorAssetLibrary.load_asset(inst_path)
+    else:
+        factory = unreal.MaterialInstanceConstantFactoryNew()
+        mic = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            inst_name, inst_folder, unreal.MaterialInstanceConstant, factory
+        )
+
+    if not isinstance(mic, unreal.MaterialInstanceConstant):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.set_material_instance_parent(mic, master_mat)
+    tex = find_asset_in_paths_or_folder(imported_paths, dest_sub, unreal.Texture2D)
+    if tex:
+        mel.set_material_instance_texture_parameter_value(mic, "BaseColorTexture", tex)
+    unreal.EditorAssetLibrary.save_asset(inst_path, only_if_is_dirty=False)
+    return mic
+
+
+def assign_material_all_slots(mesh, material):
+    if not mesh or not material:
+        return
+    try:
+        slots = mesh.get_editor_property("static_materials")
+        count = max(1, len(slots) if slots is not None else 1)
+    except Exception:
+        count = 1
+    for slot_idx in range(count):
+        mesh.set_material(slot_idx, material)
+    unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+
+
 def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0)):
     v = unreal.ABFPMeshVariant()
     v.set_editor_property("mesh", mesh)
@@ -239,7 +323,8 @@ def main():
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    # 1. Build Poly Haven 2K PBR Materials
+    # 1. Build Poly Haven 2K PBR Materials + ISM-safe master material for glTF terrain props
+    instanced_master_mat = build_instanced_master_material("/Game/Assets/Materials")
     materials_by_name = {}
     for entry in manifest.get("pbr_materials", []):
         tex_dir = raw_root / entry["dest_dir"]
@@ -316,6 +401,11 @@ def main():
                 continue
 
             mat_override = materials_by_name.get(entry.get("material_override", ""))
+            if not mat_override:
+                mat_override = make_instanced_material_for_mesh(
+                    entry["id"], paths, dest_sub, instanced_master_mat
+                )
+            assign_material_all_slots(mesh, mat_override)
             variant = make_mesh_variant(
                 mesh,
                 material=mat_override,
