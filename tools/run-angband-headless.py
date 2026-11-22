@@ -132,6 +132,17 @@ def bootstrap_upstream_angband(repo_root: Path) -> Path:
     return dest
 
 
+def sources_newer_than(repo_root: Path, binary: Path) -> bool:
+    bin_mtime = binary.stat().st_mtime
+    for folder in (repo_root / "engine" / "bridge", repo_root / "engine" / "host", repo_root / "protocol"):
+        if not folder.exists():
+            continue
+        for src in folder.rglob("*"):
+            if src.suffix in (".c", ".h") and src.stat().st_mtime > bin_mtime:
+                return True
+    return False
+
+
 def ensure_angband_built(repo_root: Path, build_dir: Path, rebuild: bool) -> tuple[Path, Path]:
     upstream_dir = repo_root / "engine" / "upstream" / "angband"
     binary = build_dir / "game" / "angband"
@@ -140,6 +151,7 @@ def ensure_angband_built(repo_root: Path, build_dir: Path, rebuild: bool) -> tup
         and os.access(binary, os.X_OK)
         and (upstream_dir / "lib" / "screens" / "news.txt").is_file()
         and not rebuild
+        and not sources_newer_than(repo_root, binary)
     ):
         return binary, upstream_dir
 
@@ -369,7 +381,16 @@ def main() -> int:
             if waited:
                 print(f"[abfp-host] Angband process exited (status={status}).", flush=True)
                 break
+            before_len = len(output)
             drain_pty(master_fd, output, 0.25)
+            if len(output) > before_len:
+                tail = strip_ansi(bytes(output[-2048:]))
+                if any(tok in tail for tok in ("esc) exit", "purchase which item", "sell which item", "(y/n)", "[y/n]")):
+                    os.write(master_fd, b"\x1b")
+                    output.clear()
+                elif "-more-" in tail or "press any key" in tail:
+                    os.write(master_fd, b" ")
+                    output.clear()
 
     finally:
         try:

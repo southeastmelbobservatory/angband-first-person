@@ -148,6 +148,16 @@ bool abfp_upstream_queue_command(abfp_command_type command)
         struct monster *mon = square_in_bounds(cave, target) ?
             square_monster(cave, target) : NULL;
         /*
+         * Prevent stepping onto a town shop from blocking the game thread inside
+         * Angband's ncurses store menu loop while running under a 3D client.
+         */
+        if (square_in_bounds(cave, target) && square_isshop(cave, target)) {
+            event_remove_handler_type(EVENT_ENTER_STORE);
+            event_remove_handler_type(EVENT_USE_STORE);
+            event_remove_handler_type(EVENT_LEAVE_STORE);
+            msg("You step into the shop entrance (3D shop UI coming soon).");
+        }
+        /*
          * Use Angband's explicit alter action for an occupied monster grid.
          * It calls py_attack() directly and avoids the walk-test's visibility
          * gate; ordinary empty-square movement remains CMD_WALK.

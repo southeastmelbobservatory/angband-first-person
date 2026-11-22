@@ -195,14 +195,20 @@ def main():
     catalog_folder = "/Game/Data"
     catalog_name = "DA_DungeonVisualCatalog"
     catalog_path = f"{catalog_folder}/{catalog_name}"
+    if not unreal.EditorAssetLibrary.does_directory_exist(catalog_folder):
+        unreal.EditorAssetLibrary.make_directory(catalog_folder)
+
     if unreal.EditorAssetLibrary.does_asset_exist(catalog_path):
         catalog = unreal.EditorAssetLibrary.load_asset(catalog_path)
     else:
         factory = unreal.DataAssetFactory()
-        factory.set_editor_property("data_asset_class", unreal.ABFPVisualCatalog)
+        factory.set_editor_property("data_asset_class", unreal.ABFPVisualCatalog.static_class())
         catalog = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
             catalog_name, catalog_folder, unreal.ABFPVisualCatalog, factory
         )
+
+    if not catalog:
+        raise RuntimeError(f"Failed to create or load {catalog_path}. Make sure AngbandFirstPerson C++ module is compiled first.")
 
     dungeon_terrain = catalog.get_editor_property("dungeon_terrain")
     town_terrain = catalog.get_editor_property("town_terrain")
@@ -308,8 +314,8 @@ def main():
                 item.set_editor_property("location_offset", unreal.Vector(*ci.get("location_offset", [0, 0, 8])))
                 rot = ci.get("rotation_offset", [0, 0, 0])
                 item.set_editor_property("rotation_offset", unreal.Rotator(rot[0], rot[1], rot[2]))
-                item.set_editor_property("b_float_and_spin", bool(ci.get("float_and_spin", False)))
-                item.set_editor_property("b_emit_subtle_light", bool(ci.get("emit_light", False)))
+                item.set_editor_property("float_and_spin", bool(ci.get("float_and_spin", False)))
+                item.set_editor_property("emit_subtle_light", bool(ci.get("emit_light", False)))
                 if "light_color" in ci:
                     lc = ci["light_color"]
                     item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
@@ -331,8 +337,8 @@ def main():
         item.set_editor_property("static_mesh", mesh)
         item.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
         item.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 8])))
-        item.set_editor_property("b_float_and_spin", bool(entry.get("float_and_spin", False)))
-        item.set_editor_property("b_emit_subtle_light", bool(entry.get("emit_light", False)))
+        item.set_editor_property("float_and_spin", bool(entry.get("float_and_spin", False)))
+        item.set_editor_property("emit_subtle_light", bool(entry.get("emit_light", False)))
         if "light_color" in entry:
             lc = entry["light_color"]
             item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
