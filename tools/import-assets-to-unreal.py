@@ -9,22 +9,38 @@ Run inside Unreal Editor:
   Tools -> Execute Python Script -> <repo>/tools/import-assets-to-unreal.py
 
 Or headless via UnrealEditor-Cmd.exe:
-  UnrealEditor-Cmd.exe "<project>.uproject" -ExecutePythonScript="<repo>/tools/import-assets-to-unreal.py" -nop4 -unattended
+  UnrealEditor-Cmd.exe "<project>.uproject" -run=pythonscript -script="<repo>/tools/import-assets-to-unreal.py" -stdout -FullStdOutLogOutput -nop4 -unattended -nosplash
 """
 
 import json
 import os
+import traceback
 from pathlib import Path
 
 import unreal
 
 
 def find_repo_root() -> Path:
-    script_path = Path(__file__).resolve()
-    return script_path.parent.parent
+    env_root = os.environ.get("ABFP_REPO_ROOT")
+    if env_root:
+        p = Path(env_root).resolve()
+        if (p / "assets" / "manifest.json").is_file():
+            return p
+    if "__file__" in globals():
+        p = Path(__file__).resolve().parent.parent
+        if (p / "assets" / "manifest.json").is_file():
+            return p
+    proj_dir = Path(unreal.Paths.project_dir()).resolve()
+    for candidate in (proj_dir.parent, proj_dir):
+        if (candidate / "assets" / "manifest.json").is_file():
+            return candidate
+    raise RuntimeError("Could not locate repo root containing assets/manifest.json (set ABFP_REPO_ROOT).")
 
 
-def import_asset(source_file: Path, dest_path: str, asset_name: str = None, is_skeletal: bool = False):
+def import_asset(source_file: Path, dest_path: str, asset_name: str = None, is_skeletal: bool = False) -> list:
+    if not unreal.EditorAssetLibrary.does_directory_exist(dest_path):
+        unreal.EditorAssetLibrary.make_directory(dest_path)
+
     task = unreal.AssetImportTask()
     task.filename = str(source_file)
     task.destination_path = dest_path
@@ -53,18 +69,29 @@ def import_asset(source_file: Path, dest_path: str, asset_name: str = None, is_s
     return list(task.imported_object_paths)
 
 
-def find_asset_of_type(folder_path: str, asset_class, name_hint: str = ""):
-    registry = unreal.AssetRegistryHelpers.get_asset_registry()
-    assets = registry.get_assets_by_path(folder_path, recursive=True)
+def find_asset_in_paths_or_folder(imported_paths: list, folder_path: str, asset_class, name_hint: str = ""):
     hint_lower = name_hint.lower()
     fallback = None
-    for data in assets:
-        obj = data.get_asset()
+
+    # 1. Check directly returned imported object paths first (most reliable in headless commandlets).
+    for obj_path in imported_paths or []:
+        obj = unreal.EditorAssetLibrary.load_asset(obj_path)
         if isinstance(obj, asset_class):
             if not hint_lower or hint_lower in obj.get_name().lower():
                 return obj
             if fallback is None:
                 fallback = obj
+
+    # 2. Fall back to listing all assets under the destination folder.
+    if unreal.EditorAssetLibrary.does_directory_exist(folder_path):
+        for asset_path in unreal.EditorAssetLibrary.list_assets(folder_path, recursive=True, include_folder=False):
+            obj = unreal.EditorAssetLibrary.load_asset(asset_path)
+            if isinstance(obj, asset_class):
+                if not hint_lower or hint_lower in obj.get_name().lower():
+                    return obj
+                if fallback is None:
+                    fallback = obj
+
     return fallback
 
 
@@ -80,26 +107,26 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
 
     if diff_file:
         paths = import_asset(diff_file, unreal_tex_folder)
-        if paths:
-            diff_tex = unreal.EditorAssetLibrary.load_asset(paths[0])
+        diff_tex = find_asset_in_paths_or_folder(paths, unreal_tex_folder, unreal.Texture2D, diff_file.stem)
     if nor_file:
         paths = import_asset(nor_file, unreal_tex_folder)
-        if paths:
-            nor_tex = unreal.EditorAssetLibrary.load_asset(paths[0])
-            if isinstance(nor_tex, unreal.Texture2D):
-                nor_tex.compression_settings = unreal.TextureCompressionSettings.TC_NORMALMAP
-                nor_tex.srgb = False
-                nor_tex.post_edit_change()
-                unreal.EditorAssetLibrary.save_loaded_asset(nor_tex)
+        nor_tex = find_asset_in_paths_or_folder(paths, unreal_tex_folder, unreal.Texture2D, nor_file.stem)
+        if isinstance(nor_tex, unreal.Texture2D):
+            nor_tex.compression_settings = unreal.TextureCompressionSettings.TC_NORMALMAP
+            nor_tex.srgb = False
+            nor_tex.post_edit_change()
+            unreal.EditorAssetLibrary.save_loaded_asset(nor_tex)
     if arm_file:
         paths = import_asset(arm_file, unreal_tex_folder)
-        if paths:
-            arm_tex = unreal.EditorAssetLibrary.load_asset(paths[0])
-            if isinstance(arm_tex, unreal.Texture2D):
-                arm_tex.compression_settings = unreal.TextureCompressionSettings.TC_MASKS
-                arm_tex.srgb = False
-                arm_tex.post_edit_change()
-                unreal.EditorAssetLibrary.save_loaded_asset(arm_tex)
+        arm_tex = find_asset_in_paths_or_folder(paths, unreal_tex_folder, unreal.Texture2D, arm_file.stem)
+        if isinstance(arm_tex, unreal.Texture2D):
+            arm_tex.compression_settings = unreal.TextureCompressionSettings.TC_MASKS
+            arm_tex.srgb = False
+            arm_tex.post_edit_change()
+            unreal.EditorAssetLibrary.save_loaded_asset(arm_tex)
+
+    if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):
+        unreal.EditorAssetLibrary.make_directory(unreal_mat_folder)
 
     mat_asset_path = f"{unreal_mat_folder}/{mat_name}"
     if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
@@ -136,7 +163,7 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
         mel.connect_material_property(node, "B", unreal.MaterialProperty.MP_METALLIC)
 
     mel.recompile_material(mat)
-    unreal.EditorAssetLibrary.save_loaded_asset(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
     return mat
 
 
@@ -152,13 +179,18 @@ def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0,
 
 
 def main():
+    unreal.log("[ABFP] Starting Unreal asset import...")
     repo_root = find_repo_root()
     manifest_path = repo_root / "assets" / "manifest.json"
     raw_root = repo_root / "assets" / "raw"
 
     if not raw_root.exists():
-        unreal.log_error(f"assets/raw/ not found at {raw_root}. Run tools/fetch-assets.py first.")
-        return
+        raise RuntimeError(f"assets/raw/ not found at {raw_root}. Run tools/fetch-assets.py first.")
+
+    if not hasattr(unreal, "ABFPVisualCatalog"):
+        raise RuntimeError(
+            "unreal.ABFPVisualCatalog class not found. Compile the AngbandFirstPerson C++ module first."
+        )
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
@@ -169,15 +201,18 @@ def main():
         if not tex_dir.exists():
             continue
         mat_name = entry["unreal_material_name"]
-        unreal.log(f"[ABFP] Building PBR material {mat_name}...")
-        mat = build_pbr_material(
-            mat_name,
-            tex_dir,
-            f"/Game/Assets/Materials/Textures/{entry['id']}",
-            "/Game/Assets/Materials",
-        )
-        if mat:
-            materials_by_name[mat_name] = mat
+        try:
+            unreal.log(f"[ABFP] Building PBR material {mat_name}...")
+            mat = build_pbr_material(
+                mat_name,
+                tex_dir,
+                f"/Game/Assets/Materials/Textures/{entry['id']}",
+                "/Game/Assets/Materials",
+            )
+            if mat:
+                materials_by_name[mat_name] = mat
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed building material {mat_name}: {exc}")
 
     # 2. Import Audio Cues
     audio_by_id = {}
@@ -185,11 +220,13 @@ def main():
         src = raw_root / entry["dest"]
         if not src.exists():
             continue
-        paths = import_asset(src, entry["unreal_dest"], asset_name=entry["id"])
-        if paths:
-            sound = unreal.EditorAssetLibrary.load_asset(paths[0])
-            if isinstance(sound, unreal.SoundBase):
+        try:
+            paths = import_asset(src, entry["unreal_dest"], asset_name=entry["id"])
+            sound = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SoundBase, entry["id"])
+            if sound:
                 audio_by_id[entry["id"]] = sound
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed importing audio {entry['id']}: {exc}")
 
     # 3. Create or load DA_DungeonVisualCatalog
     catalog_folder = "/Game/Data"
@@ -208,7 +245,7 @@ def main():
         )
 
     if not catalog:
-        raise RuntimeError(f"Failed to create or load {catalog_path}. Make sure AngbandFirstPerson C++ module is compiled first.")
+        raise RuntimeError(f"Failed to create or load {catalog_path}.")
 
     dungeon_terrain = catalog.get_editor_property("dungeon_terrain")
     town_terrain = catalog.get_editor_property("town_terrain")
@@ -224,52 +261,56 @@ def main():
         src = raw_root / entry["dest"]
         if not src.exists():
             continue
-        unreal.log(f"[ABFP] Importing terrain mesh {entry['id']}...")
-        import_asset(src, entry["unreal_dest"], asset_name=entry["id"], is_skeletal=False)
-        mesh = find_asset_of_type(entry["unreal_dest"], unreal.StaticMesh, entry["id"])
-        if not mesh:
-            continue
+        try:
+            unreal.log(f"[ABFP] Importing terrain mesh {entry['id']}...")
+            dest_sub = f"{entry['unreal_dest']}/{entry['id']}"
+            paths = import_asset(src, dest_sub, is_skeletal=False)
+            mesh = find_asset_in_paths_or_folder(paths, dest_sub, unreal.StaticMesh)
+            if not mesh:
+                unreal.log_warning(f"[ABFP] No StaticMesh imported for {entry['id']}")
+                continue
 
-        mat_override = materials_by_name.get(entry.get("material_override", ""))
-        variant = make_mesh_variant(
-            mesh,
-            material=mat_override,
-            scale=tuple(entry.get("scale", [1.0, 1.0, 1.0])),
-            loc=tuple(entry.get("location_offset", [0.0, 0.0, 0.0])),
-            rot=tuple(entry.get("rotation_offset", [0.0, 0.0, 0.0])),
-        )
-        slot = entry.get("catalog_slot", "")
-        if slot == "dungeon.floor":
-            floor_variants.append(variant)
-        elif slot == "town.floor":
-            town_floor_variants.append(variant)
-        elif slot == "dungeon.wall":
-            wall_variants.append(variant)
-        elif slot == "dungeon.vein":
-            vein_variants.append(variant)
-        elif slot == "dungeon.pillar":
-            pillar_variants.append(variant)
-        elif slot == "dungeon.door_frame":
-            dungeon_terrain.set_editor_property("door_frame", variant)
-        elif slot == "dungeon.door_closed":
-            dungeon_terrain.set_editor_property("door_closed_panel", variant)
-        elif slot == "dungeon.door_open":
-            dungeon_terrain.set_editor_property("door_open_panel", variant)
-        elif slot == "dungeon.stairs_up":
-            dungeon_terrain.set_editor_property("stairs_up", variant)
-        elif slot == "dungeon.stairs_down":
-            dungeon_terrain.set_editor_property("stairs_down", variant)
-        elif slot == "dungeon.rubble":
-            dungeon_terrain.set_editor_property("rubble", variant)
-        elif slot == "dungeon.trap":
-            dungeon_terrain.set_editor_property("trap_marker", variant)
-        elif slot == "dungeon.shop":
-            dungeon_terrain.set_editor_property("shop_facade", variant)
-            town_terrain.set_editor_property("shop_facade", variant)
-        elif slot == "dungeon.wall_torch":
-            dungeon_terrain.set_editor_property("wall_torch_prop", variant)
+            mat_override = materials_by_name.get(entry.get("material_override", ""))
+            variant = make_mesh_variant(
+                mesh,
+                material=mat_override,
+                scale=tuple(entry.get("scale", [1.0, 1.0, 1.0])),
+                loc=tuple(entry.get("location_offset", [0.0, 0.0, 0.0])),
+                rot=tuple(entry.get("rotation_offset", [0.0, 0.0, 0.0])),
+            )
+            slot = entry.get("catalog_slot", "")
+            if slot == "dungeon.floor":
+                floor_variants.append(variant)
+            elif slot == "town.floor":
+                town_floor_variants.append(variant)
+            elif slot == "dungeon.wall":
+                wall_variants.append(variant)
+            elif slot == "dungeon.vein":
+                vein_variants.append(variant)
+            elif slot == "dungeon.pillar":
+                pillar_variants.append(variant)
+            elif slot == "dungeon.door_frame":
+                dungeon_terrain.set_editor_property("door_frame", variant)
+            elif slot == "dungeon.door_closed":
+                dungeon_terrain.set_editor_property("door_closed_panel", variant)
+            elif slot == "dungeon.door_open":
+                dungeon_terrain.set_editor_property("door_open_panel", variant)
+            elif slot == "dungeon.stairs_up":
+                dungeon_terrain.set_editor_property("stairs_up", variant)
+            elif slot == "dungeon.stairs_down":
+                dungeon_terrain.set_editor_property("stairs_down", variant)
+            elif slot == "dungeon.rubble":
+                dungeon_terrain.set_editor_property("rubble", variant)
+            elif slot == "dungeon.trap":
+                dungeon_terrain.set_editor_property("trap_marker", variant)
+            elif slot == "dungeon.shop":
+                dungeon_terrain.set_editor_property("shop_facade", variant)
+                town_terrain.set_editor_property("shop_facade", variant)
+            elif slot == "dungeon.wall_torch":
+                dungeon_terrain.set_editor_property("wall_torch_prop", variant)
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed importing terrain {entry['id']}: {exc}")
 
-    # Reuse floor tile flipped upside-down with subterranean ceiling stone material for ceilings
     ceiling_variants = []
     if floor_variants:
         ceil_mat = materials_by_name.get("M_DungeonCeiling_Stone")
@@ -300,49 +341,56 @@ def main():
         gltf_file = next(model_dir.glob("*.gltf"), None)
         if not gltf_file:
             continue
-        unreal.log(f"[ABFP] Importing Poly Haven 3D prop {entry['id']}...")
-        import_asset(gltf_file, entry["unreal_dest"], is_skeletal=False)
-        if "catalog_item" in entry:
-            ci = entry["catalog_item"]
-            mesh = find_asset_of_type(entry["unreal_dest"], unreal.StaticMesh)
-            if mesh:
-                item = unreal.ABFPItemVisualEntry()
-                item.set_editor_property("entry_name", ci["entry_name"])
-                item.set_editor_property("name_contains", ci["name_contains"])
-                item.set_editor_property("static_mesh", mesh)
-                item.set_editor_property("scale", unreal.Vector(*ci.get("scale", [1, 1, 1])))
-                item.set_editor_property("location_offset", unreal.Vector(*ci.get("location_offset", [0, 0, 8])))
-                rot = ci.get("rotation_offset", [0, 0, 0])
-                item.set_editor_property("rotation_offset", unreal.Rotator(rot[0], rot[1], rot[2]))
-                item.set_editor_property("float_and_spin", bool(ci.get("float_and_spin", False)))
-                item.set_editor_property("emit_subtle_light", bool(ci.get("emit_light", False)))
-                if "light_color" in ci:
-                    lc = ci["light_color"]
-                    item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
-                item_entries.append(item)
+        try:
+            unreal.log(f"[ABFP] Importing Poly Haven 3D prop {entry['id']}...")
+            paths = import_asset(gltf_file, entry["unreal_dest"], is_skeletal=False)
+            if "catalog_item" in entry:
+                ci = entry["catalog_item"]
+                mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh)
+                if mesh:
+                    item = unreal.ABFPItemVisualEntry()
+                    item.set_editor_property("entry_name", ci["entry_name"])
+                    item.set_editor_property("name_contains", ci["name_contains"])
+                    item.set_editor_property("static_mesh", mesh)
+                    item.set_editor_property("scale", unreal.Vector(*ci.get("scale", [1, 1, 1])))
+                    item.set_editor_property("location_offset", unreal.Vector(*ci.get("location_offset", [0, 0, 8])))
+                    rot = ci.get("rotation_offset", [0, 0, 0])
+                    item.set_editor_property("rotation_offset", unreal.Rotator(rot[0], rot[1], rot[2]))
+                    item.set_editor_property("float_and_spin", bool(ci.get("float_and_spin", False)))
+                    item.set_editor_property("emit_subtle_light", bool(ci.get("emit_light", False)))
+                    if "light_color" in ci:
+                        lc = ci["light_color"]
+                        item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
+                    item_entries.append(item)
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed importing Poly Haven prop {entry['id']}: {exc}")
 
     # 6. Import Floor Item Meshes
     for entry in manifest.get("item_meshes", []):
         src = raw_root / entry["dest"]
         if not src.exists():
             continue
-        unreal.log(f"[ABFP] Importing item mesh {entry['id']}...")
-        import_asset(src, entry["unreal_dest"], asset_name=entry["id"], is_skeletal=False)
-        mesh = find_asset_of_type(entry["unreal_dest"], unreal.StaticMesh, entry["id"])
-        if not mesh:
-            continue
-        item = unreal.ABFPItemVisualEntry()
-        item.set_editor_property("entry_name", entry["entry_name"])
-        item.set_editor_property("name_contains", entry["name_contains"])
-        item.set_editor_property("static_mesh", mesh)
-        item.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
-        item.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 8])))
-        item.set_editor_property("float_and_spin", bool(entry.get("float_and_spin", False)))
-        item.set_editor_property("emit_subtle_light", bool(entry.get("emit_light", False)))
-        if "light_color" in entry:
-            lc = entry["light_color"]
-            item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
-        item_entries.append(item)
+        try:
+            unreal.log(f"[ABFP] Importing item mesh {entry['id']}...")
+            dest_sub = f"{entry['unreal_dest']}/{entry['id']}"
+            paths = import_asset(src, dest_sub, is_skeletal=False)
+            mesh = find_asset_in_paths_or_folder(paths, dest_sub, unreal.StaticMesh)
+            if not mesh:
+                continue
+            item = unreal.ABFPItemVisualEntry()
+            item.set_editor_property("entry_name", entry["entry_name"])
+            item.set_editor_property("name_contains", entry["name_contains"])
+            item.set_editor_property("static_mesh", mesh)
+            item.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
+            item.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 8])))
+            item.set_editor_property("float_and_spin", bool(entry.get("float_and_spin", False)))
+            item.set_editor_property("emit_subtle_light", bool(entry.get("emit_light", False)))
+            if "light_color" in entry:
+                lc = entry["light_color"]
+                item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
+            item_entries.append(item)
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed importing item {entry['id']}: {exc}")
 
     catalog.set_editor_property("items", item_entries)
 
@@ -352,36 +400,39 @@ def main():
         src = raw_root / entry["dest"]
         if not src.exists():
             continue
-        unreal.log(f"[ABFP] Importing creature {entry['id']}...")
-        import_asset(src, entry["unreal_dest"], is_skeletal=bool(entry.get("rigged", False)))
+        try:
+            unreal.log(f"[ABFP] Importing creature {entry['id']}...")
+            paths = import_asset(src, entry["unreal_dest"], is_skeletal=bool(entry.get("rigged", False)))
 
-        skel_mesh = find_asset_of_type(entry["unreal_dest"], unreal.SkeletalMesh)
-        static_mesh = None if skel_mesh else find_asset_of_type(entry["unreal_dest"], unreal.StaticMesh)
-        if not skel_mesh and not static_mesh:
-            unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']}")
-            continue
+            skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh)
+            static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh)
+            if not skel_mesh and not static_mesh:
+                unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']}")
+                continue
 
-        idle_anim = find_asset_of_type(entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
-        hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
-        death_sound = audio_by_id.get(entry.get("death_sound", ""))
+            idle_anim = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
+            hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
+            death_sound = audio_by_id.get(entry.get("death_sound", ""))
 
-        for keyword in entry.get("keywords", []):
-            ce = unreal.ABFPCreatureVisualEntry()
-            ce.set_editor_property("entry_name", f"{entry['id']}_{keyword}")
-            ce.set_editor_property("name_contains", keyword)
-            if skel_mesh:
-                ce.set_editor_property("skeletal_mesh", skel_mesh)
-                if idle_anim:
-                    ce.set_editor_property("idle_anim", idle_anim)
-            elif static_mesh:
-                ce.set_editor_property("static_mesh_fallback", static_mesh)
-            ce.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
-            ce.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 0])))
-            if hit_sound:
-                ce.set_editor_property("hit_sound", hit_sound)
-            if death_sound:
-                ce.set_editor_property("death_sound", death_sound)
-            creature_entries.append(ce)
+            for keyword in entry.get("keywords", []):
+                ce = unreal.ABFPCreatureVisualEntry()
+                ce.set_editor_property("entry_name", f"{entry['id']}_{keyword}")
+                ce.set_editor_property("name_contains", keyword)
+                if skel_mesh:
+                    ce.set_editor_property("skeletal_mesh", skel_mesh)
+                    if idle_anim:
+                        ce.set_editor_property("idle_anim", idle_anim)
+                elif static_mesh:
+                    ce.set_editor_property("static_mesh_fallback", static_mesh)
+                ce.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
+                ce.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 0])))
+                if hit_sound:
+                    ce.set_editor_property("hit_sound", hit_sound)
+                if death_sound:
+                    ce.set_editor_property("death_sound", death_sound)
+                creature_entries.append(ce)
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed importing creature {entry['id']}: {exc}")
 
     catalog.set_editor_property("creatures", creature_entries)
 
@@ -393,15 +444,17 @@ def main():
     if "grunt_hurt" in audio_by_id:
         catalog.set_editor_property("player_hit_sound", audio_by_id["grunt_hurt"])
 
-    unreal.EditorAssetLibrary.save_loaded_asset(catalog)
+    saved = unreal.EditorAssetLibrary.save_asset(catalog_path, only_if_is_dirty=False)
     unreal.log(
-        f"[ABFP] Populated {catalog_path}: "
+        f"[ABFP] Saved {catalog_path} (ok={saved}): "
         f"{len(materials_by_name)} PBR materials, {len(floor_variants)} floors, {len(wall_variants)} walls, "
         f"{len(creature_entries)} creature rules, {len(item_entries)} item rules, {len(audio_by_id)} sounds."
     )
-    unreal.log("[ABFP] Enable it in client/Config/DefaultGame.ini:")
-    unreal.log("  VisualCatalogAsset=/Game/Data/DA_DungeonVisualCatalog.DA_DungeonVisualCatalog")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        unreal.log_error("[ABFP] Fatal error during asset import:\n" + traceback.format_exc())
+        raise

@@ -33,11 +33,8 @@ if (-not $AutoImport) {
     Write-Host ""
     Write-Host "Assets are ready in assets/raw/."
     Write-Host "To auto-import all meshes, PBR materials, audio, and populate DA_DungeonVisualCatalog:"
-    Write-Host "  1. Open the project in Unreal Editor (ensure Python Editor Script Plugin is enabled)."
-    Write-Host "  2. Run: Tools -> Execute Python Script -> $ImportScript"
-    Write-Host "  3. Uncomment VisualCatalogAsset in client/Config/DefaultGame.ini and press Play."
-    Write-Host ""
-    Write-Host "Or re-run this script with -AutoImport to invoke UnrealEditor-Cmd.exe headlessly."
+    Write-Host "  .\tools\setup-assets.ps1 -AutoImport"
+    Write-Host "  (or pass -ProjectPath `"<path-to-AngbandFirstPerson.uproject>`")"
     exit 0
 }
 
@@ -45,6 +42,9 @@ if (-not $ProjectPath) {
     $ProjectPath = Join-Path $RepoRoot "client\AngbandFirstPerson.uproject"
 }
 $ProjectPath = [System.IO.Path]::GetFullPath($ProjectPath)
+if (-not (Test-Path $ProjectPath)) {
+    throw "Unreal project was not found: $ProjectPath"
+}
 
 if (-not $EngineRoot) {
     $EpicGamesRoot = Join-Path $env:ProgramFiles "Epic Games"
@@ -71,9 +71,18 @@ if (-not (Test-Path $EditorCmd)) {
     throw "UnrealEditor-Cmd.exe not found at $EditorCmd"
 }
 
-Write-Host "Running headless Unreal asset import..."
-& $EditorCmd $ProjectPath "-ExecutePythonScript=$ImportScript" "-nop4" "-unattended" "-nosplash"
+$env:ABFP_REPO_ROOT = $RepoRoot
+Write-Host "Running headless Unreal Python importer against $ProjectPath..."
+& $EditorCmd $ProjectPath "-run=pythonscript" "-script=$ImportScript" "-stdout" "-FullStdOutLogOutput" "-nop4" "-unattended" "-nosplash"
 if ($LASTEXITCODE -ne 0) {
     throw "UnrealEditor-Cmd import failed with exit code $LASTEXITCODE."
 }
-Write-Host "Asset import complete! Uncomment VisualCatalogAsset in client/Config/DefaultGame.ini to activate."
+
+$ProjectDir = Split-Path -Parent $ProjectPath
+$CatalogFile = Join-Path $ProjectDir "Content\Data\DA_DungeonVisualCatalog.uasset"
+if (-not (Test-Path $CatalogFile)) {
+    throw "Import command exited 0, but $CatalogFile was not created. Check the log lines above for [ABFP] errors (ensure AngbandFirstPerson C++ is compiled and PythonScriptPlugin is enabled in $ProjectPath)."
+}
+
+Write-Host ""
+Write-Host "Asset import verified! Created: $CatalogFile" -ForegroundColor Green
