@@ -481,7 +481,11 @@ def main():
 
     catalog.set_editor_property("creatures", creature_entries)
 
-    # 8. Ensure all terrain and PBR materials have bUsedWithInstancedStaticMeshes=True
+    # 8. Set DX11/SM5 non-inverse-square torchlight intensity defaults on the catalog
+    catalog.set_editor_property("room_torch_intensity", 5.5)
+    catalog.set_editor_property("room_torch_radius", 1850.0)
+
+    # 9. Ensure all terrain and PBR materials have bUsedWithInstancedStaticMeshes=True
     ism_fixed = enable_instanced_mesh_usage_in_folder("/Game/Assets/Terrain")
     ism_fixed += enable_instanced_mesh_usage_in_folder("/Game/Assets/Materials")
     unreal.log(f"[ABFP] Enabled InstancedStaticMeshes usage flag on {ism_fixed} materials.")

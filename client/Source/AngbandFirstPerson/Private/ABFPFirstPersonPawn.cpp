@@ -28,10 +28,12 @@ AABFPFirstPersonPawn::AABFPFirstPersonPawn()
     Lantern = CreateDefaultSubobject<UPointLightComponent>(TEXT("Lantern"));
     Lantern->SetupAttachment(Camera);
     Lantern->SetRelativeLocation(FVector(28.0f, 18.0f, -12.0f));
-    Lantern->SetIntensity(16000.0f);
-    Lantern->SetAttenuationRadius(2400.0f);
+    Lantern->SetUseInverseSquaredFalloff(false);
+    Lantern->SetLightFalloffExponent(1.65f);
+    Lantern->SetIntensity(7.5f);
+    Lantern->SetAttenuationRadius(2600.0f);
     Lantern->SetSourceRadius(16.0f);
-    Lantern->SetLightColor(FLinearColor(1.0f, 0.78f, 0.52f));
+    Lantern->SetLightColor(FLinearColor(1.0f, 0.80f, 0.56f));
     Lantern->SetCastShadows(true);
 
     ViewModelMount = CreateDefaultSubobject<USceneComponent>(TEXT("ViewModelMount"));
@@ -213,10 +215,10 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
     {
         const float Flicker = 1.0f + FMath::Sin(LanternElapsed * 6.5f) * 0.035f +
             FMath::Sin(LanternElapsed * 14.2f) * 0.02f;
-        Lantern->SetIntensity(16000.0f * Flicker);
+        Lantern->SetIntensity(7.5f * Flicker);
         Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
             FLinearColor(1.0f, 0.08f, 0.04f) :
-            FLinearColor(1.0f, 0.78f, 0.52f));
+            FLinearColor(1.0f, 0.80f, 0.56f));
     }
 
     if (ViewModelMount)

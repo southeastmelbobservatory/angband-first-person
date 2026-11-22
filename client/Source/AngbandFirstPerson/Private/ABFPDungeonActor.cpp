@@ -196,9 +196,12 @@ void AABFPDungeonActor::EnsureRoomLightPool(int32 DesiredCount)
         Light->SetupAttachment(SceneRoot);
         Light->SetMobility(EComponentMobility::Movable);
         Light->SetCastShadows(false);
-        Light->SetIntensity(VisualCatalog ? VisualCatalog->RoomTorchIntensity : 12000.0f);
-        Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1600.0f);
-        Light->SetLightColor(VisualCatalog ? VisualCatalog->RoomTorchColor : FLinearColor(1.0f, 0.62f, 0.28f));
+        Light->SetUseInverseSquaredFalloff(false);
+        Light->SetLightFalloffExponent(1.8f);
+        const float SafeTorchIntensity = VisualCatalog ? FMath::Clamp(VisualCatalog->RoomTorchIntensity, 0.5f, 25.0f) : 5.5f;
+        Light->SetIntensity(SafeTorchIntensity);
+        Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1850.0f);
+        Light->SetLightColor(VisualCatalog ? VisualCatalog->RoomTorchColor : FLinearColor(1.0f, 0.65f, 0.32f));
         Light->SetVisibility(false);
         Light->RegisterComponent();
         RoomLights.Add(Light);
@@ -241,13 +244,14 @@ void AABFPDungeonActor::ConfigureMeshPool(
         Comp->SetStaticMesh(Variant.Mesh);
         Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Comp->SetCastShadow(bCastShadow);
-        if (OverrideMat)
+        UMaterialInterface* ChosenMat = OverrideMat ? OverrideMat : Variant.MaterialOverride.Get();
+        if (ChosenMat)
         {
-            Comp->SetMaterial(0, OverrideMat);
-        }
-        else if (Variant.MaterialOverride)
-        {
-            Comp->SetMaterial(0, Variant.MaterialOverride);
+            const int32 NumMats = FMath::Max(1, Comp->GetNumMaterials());
+            for (int32 MatIdx = 0; MatIdx < NumMats; ++MatIdx)
+            {
+                Comp->SetMaterial(MatIdx, ChosenMat);
+            }
         }
         Comp->RegisterComponent();
 
@@ -299,11 +303,11 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
 
     if (AmbientSky)
     {
-        AmbientSky->SetIntensity(DungeonDepth == 0 ? 1.0f : 0.35f);
+        AmbientSky->SetIntensity(DungeonDepth == 0 ? 1.45f : 0.95f);
     }
     if (DungeonFog)
     {
-        DungeonFog->SetFogDensity(DungeonDepth == 0 ? 0.002f : 0.005f);
+        DungeonFog->SetFogDensity(DungeonDepth == 0 ? 0.0015f : 0.0035f);
     }
 
     if (!VisualCatalog) return;
@@ -434,7 +438,7 @@ void AABFPDungeonActor::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     FlickerElapsed += DeltaSeconds;
 
-    const float BaseIntensity = VisualCatalog ? VisualCatalog->RoomTorchIntensity : 12000.0f;
+    const float BaseIntensity = VisualCatalog ? FMath::Clamp(VisualCatalog->RoomTorchIntensity, 0.5f, 25.0f) : 5.5f;
     for (int32 Idx = 0; Idx < RoomLights.Num(); ++Idx)
     {
         UPointLightComponent* Light = RoomLights[Idx];

@@ -113,7 +113,7 @@ void AABFPHUD::DrawMessageLog(const AABFPFirstPersonPawn* Pawn)
     UFont* SmallFont = GEngine->GetSmallFont();
     const int32 VisibleLines = FMath::Min(History.Num(), 7);
     const float LineHeight = 18.0f;
-    const float PanelW = FMath::Min(540.0f, Canvas->ClipX * 0.44f);
+    const float PanelW = FMath::Min(620.0f, Canvas->ClipX * 0.50f);
     const float PanelH = VisibleLines * LineHeight + 18.0f;
     const float X = Canvas->ClipX - PanelW - 20.0f;
     const float Y = Canvas->ClipY - PanelH - 20.0f;
@@ -122,6 +122,7 @@ void AABFPHUD::DrawMessageLog(const AABFPFirstPersonPawn* Pawn)
     DrawRect(FLinearColor(0.45f, 0.36f, 0.20f, 0.55f), X, Y, PanelW, 2.0f);
 
     const int32 StartIdx = History.Num() - VisibleLines;
+    const int32 MaxChars = FMath::Max(24, static_cast<int32>((PanelW - 20.0f) / 7.5f));
     for (int32 Row = 0; Row < VisibleLines; ++Row)
     {
         const FABFPMessage& Msg = History[StartIdx + Row];
@@ -136,7 +137,12 @@ void AABFPHUD::DrawMessageLog(const AABFPFirstPersonPawn* Pawn)
         {
             TextColor = FLinearColor(0.95f, 0.82f, 0.32f, AgeAlpha);
         }
-        DrawText(Msg.Text, TextColor, X + 10.0f, Y + 9.0f + Row * LineHeight, SmallFont, 0.92f);
+        FString DisplayText = Msg.Text;
+        if (DisplayText.Len() > MaxChars)
+        {
+            DisplayText = DisplayText.Left(MaxChars - 3) + TEXT("...");
+        }
+        DrawText(DisplayText, TextColor, X + 10.0f, Y + 9.0f + Row * LineHeight, SmallFont, 0.92f);
     }
 }
 

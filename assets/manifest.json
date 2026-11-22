@@ -175,21 +175,12 @@
       "license": "CC0-1.0"
     },
     {
-      "id": "kk_floor_tile_rocks",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large_rocks.gltf.glb",
-      "dest": "terrain/floor_tile_large_rocks.glb",
+      "id": "kk_floor_tile_worn",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_large.gltf.glb",
+      "dest": "terrain/floor_tile_large.glb",
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.floor",
       "material_override": "M_DungeonFloor_Worn",
-      "scale": [1.0, 1.0, 1.0],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_floor_tile_grate",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/floor_tile_big_grate.gltf.glb",
-      "dest": "terrain/floor_tile_big_grate.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.floor",
       "scale": [1.0, 1.0, 1.0],
       "license": "CC0-1.0"
     },
@@ -214,9 +205,9 @@
       "license": "CC0-1.0"
     },
     {
-      "id": "kk_wall_cracked",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_cracked.gltf.glb",
-      "dest": "terrain/wall_cracked.glb",
+      "id": "kk_wall_brick",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf.glb",
+      "dest": "terrain/wall.glb",
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.wall",
       "material_override": "M_DungeonWall_Brick",
@@ -224,9 +215,9 @@
       "license": "CC0-1.0"
     },
     {
-      "id": "kk_wall_broken",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_broken.gltf.glb",
-      "dest": "terrain/wall_broken.glb",
+      "id": "kk_wall_vein",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall.gltf.glb",
+      "dest": "terrain/wall.glb",
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.vein",
       "material_override": "M_DungeonVein_Rock",
