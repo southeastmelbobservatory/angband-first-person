@@ -13,21 +13,22 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define ABFP_QUEUE_CAPACITY 64
-#define ABFP_LINE_CAPACITY 64
+#define ABFP_LINE_CAPACITY 96
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t send_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
-static abfp_command_type queue[ABFP_QUEUE_CAPACITY];
+static abfp_command queue[ABFP_QUEUE_CAPACITY];
 static size_t head, count;
 static int listen_fd = -1;
 static int active_fd = -1;
 static pthread_t worker;
 static bool running, worker_started;
 
-bool abfp_transport_parse_command(const char *line, abfp_command_type *out)
+bool abfp_transport_parse_command_ex(const char *line, abfp_command *out)
 {
-    static const struct { const char *name; abfp_command_type command; } names[] = {
+    static const struct { const char *name; abfp_command_type command; } simple_names[] = {
         {"WAIT", ABFP_COMMAND_WAIT},
+        {"REST", ABFP_COMMAND_REST},
         {"AUTOPICKUP", ABFP_COMMAND_AUTOPICKUP},
         {"GO_UP", ABFP_COMMAND_GO_UP},
         {"GO_DOWN", ABFP_COMMAND_GO_DOWN},
@@ -48,23 +49,69 @@ bool abfp_transport_parse_command(const char *line, abfp_command_type *out)
         {"ALTER_SOUTH_WEST", ABFP_COMMAND_ALTER_SOUTH_WEST},
         {"ALTER_SOUTH_EAST", ABFP_COMMAND_ALTER_SOUTH_EAST}
     };
+    static const struct { const char *prefix; abfp_command_type command; } param_names[] = {
+        {"USE ", ABFP_COMMAND_USE_ITEM},
+        {"QUAFF ", ABFP_COMMAND_QUAFF_ITEM},
+        {"READ ", ABFP_COMMAND_READ_ITEM},
+        {"EAT ", ABFP_COMMAND_EAT_ITEM},
+        {"WIELD ", ABFP_COMMAND_WIELD_ITEM},
+        {"TAKEOFF ", ABFP_COMMAND_TAKEOFF_ITEM},
+        {"DROP ", ABFP_COMMAND_DROP_ITEM},
+        {"REFILL ", ABFP_COMMAND_REFILL_ITEM},
+        {"BUY ", ABFP_COMMAND_SHOP_BUY},
+        {"SELL ", ABFP_COMMAND_SHOP_SELL}
+    };
     size_t i, length;
     if (!line || !out) return false;
     length = strcspn(line, "\r\n");
-    for (i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
-        if (strlen(names[i].name) == length && memcmp(line, names[i].name, length) == 0) {
-            *out = names[i].command;
+    for (i = 0; i < sizeof(simple_names) / sizeof(simple_names[0]); ++i) {
+        if (strlen(simple_names[i].name) == length &&
+            memcmp(line, simple_names[i].name, length) == 0) {
+            out->type = simple_names[i].command;
+            out->arg1 = 0;
+            out->arg2 = 1;
+            return true;
+        }
+    }
+    for (i = 0; i < sizeof(param_names) / sizeof(param_names[0]); ++i) {
+        size_t plen = strlen(param_names[i].prefix);
+        if (length > plen && memcmp(line, param_names[i].prefix, plen) == 0) {
+            char buf[ABFP_LINE_CAPACITY];
+            char *end1 = NULL, *end2 = NULL;
+            long v1 = 0, v2 = 1;
+            if (length - plen >= sizeof(buf)) return false;
+            memcpy(buf, line + plen, length - plen);
+            buf[length - plen] = '\0';
+            v1 = strtol(buf, &end1, 10);
+            if (end1 == buf || v1 < 0 || v1 > 1000) return false;
+            while (*end1 == ' ') ++end1;
+            if (*end1 != '\0') {
+                v2 = strtol(end1, &end2, 10);
+                if (end2 == end1 || *end2 != '\0' || v2 < 0 || v2 > 999) return false;
+            }
+            out->type = param_names[i].command;
+            out->arg1 = (int32_t)v1;
+            out->arg2 = (int32_t)v2;
             return true;
         }
     }
     return false;
 }
-static bool enqueue(abfp_command_type command)
+
+bool abfp_transport_parse_command(const char *line, abfp_command_type *out)
+{
+    abfp_command cmd;
+    if (!out || !abfp_transport_parse_command_ex(line, &cmd)) return false;
+    *out = cmd.type;
+    return true;
+}
+
+static bool enqueue(const abfp_command *command)
 {
     bool accepted = false;
     pthread_mutex_lock(&mutex);
     if (running && count < ABFP_QUEUE_CAPACITY) {
-        queue[(head + count) % ABFP_QUEUE_CAPACITY] = command;
+        queue[(head + count) % ABFP_QUEUE_CAPACITY] = *command;
         ++count; accepted = true; pthread_cond_signal(&ready);
     }
     pthread_mutex_unlock(&mutex);
@@ -81,10 +128,10 @@ static void serve_client(int fd)
         for (i = 0; i < n; ++i) {
             char ch = buffer[i];
             if (ch == '\n') {
-                abfp_command_type command;
+                abfp_command command;
                 if (!discarding) {
                     line[used] = '\0';
-                    if (abfp_transport_parse_command(line, &command)) (void)enqueue(command);
+                    if (abfp_transport_parse_command_ex(line, &command)) (void)enqueue(&command);
                 }
                 used = 0;
                 discarding = false;
@@ -176,7 +223,7 @@ bool abfp_transport_wait_for_client(void)
     return connected;
 }
 
-bool abfp_transport_wait_command(abfp_command_type *out)
+bool abfp_transport_wait_command_ex(abfp_command *out)
 {
     if (!out) return false;
     pthread_mutex_lock(&mutex);
@@ -185,6 +232,15 @@ bool abfp_transport_wait_command(abfp_command_type *out)
     *out = queue[head]; head = (head + 1) % ABFP_QUEUE_CAPACITY; --count;
     pthread_mutex_unlock(&mutex); return true;
 }
+
+bool abfp_transport_wait_command(abfp_command_type *out)
+{
+    abfp_command cmd;
+    if (!out || !abfp_transport_wait_command_ex(&cmd)) return false;
+    *out = cmd.type;
+    return true;
+}
+
 void abfp_transport_stop(void)
 {
     int fd;
@@ -284,10 +340,13 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     if (!snapshot || (snapshot->cell_count && !snapshot->cells) ||
         (snapshot->entity_count && !snapshot->entities) ||
         (snapshot->message_count && !snapshot->messages) ||
+        (snapshot->inventory_count && !snapshot->inventory) ||
         (event_count && !events) || event_count > 4096) return false;
-    capacity = 512 + (size_t)snapshot->cell_count * 96 +
+    capacity = 1024 + (size_t)snapshot->cell_count * 96 +
         (size_t)snapshot->entity_count * 512 +
         (size_t)snapshot->message_count * (ABFP_MAX_MESSAGE_LENGTH * 6 + 32) +
+        (size_t)snapshot->inventory_count * 512 +
+        (snapshot->shop && snapshot->shop->active ? (1024 + (size_t)snapshot->shop->item_count * 512) : 64) +
         event_count * 192;
     buffer = (char *)malloc(capacity);
     if (!buffer) return false;
@@ -297,13 +356,16 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     if (!append_json(&cursor, &remaining,
         "{\"type\":\"state\",\"turn\":%" PRIu64
         ",\"depth\":%d,\"initial\":%s,\"player\":[%d,%d]"
-        ",\"player_stats\":[%d,%d,%d,%d,%d,%d,%u],\"cells\":[",
+        ",\"player_stats\":[%d,%d,%d,%d,%d,%d,%u,%d,%d,%d,%d,%d],\"cells\":[",
         snapshot->turn, snapshot->dungeon_depth,
         initial_state ? "true" : "false", snapshot->player_x, snapshot->player_y,
         snapshot->player.hitpoints, snapshot->player.max_hitpoints,
         snapshot->player.level, snapshot->player.gold,
         snapshot->player.mana, snapshot->player.max_mana,
-        (unsigned)snapshot->player.is_dead)) goto done;
+        (unsigned)snapshot->player.is_dead,
+        snapshot->player.exp, snapshot->player.max_exp,
+        snapshot->player.armor_class, snapshot->player.speed,
+        snapshot->player.food_pct)) goto done;
 
     for (i = 0; i < snapshot->cell_count; ++i) {
         const abfp_cell *cell = &snapshot->cells[i];
@@ -345,7 +407,43 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
                 sizeof(message->text)) ||
             !append_json(&cursor, &remaining, "]")) goto done;
     }
-    if (!append_json(&cursor, &remaining, "]}\n")) goto done;
+    if (!append_json(&cursor, &remaining, "],\"inventory\":[")) goto done;
+    for (i = 0; i < snapshot->inventory_count; ++i) {
+        const abfp_inventory_item *item = &snapshot->inventory[i];
+        char label_str[2] = { item->label ? item->label : '?', '\0' };
+        if (!append_json(&cursor, &remaining, "%s[%d,", i ? "," : "", item->index) ||
+            !append_json_string(&cursor, &remaining, label_str, 1) ||
+            !append_json(&cursor, &remaining, ",%u,%u,%d,%d,%d,%d,",
+                (unsigned)item->equipped, (unsigned)item->flags,
+                item->quantity, item->category_id, item->variant_id,
+                item->sell_price) ||
+            !append_json_string(&cursor, &remaining, item->slot_name,
+                sizeof(item->slot_name)) ||
+            !append_json(&cursor, &remaining, ",") ||
+            !append_json_string(&cursor, &remaining, item->name,
+                sizeof(item->name)) ||
+            !append_json(&cursor, &remaining, "]")) goto done;
+    }
+    if (snapshot->shop && snapshot->shop->active) {
+        const abfp_shop_state *shop = snapshot->shop;
+        if (!append_json(&cursor, &remaining, "],\"shop\":{\"is_home\":%s,\"name\":",
+                shop->is_home ? "true" : "false") ||
+            !append_json_string(&cursor, &remaining, shop->name, sizeof(shop->name)) ||
+            !append_json(&cursor, &remaining, ",\"owner\":") ||
+            !append_json_string(&cursor, &remaining, shop->owner, sizeof(shop->owner)) ||
+            !append_json(&cursor, &remaining, ",\"items\":[")) goto done;
+        for (i = 0; i < shop->item_count; ++i) {
+            const abfp_shop_item *si = &shop->items[i];
+            if (!append_json(&cursor, &remaining, "%s[%d,%d,%d,%d,%d,",
+                    i ? "," : "", si->index, si->quantity, si->price,
+                    si->category_id, si->variant_id) ||
+                !append_json_string(&cursor, &remaining, si->name, sizeof(si->name)) ||
+                !append_json(&cursor, &remaining, "]")) goto done;
+        }
+        if (!append_json(&cursor, &remaining, "]}}\n")) goto done;
+    } else {
+        if (!append_json(&cursor, &remaining, "],\"shop\":null}\n")) goto done;
+    }
 
     pthread_mutex_lock(&send_mutex);
     pthread_mutex_lock(&mutex);

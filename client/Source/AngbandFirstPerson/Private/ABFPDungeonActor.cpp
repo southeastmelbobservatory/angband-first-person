@@ -6,6 +6,7 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/PostProcessComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -83,17 +84,44 @@ AABFPDungeonActor::AABFPDungeonActor()
     Shops = MakeLayer(TEXT("ShopInstances"), true);
     Traps = MakeLayer(TEXT("TrapInstances"), false);
     WallTorches = MakeLayer(TEXT("WallTorchInstances"), false);
+    TorchFlames = MakeLayer(TEXT("TorchFlameInstances"), false);
 
     DungeonFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("DungeonFog"));
     DungeonFog->SetupAttachment(SceneRoot);
-    DungeonFog->FogDensity = 0.005f;
+    DungeonFog->FogDensity = 0.0035f;
     DungeonFog->FogHeightFalloff = 0.18f;
     DungeonFog->StartDistance = 450.0f;
     DungeonFog->bEnableVolumetricFog = true;
 
     AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
     AmbientSky->SetupAttachment(SceneRoot);
-    AmbientSky->SetIntensity(0.45f);
+    AmbientSky->SetIntensity(0.95f);
+
+    AtmospherePostProcess = CreateDefaultSubobject<UPostProcessComponent>(TEXT("AtmospherePostProcess"));
+    AtmospherePostProcess->SetupAttachment(SceneRoot);
+    AtmospherePostProcess->bUnbound = true;
+    AtmospherePostProcess->Settings.bOverride_BloomIntensity = true;
+    AtmospherePostProcess->Settings.BloomIntensity = 0.65f;
+    AtmospherePostProcess->Settings.bOverride_BloomThreshold = true;
+    AtmospherePostProcess->Settings.BloomThreshold = 0.85f;
+    AtmospherePostProcess->Settings.bOverride_VignetteIntensity = true;
+    AtmospherePostProcess->Settings.VignetteIntensity = 0.36f;
+    AtmospherePostProcess->Settings.bOverride_ColorContrast = true;
+    AtmospherePostProcess->Settings.ColorContrast = FVector4(1.06f, 1.06f, 1.06f, 1.0f);
+    AtmospherePostProcess->Settings.bOverride_ColorSaturation = true;
+    AtmospherePostProcess->Settings.ColorSaturation = FVector4(1.04f, 1.04f, 1.04f, 1.0f);
+    AtmospherePostProcess->Settings.bOverride_AutoExposureMinBrightness = true;
+    AtmospherePostProcess->Settings.AutoExposureMinBrightness = 0.45f;
+    AtmospherePostProcess->Settings.bOverride_AutoExposureMaxBrightness = true;
+    AtmospherePostProcess->Settings.AutoExposureMaxBrightness = 1.6f;
+
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
+        TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    if (SphereMesh.Succeeded())
+    {
+        FallbackSphereMesh = SphereMesh.Object;
+        TorchFlames->SetStaticMesh(FallbackSphereMesh);
+    }
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -146,6 +174,7 @@ AABFPDungeonActor::AABFPDungeonActor()
         FallbackShopMat = MakeColorMat(FLinearColor(0.62f, 0.36f, 0.08f));
         FallbackTrapMat = MakeColorMat(FLinearColor(0.62f, 0.12f, 0.08f));
         FallbackTorchMat = MakeColorMat(FLinearColor(0.85f, 0.48f, 0.12f));
+        FallbackFlameMat = MakeColorMat(FLinearColor(1.0f, 0.72f, 0.18f));
 
         Floors->SetMaterial(0, FallbackFloorMat);
         RememberedFloors->SetMaterial(0, FallbackMemoryFloorMat);
@@ -165,6 +194,7 @@ AABFPDungeonActor::AABFPDungeonActor()
         Shops->SetMaterial(0, FallbackShopMat);
         Traps->SetMaterial(0, FallbackTrapMat);
         WallTorches->SetMaterial(0, FallbackTorchMat);
+        TorchFlames->SetMaterial(0, FallbackFlameMat);
     }
 }
 
@@ -297,17 +327,45 @@ void AABFPDungeonActor::ConfigureSingleLayer(
 
 void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
 {
-    const int32 DepthCategory = (DungeonDepth == 0) ? 0 : 1;
+    const int32 DepthCategory = (DungeonDepth == 0) ? 0 : ((DungeonDepth < 5) ? 1 : 2);
     if (ConfiguredVisualDepthCategory == DepthCategory) return;
     ConfiguredVisualDepthCategory = DepthCategory;
 
     if (AmbientSky)
     {
-        AmbientSky->SetIntensity(DungeonDepth == 0 ? 1.45f : 0.95f);
+        if (DepthCategory == 0)
+        {
+            AmbientSky->SetIntensity(1.55f);
+            AmbientSky->SetLightColor(FLinearColor(0.95f, 0.88f, 0.78f));
+        }
+        else if (DepthCategory == 1)
+        {
+            AmbientSky->SetIntensity(0.95f);
+            AmbientSky->SetLightColor(FLinearColor(0.76f, 0.82f, 0.94f));
+        }
+        else
+        {
+            AmbientSky->SetIntensity(0.78f);
+            AmbientSky->SetLightColor(FLinearColor(0.92f, 0.68f, 0.56f));
+        }
     }
     if (DungeonFog)
     {
-        DungeonFog->SetFogDensity(DungeonDepth == 0 ? 0.0015f : 0.0035f);
+        if (DepthCategory == 0)
+        {
+            DungeonFog->SetFogDensity(0.0014f);
+            DungeonFog->SetFogInscatteringColor(FLinearColor(0.28f, 0.26f, 0.24f));
+        }
+        else if (DepthCategory == 1)
+        {
+            DungeonFog->SetFogDensity(0.0032f);
+            DungeonFog->SetFogInscatteringColor(FLinearColor(0.07f, 0.085f, 0.11f));
+        }
+        else
+        {
+            DungeonFog->SetFogDensity(0.0040f);
+            DungeonFog->SetFogInscatteringColor(FLinearColor(0.11f, 0.055f, 0.045f));
+        }
     }
 
     if (!VisualCatalog) return;
@@ -323,6 +381,7 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     ConfigureMeshPool(CustomRememberedWallPools, TerrainSet.WallVariants, RememberedMat, false, TEXT("CustomMemWall"));
     ConfigureMeshPool(CustomVeinPools, TerrainSet.VeinWallVariants, nullptr, true, TEXT("CustomVein"));
     ConfigureMeshPool(CustomPillarPools, TerrainSet.WallPillarVariants, nullptr, true, TEXT("CustomPillar"));
+    ConfigureMeshPool(CustomWallDecorPools, TerrainSet.WallDecorVariants, nullptr, true, TEXT("CustomWallDecor"));
 
     ConfigureSingleLayer(DoorFrames, TerrainSet.DoorFrame, FallbackCubeMesh, FallbackDoorFrameMat, nullptr);
     ConfigureSingleLayer(DoorsClosed, TerrainSet.DoorClosedPanel, FallbackCubeMesh, FallbackDoorMat, nullptr);
@@ -334,6 +393,14 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     ConfigureSingleLayer(Shops, TerrainSet.ShopFacade, FallbackCubeMesh, FallbackShopMat, nullptr);
     ConfigureSingleLayer(Traps, TerrainSet.TrapMarker, FallbackCubeMesh, FallbackTrapMat, nullptr);
     ConfigureSingleLayer(WallTorches, TerrainSet.WallTorchProp, FallbackCubeMesh, FallbackTorchMat, nullptr);
+
+    if (TorchFlames)
+    {
+        if (FallbackSphereMesh) TorchFlames->SetStaticMesh(FallbackSphereMesh);
+        UMaterialInterface* FlameMat = VisualCatalog->TorchFlameMaterial ?
+            VisualCatalog->TorchFlameMaterial.Get() : FallbackFlameMat.Get();
+        if (FlameMat) TorchFlames->SetMaterial(0, FlameMat);
+    }
 }
 
 FVector AABFPDungeonActor::GridToWorld(int32 X, int32 Y) const
@@ -428,6 +495,13 @@ void AABFPDungeonActor::UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
             WallTorches->AddInstance(FTransform(SconceRot, Tile + SconceOffset, FVector(0.14f, 0.14f, 0.42f)));
         }
 
+        if (TorchFlames)
+        {
+            const FVector FlamePos = Tile + SconceOffset -
+                FVector(WallDir.X * 16.0f, WallDir.Y * 16.0f, -26.0f);
+            TorchFlames->AddInstance(FTransform(FRotator::ZeroRotator, FlamePos, FVector(0.14f, 0.14f, 0.22f)));
+        }
+
         PlacedCoords.Add(FIntPoint(Cell.X, Cell.Y));
         ++LightIndex;
     }
@@ -488,6 +562,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     Shops->ClearInstances();
     Traps->ClearInstances();
     WallTorches->ClearInstances();
+    if (TorchFlames) TorchFlames->ClearInstances();
 
     auto ClearPool = [](TArray<FABFPMeshPoolEntry>& Pool)
     {
@@ -503,6 +578,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     ClearPool(CustomRememberedWallPools);
     ClearPool(CustomVeinPools);
     ClearPool(CustomPillarPools);
+    ClearPool(CustomWallDecorPools);
 
     TMap<FIntPoint, const FABFPCell*> CellMap;
     CellMap.Reserve(Snapshot.Cells.Num());
@@ -771,6 +847,33 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             if (bN && bE) PlaceCornerPillar(Half, -Half);
             if (bS && bW) PlaceCornerPillar(-Half, Half);
             if (bS && bE) PlaceCornerPillar(Half, Half);
+        }
+
+        /* Non-blocking decorative medieval wall props (banners, barrels, crates, shelves) along room edges. */
+        if (Cell.bVisible && Cell.Terrain == EABFPTerrain::Floor && CustomWallDecorPools.Num() > 0 &&
+            (CellHash % 7u) == 0u)
+        {
+            static const FIntPoint DecorDirs[4] = {
+                FIntPoint(0, -1), FIntPoint(1, 0), FIntPoint(0, 1), FIntPoint(-1, 0)
+            };
+            static const float DecorYaw[4] = { 90.0f, 180.0f, -90.0f, 0.0f };
+            for (int32 DirIdx = 0; DirIdx < 4; ++DirIdx)
+            {
+                const int32 CheckIdx = static_cast<int32>(((CellHash >> 6) + static_cast<uint32>(DirIdx)) & 3u);
+                const FIntPoint Dir = DecorDirs[CheckIdx];
+                if (IsWallAt(Cell.X + Dir.X, Cell.Y + Dir.Y))
+                {
+                    const FABFPMeshPoolEntry& Pick = CustomWallDecorPools[
+                        static_cast<int32>((CellHash >> 12) % static_cast<uint32>(CustomWallDecorPools.Num()))];
+                    if (Pick.Component)
+                    {
+                        const FVector EdgePos = Tile + FVector(Dir.X * CellSize * 0.36f, Dir.Y * CellSize * 0.36f, 0.0f);
+                        const FRotator EdgeRot(0.0f, DecorYaw[CheckIdx], 0.0f);
+                        Pick.Component->AddInstance(ComposePoolTransform(EdgePos, EdgeRot, Pick));
+                    }
+                    break;
+                }
+            }
         }
     }
 

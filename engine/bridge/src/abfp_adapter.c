@@ -14,6 +14,11 @@ bool abfp_adapter_execute(abfp_command_type command)
     return abfp_bridge_submit_command(command);
 }
 
+bool abfp_adapter_execute_ex(const abfp_command *command)
+{
+    return abfp_bridge_submit_command_ex(command);
+}
+
 void abfp_adapter_sync_after_game_loop(void)
 {
 #ifdef ABFP_WITH_ANGBAND

@@ -3,6 +3,27 @@
 #include "CoreMinimal.h"
 #include "ABFPProtocol.generated.h"
 
+namespace ABFPItemFlags
+{
+    constexpr int32 Usable   = 0x01;
+    constexpr int32 Wearable = 0x02;
+    constexpr int32 Potion   = 0x04;
+    constexpr int32 Scroll   = 0x08;
+    constexpr int32 Food     = 0x10;
+    constexpr int32 Fuel     = 0x20;
+    constexpr int32 Sellable = 0x40;
+}
+
+UENUM(BlueprintType)
+enum class EABFPMenuMode : uint8
+{
+    None = 0,
+    Inventory = 1,
+    Equipment = 2,
+    ShopBuy = 3,
+    ShopSell = 4
+};
+
 UENUM(BlueprintType)
 enum class EABFPTerrain : uint8
 {
@@ -99,6 +120,48 @@ struct FABFPMessage
 };
 
 USTRUCT(BlueprintType)
+struct FABFPInventoryItem
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Index = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Label;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEquipped = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Flags = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Quantity = 1;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 CategoryId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 VariantId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 SellPrice = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString SlotName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+};
+
+USTRUCT(BlueprintType)
+struct FABFPShopItem
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Index = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Quantity = 1;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Price = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 CategoryId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 VariantId = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+};
+
+USTRUCT(BlueprintType)
+struct FABFPShopState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bActive = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bIsHome = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Owner;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPShopItem> Items;
+};
+
+USTRUCT(BlueprintType)
 struct FABFPSnapshot
 {
     GENERATED_BODY()
@@ -115,8 +178,15 @@ struct FABFPSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMana = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMaxMana = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bPlayerDead = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerExp = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerMaxExp = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerArmorClass = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerSpeed = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerFoodPct = 100;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPCell> Cells;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEntity> Entities;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEvent> Events;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPMessage> Messages;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPInventoryItem> Inventory;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FABFPShopState Shop;
 };

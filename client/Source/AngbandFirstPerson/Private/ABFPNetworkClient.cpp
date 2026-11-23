@@ -220,6 +220,14 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
         {
             Snapshot.bPlayerDead = ReadInt((*PlayerStats)[6]) != 0;
         }
+        if (PlayerStats->Num() >= 12)
+        {
+            Snapshot.PlayerExp = ReadInt((*PlayerStats)[7]);
+            Snapshot.PlayerMaxExp = ReadInt((*PlayerStats)[8]);
+            Snapshot.PlayerArmorClass = ReadInt((*PlayerStats)[9]);
+            Snapshot.PlayerSpeed = ReadInt((*PlayerStats)[10]);
+            Snapshot.PlayerFoodPct = ReadInt((*PlayerStats)[11]);
+        }
     }
 
     const TArray<TSharedPtr<FJsonValue>>* Cells = nullptr;
@@ -304,6 +312,60 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
             if (!Msg.Text.IsEmpty())
             {
                 Snapshot.Messages.Add(MoveTemp(Msg));
+            }
+        }
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* Inventory = nullptr;
+    if (Root->TryGetArrayField(TEXT("inventory"), Inventory) && Inventory)
+    {
+        Snapshot.Inventory.Reserve(Inventory->Num());
+        for (const TSharedPtr<FJsonValue>& Value : *Inventory)
+        {
+            TArray<TSharedPtr<FJsonValue>> Row;
+            if (!ReadRow(Value, Row) || Row.Num() < 10) continue;
+            FABFPInventoryItem Item;
+            Item.Index = ReadInt(Row[0]);
+            if (Row[1].IsValid() && Row[1]->Type == EJson::String)
+                Item.Label = Row[1]->AsString();
+            Item.bEquipped = ReadInt(Row[2]) != 0;
+            Item.Flags = ReadInt(Row[3]);
+            Item.Quantity = ReadInt(Row[4]);
+            Item.CategoryId = ReadInt(Row[5]);
+            Item.VariantId = ReadInt(Row[6]);
+            Item.SellPrice = ReadInt(Row[7]);
+            if (Row[8].IsValid() && Row[8]->Type == EJson::String)
+                Item.SlotName = Row[8]->AsString();
+            if (Row[9].IsValid() && Row[9]->Type == EJson::String)
+                Item.Name = Row[9]->AsString();
+            Snapshot.Inventory.Add(MoveTemp(Item));
+        }
+    }
+
+    const TSharedPtr<FJsonObject>* ShopObj = nullptr;
+    if (Root->TryGetObjectField(TEXT("shop"), ShopObj) && ShopObj && ShopObj->IsValid())
+    {
+        Snapshot.Shop.bActive = true;
+        (*ShopObj)->TryGetBoolField(TEXT("is_home"), Snapshot.Shop.bIsHome);
+        (*ShopObj)->TryGetStringField(TEXT("name"), Snapshot.Shop.Name);
+        (*ShopObj)->TryGetStringField(TEXT("owner"), Snapshot.Shop.Owner);
+        const TArray<TSharedPtr<FJsonValue>>* ShopItems = nullptr;
+        if ((*ShopObj)->TryGetArrayField(TEXT("items"), ShopItems) && ShopItems)
+        {
+            Snapshot.Shop.Items.Reserve(ShopItems->Num());
+            for (const TSharedPtr<FJsonValue>& Value : *ShopItems)
+            {
+                TArray<TSharedPtr<FJsonValue>> Row;
+                if (!ReadRow(Value, Row) || Row.Num() < 6) continue;
+                FABFPShopItem ShopItem;
+                ShopItem.Index = ReadInt(Row[0]);
+                ShopItem.Quantity = ReadInt(Row[1]);
+                ShopItem.Price = ReadInt(Row[2]);
+                ShopItem.CategoryId = ReadInt(Row[3]);
+                ShopItem.VariantId = ReadInt(Row[4]);
+                if (Row[5].IsValid() && Row[5]->Type == EJson::String)
+                    ShopItem.Name = Row[5]->AsString();
+                Snapshot.Shop.Items.Add(MoveTemp(ShopItem));
             }
         }
     }

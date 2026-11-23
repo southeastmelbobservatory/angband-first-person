@@ -15,6 +15,11 @@ bool abfp_frontend_submit_command(abfp_command_type command)
     return abfp_adapter_execute(command);
 }
 
+bool abfp_frontend_submit_command_ex(const abfp_command *command)
+{
+    return abfp_adapter_execute_ex(command);
+}
+
 const abfp_snapshot *abfp_frontend_snapshot(void)
 {
     return abfp_bridge_snapshot();

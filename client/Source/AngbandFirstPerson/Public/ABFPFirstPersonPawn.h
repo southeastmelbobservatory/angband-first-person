@@ -9,6 +9,7 @@
 class UCameraComponent;
 class USceneComponent;
 class UPointLightComponent;
+class UStaticMeshComponent;
 class AABFPDungeonActor;
 class UABFPVisualCatalog;
 
@@ -42,7 +43,19 @@ public:
     bool IsHelpVisible() const { return bShowHelpOverlay; }
 
     UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool IsMinimapExpanded() const { return bExpandedMinimap; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    EABFPMenuMode GetActiveMenu() const { return ActiveMenu; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    int32 GetSelectedMenuIndex() const { return SelectedMenuIndex; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
     FIntPoint GetFacingGridDelta() const;
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    int32 GetFacingKeypadDirection() const;
 
     UFUNCTION(BlueprintPure, Category="Angband|State")
     float GetFacingYawDegrees() const { return TargetControlYaw; }
@@ -52,6 +65,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Angband|Presentation")
     void PlayPlayerAttackSwing();
+
+    TArray<int32> GetMenuInventoryIndices(bool bEquippedOnly) const;
 
 protected:
     virtual void BeginPlay() override;
@@ -88,9 +103,19 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<UPointLightComponent> Lantern;
 
-    /** Mount point for an optional first-person lantern/weapon Blueprint mesh. */
+    /** Mount point for the right-hand first-person weapon mesh. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<USceneComponent> ViewModelMount;
+
+    /** Mount point for the left-hand first-person lantern mesh. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<USceneComponent> LanternMount;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UStaticMeshComponent> HeldWeaponMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UStaticMeshComponent> HeldLanternMesh;
 
 private:
     void MoveForward();
@@ -103,6 +128,27 @@ private:
     void GoDown();
     void AutoPickup();
     void ToggleHelp();
+    void ToggleMinimap();
+    void ToggleInventory();
+    void ToggleEquipment();
+    void ToggleShop();
+    void QuickQuaff();
+    void QuickEat();
+    void RestTurn();
+    void MenuConfirm();
+    void MenuUseSelected();
+    void MenuWieldSelected();
+    void MenuTakeOffSelected();
+    void MenuDropSelected();
+    void MenuRefillSelected();
+    void MenuTab();
+    void MenuClose();
+
+    void MoveMenuSelection(int32 Delta);
+    int32 GetActiveMenuItemCount() const;
+    void ClampSelectedMenuIndex();
+    void ConfigureFirstPersonViewModels();
+
     void SendSimpleCommand(const FString& Command);
     void MoveRelative(FVector2D LocalDirection);
     void BuildDemoSnapshot();
@@ -130,6 +176,9 @@ private:
     float AwaitingTurnSeconds = 0.0f;
     bool bHaveAuthoritativeState = false;
     bool bShowHelpOverlay = true;
+    bool bExpandedMinimap = false;
+    EABFPMenuMode ActiveMenu = EABFPMenuMode::None;
+    int32 SelectedMenuIndex = 0;
     float ReconnectRetrySeconds = 0.0f;
     float PlayerDamageFlashSeconds = 0.0f;
     FABFPNetworkClient NetworkClient;

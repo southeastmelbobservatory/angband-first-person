@@ -58,6 +58,10 @@ struct FABFPTerrainVisualSet
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Architecture")
     TArray<FABFPMeshVariant> WallPillarVariants;
 
+    /** Non-blocking medieval wall props (banners, barrels, crates, shelves) scattered along room perimeters. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Architecture")
+    TArray<FABFPMeshVariant> WallDecorVariants;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Doors")
     FABFPMeshVariant DoorFrame;
 
@@ -249,6 +253,15 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
     FLinearColor RoomTorchColor = FLinearColor(1.0f, 0.62f, 0.28f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
+    TObjectPtr<UMaterialInterface> TorchFlameMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonLantern;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonWeapon;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Terrain")
     FABFPTerrainVisualSet DungeonTerrain;

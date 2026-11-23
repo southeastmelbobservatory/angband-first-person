@@ -73,6 +73,12 @@ protected:
 
 private:
     void SetProceduralPartsVisible(bool bVisible);
+    void UpdateHealthBar();
+
+    UPROPERTY() TObjectPtr<USceneComponent> HealthBarRoot;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> HealthBarBg;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> HealthBarFill;
+    UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> HealthBarFillMat;
 
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Body;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Head;

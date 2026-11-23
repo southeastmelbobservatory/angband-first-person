@@ -1,4 +1,9 @@
 #pragma once
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum abfp_command_type {
     ABFP_COMMAND_WAIT = 0,
@@ -20,5 +25,26 @@ typedef enum abfp_command_type {
     ABFP_COMMAND_ALTER_NORTH_WEST,
     ABFP_COMMAND_ALTER_NORTH_EAST,
     ABFP_COMMAND_ALTER_SOUTH_WEST,
-    ABFP_COMMAND_ALTER_SOUTH_EAST
+    ABFP_COMMAND_ALTER_SOUTH_EAST,
+    ABFP_COMMAND_REST,
+    ABFP_COMMAND_USE_ITEM,
+    ABFP_COMMAND_QUAFF_ITEM,
+    ABFP_COMMAND_READ_ITEM,
+    ABFP_COMMAND_EAT_ITEM,
+    ABFP_COMMAND_WIELD_ITEM,
+    ABFP_COMMAND_TAKEOFF_ITEM,
+    ABFP_COMMAND_DROP_ITEM,
+    ABFP_COMMAND_REFILL_ITEM,
+    ABFP_COMMAND_SHOP_BUY,
+    ABFP_COMMAND_SHOP_SELL
 } abfp_command_type;
+
+typedef struct abfp_command {
+    abfp_command_type type;
+    int32_t arg1;
+    int32_t arg2;
+} abfp_command;
+
+#ifdef __cplusplus
+}
+#endif

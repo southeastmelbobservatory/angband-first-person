@@ -8,8 +8,16 @@
 #include "cmd-core.h"
 #include "game-event.h"
 #include "game-world.h"
+#include "init.h"
 #include "monster.h"
+#include "obj-desc.h"
+#include "obj-gear.h"
+#include "obj-tval.h"
+#include "obj-util.h"
 #include "object.h"
+#include "player-timed.h"
+#include "player-util.h"
+#include "store.h"
 #include <string.h>
 
 #define ABFP_SNAPSHOT_RADIUS 10
@@ -40,6 +48,11 @@ static abfp_message pending_messages[ABFP_MAX_SNAPSHOT_MESSAGES];
 static uint32_t pending_message_count;
 static abfp_message snapshot_messages[ABFP_MAX_SNAPSHOT_MESSAGES];
 static uint32_t snapshot_message_count;
+static abfp_inventory_item snapshot_inventory[ABFP_MAX_INVENTORY_ITEMS];
+static struct object *snapshot_inventory_ptrs[ABFP_MAX_INVENTORY_ITEMS];
+static uint32_t snapshot_inventory_count;
+static abfp_shop_state snapshot_shop;
+static struct object *snapshot_shop_ptrs[ABFP_MAX_SHOP_ITEMS];
 static abfp_player_state previous_player;
 static int32_t previous_depth;
 static bool snapshot_history_valid;
@@ -123,6 +136,8 @@ void abfp_upstream_remove_handlers(void)
     previous_entity_count = 0;
     pending_message_count = 0;
     snapshot_message_count = 0;
+    snapshot_inventory_count = 0;
+    memset(&snapshot_shop, 0, sizeof(snapshot_shop));
     previous_depth = 0;
     pending_move = false;
     pending_attack = false;
@@ -132,12 +147,38 @@ void abfp_upstream_remove_handlers(void)
     observed_player_moved = false;
 }
 
-bool abfp_upstream_queue_command(abfp_command_type command)
+static bool abfp_queue_noop_with_msg(const char *text, abfp_command_type command)
 {
-    int dir = abfp_direction(command);
-    int alter_dir = abfp_alter_direction(command);
+    if (text && *text) msg("%s", text);
+    if (cmdq_push(CMD_NULL) != 0) return false;
+    pending_command = true;
+    pending_command_type = command;
+    return true;
+}
 
-    if (!player || !cave || pending_command) return false;
+static struct object *abfp_resolve_inventory_object(int32_t idx)
+{
+    if (idx < 0 || (uint32_t)idx >= snapshot_inventory_count) return NULL;
+    return snapshot_inventory_ptrs[idx];
+}
+
+static struct object *abfp_resolve_shop_object(int32_t idx)
+{
+    if (!snapshot_shop.active || idx < 0 || (uint32_t)idx >= snapshot_shop.item_count)
+        return NULL;
+    return snapshot_shop_ptrs[idx];
+}
+
+bool abfp_upstream_queue_command_ex(const abfp_command *cmd)
+{
+    abfp_command_type command;
+    int dir, alter_dir;
+
+    if (!cmd || !player || !cave || pending_command) return false;
+
+    command = cmd->type;
+    dir = abfp_direction(command);
+    alter_dir = abfp_alter_direction(command);
 
     pending_message_count = 0;
     pending_attack = false;
@@ -150,18 +191,13 @@ bool abfp_upstream_queue_command(abfp_command_type command)
         /*
          * Prevent stepping onto a town shop from blocking the game thread inside
          * Angband's ncurses store menu loop while running under a 3D client.
+         * The 3D HUD renders the live shop interface directly from snapshot.shop.
          */
         if (square_in_bounds(cave, target) && square_isshop(cave, target)) {
             event_remove_handler_type(EVENT_ENTER_STORE);
             event_remove_handler_type(EVENT_USE_STORE);
             event_remove_handler_type(EVENT_LEAVE_STORE);
-            msg("You step into the shop entrance (3D shop UI coming soon).");
         }
-        /*
-         * Use Angband's explicit alter action for an occupied monster grid.
-         * It calls py_attack() directly and avoids the walk-test's visibility
-         * gate; ordinary empty-square movement remains CMD_WALK.
-         */
         const bool attacking = mon != NULL;
         if (cmdq_push(attacking ? CMD_ALTER : CMD_WALK) != 0) return false;
         cmd_set_arg_direction(cmdq_peek(), "direction", dir);
@@ -202,6 +238,14 @@ bool abfp_upstream_queue_command(abfp_command_type command)
         return true;
     }
 
+    if (command == ABFP_COMMAND_REST) {
+        if (cmdq_push(CMD_REST) != 0) return false;
+        cmd_set_arg_choice(cmdq_peek(), "choice", REST_COMPLETE);
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
     if (command == ABFP_COMMAND_AUTOPICKUP) {
         if (cmdq_push(CMD_AUTOPICKUP) != 0) return false;
         pending_command = true;
@@ -223,7 +267,113 @@ bool abfp_upstream_queue_command(abfp_command_type command)
         return true;
     }
 
+    if (command == ABFP_COMMAND_USE_ITEM ||
+        command == ABFP_COMMAND_QUAFF_ITEM ||
+        command == ABFP_COMMAND_READ_ITEM ||
+        command == ABFP_COMMAND_EAT_ITEM ||
+        command == ABFP_COMMAND_WIELD_ITEM ||
+        command == ABFP_COMMAND_TAKEOFF_ITEM ||
+        command == ABFP_COMMAND_DROP_ITEM ||
+        command == ABFP_COMMAND_REFILL_ITEM) {
+        struct object *obj = abfp_resolve_inventory_object(cmd->arg1);
+        cmd_code code = CMD_USE;
+        if (!obj) {
+            return abfp_queue_noop_with_msg("No item in that slot.", command);
+        }
+        if (command == ABFP_COMMAND_QUAFF_ITEM) {
+            if (!tval_is_potion(obj))
+                return abfp_queue_noop_with_msg("That item is not a potion.", command);
+            code = CMD_QUAFF;
+        } else if (command == ABFP_COMMAND_READ_ITEM) {
+            if (!tval_is_scroll(obj))
+                return abfp_queue_noop_with_msg("That item is not a scroll.", command);
+            code = CMD_READ_SCROLL;
+        } else if (command == ABFP_COMMAND_EAT_ITEM) {
+            if (!tval_is_edible(obj))
+                return abfp_queue_noop_with_msg("You cannot eat that.", command);
+            code = CMD_EAT;
+        } else if (command == ABFP_COMMAND_WIELD_ITEM) {
+            if (!obj_can_wear(obj))
+                return abfp_queue_noop_with_msg("You cannot wear or wield that.", command);
+            code = CMD_WIELD;
+        } else if (command == ABFP_COMMAND_TAKEOFF_ITEM) {
+            if (!object_is_equipped(player->body, obj) || !obj_can_takeoff(obj))
+                return abfp_queue_noop_with_msg("You cannot take that off.", command);
+            code = CMD_TAKEOFF;
+        } else if (command == ABFP_COMMAND_DROP_ITEM) {
+            if (object_is_equipped(player->body, obj) && !obj_can_takeoff(obj))
+                return abfp_queue_noop_with_msg("That item cannot be removed.", command);
+            code = CMD_DROP;
+        } else if (command == ABFP_COMMAND_REFILL_ITEM) {
+            if (!obj_can_refill(obj))
+                return abfp_queue_noop_with_msg("That cannot refuel your light.", command);
+            code = CMD_REFILL;
+        } else {
+            if (!obj_is_useable(obj))
+                return abfp_queue_noop_with_msg("You cannot use that item directly.", command);
+            code = CMD_USE;
+        }
+
+        if (cmdq_push(code) != 0) return false;
+        cmd_set_arg_item(cmdq_peek(), "item", obj);
+        if (code == CMD_DROP) {
+            int qty = cmd->arg2 > 0 ? cmd->arg2 : 1;
+            if (qty > obj->number) qty = obj->number;
+            cmd_set_arg_number(cmdq_peek(), "quantity", qty);
+        } else if (code == CMD_USE && obj_needs_aim(obj)) {
+            int aim_dir = (cmd->arg2 >= 1 && cmd->arg2 <= 9 && cmd->arg2 != 5) ? cmd->arg2 : DIR_N;
+            cmd_set_arg_target(cmdq_peek(), "target", aim_dir);
+        }
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
+    if (command == ABFP_COMMAND_SHOP_BUY) {
+        struct store *store = store_at(cave, player->grid);
+        struct object *obj = abfp_resolve_shop_object(cmd->arg1);
+        int qty;
+        if (!store)
+            return abfp_queue_noop_with_msg("You are not standing in a shop.", command);
+        if (!obj)
+            return abfp_queue_noop_with_msg("That item is no longer in stock.", command);
+        qty = cmd->arg2 > 0 ? cmd->arg2 : 1;
+        if (qty > obj->number) qty = obj->number;
+        if (cmdq_push(store->feat == FEAT_HOME ? CMD_RETRIEVE : CMD_BUY) != 0) return false;
+        cmd_set_arg_item(cmdq_peek(), "item", obj);
+        cmd_set_arg_number(cmdq_peek(), "quantity", qty);
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
+    if (command == ABFP_COMMAND_SHOP_SELL) {
+        struct store *store = store_at(cave, player->grid);
+        struct object *obj = abfp_resolve_inventory_object(cmd->arg1);
+        int qty;
+        if (!store)
+            return abfp_queue_noop_with_msg("You are not standing in a shop.", command);
+        if (!obj)
+            return abfp_queue_noop_with_msg("No item in that inventory slot.", command);
+        if (store->feat != FEAT_HOME && !store_will_buy_tester(obj))
+            return abfp_queue_noop_with_msg("The shopkeeper will not buy that item.", command);
+        qty = cmd->arg2 > 0 ? cmd->arg2 : 1;
+        if (qty > obj->number) qty = obj->number;
+        if (cmdq_push(store->feat == FEAT_HOME ? CMD_STASH : CMD_SELL) != 0) return false;
+        cmd_set_arg_item(cmdq_peek(), "item", obj);
+        cmd_set_arg_number(cmdq_peek(), "quantity", qty);
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
     return false;
+}
+
+bool abfp_upstream_queue_command(abfp_command_type command)
+{
+    abfp_command full = { command, 0, 1 };
+    return abfp_upstream_queue_command_ex(&full);
 }
 
 static abfp_terrain_type abfp_terrain_at(struct loc grid)
@@ -297,6 +447,103 @@ static void abfp_append_objects(struct object *obj, int x, int y,
     }
 }
 
+static void abfp_refresh_inventory_and_shop(void)
+{
+    struct store *store = store_at(cave, player->grid);
+    int i;
+
+    snapshot_inventory_count = 0;
+    memset(&snapshot_shop, 0, sizeof(snapshot_shop));
+
+    /* 1. Equipped items */
+    for (i = 0; i < player->body.count && snapshot_inventory_count < ABFP_MAX_INVENTORY_ITEMS; ++i) {
+        struct object *obj = slot_object(player, i);
+        abfp_inventory_item *dst;
+        const char *slot_desc;
+        if (!obj) continue;
+        dst = &snapshot_inventory[snapshot_inventory_count];
+        snapshot_inventory_ptrs[snapshot_inventory_count] = obj;
+        memset(dst, 0, sizeof(*dst));
+        dst->index = (int32_t)snapshot_inventory_count;
+        dst->label = gear_to_label(player, obj);
+        dst->equipped = 1;
+        dst->quantity = obj->number;
+        dst->category_id = obj->tval;
+        dst->variant_id = obj->sval;
+        if (obj_is_useable(obj)) dst->flags |= ABFP_ITEM_FLAG_USABLE;
+        if (store && (store->feat == FEAT_HOME || store_will_buy_tester(obj))) {
+            dst->flags |= ABFP_ITEM_FLAG_SELLABLE;
+            dst->sell_price = (store->feat == FEAT_HOME) ? 0 : price_item(store, obj, true, 1);
+        }
+        slot_desc = equip_mention(player, i);
+        if (slot_desc) strncpy(dst->slot_name, slot_desc, sizeof(dst->slot_name) - 1);
+        object_desc(dst->name, sizeof(dst->name), obj, ODESC_PREFIX | ODESC_FULL, player);
+        ++snapshot_inventory_count;
+    }
+
+    /* 2. Backpack items */
+    if (player->upkeep && player->upkeep->inven) {
+        for (i = 0; i < z_info->pack_size && snapshot_inventory_count < ABFP_MAX_INVENTORY_ITEMS; ++i) {
+            struct object *obj = player->upkeep->inven[i];
+            abfp_inventory_item *dst;
+            if (!obj) continue;
+            dst = &snapshot_inventory[snapshot_inventory_count];
+            snapshot_inventory_ptrs[snapshot_inventory_count] = obj;
+            memset(dst, 0, sizeof(*dst));
+            dst->index = (int32_t)snapshot_inventory_count;
+            dst->label = gear_to_label(player, obj);
+            dst->equipped = 0;
+            dst->quantity = obj->number;
+            dst->category_id = obj->tval;
+            dst->variant_id = obj->sval;
+            if (obj_is_useable(obj)) dst->flags |= ABFP_ITEM_FLAG_USABLE;
+            if (obj_can_wear(obj)) dst->flags |= ABFP_ITEM_FLAG_WEARABLE;
+            if (tval_is_potion(obj)) dst->flags |= ABFP_ITEM_FLAG_POTION;
+            if (tval_is_scroll(obj)) dst->flags |= ABFP_ITEM_FLAG_SCROLL;
+            if (tval_is_edible(obj)) dst->flags |= ABFP_ITEM_FLAG_FOOD;
+            if (obj_can_refill(obj)) dst->flags |= ABFP_ITEM_FLAG_FUEL;
+            if (store && (store->feat == FEAT_HOME || store_will_buy_tester(obj))) {
+                dst->flags |= ABFP_ITEM_FLAG_SELLABLE;
+                dst->sell_price = (store->feat == FEAT_HOME) ? 0 : price_item(store, obj, true, 1);
+            }
+            object_desc(dst->name, sizeof(dst->name), obj, ODESC_PREFIX | ODESC_FULL, player);
+            ++snapshot_inventory_count;
+        }
+    }
+
+    /* 3. Active Shop stock when standing on a shop entrance */
+    if (store) {
+        struct object *stock_list[ABFP_MAX_SHOP_ITEMS];
+        int max_items = z_info->store_inven_max;
+        if (max_items > ABFP_MAX_SHOP_ITEMS) max_items = ABFP_MAX_SHOP_ITEMS;
+        memset(stock_list, 0, sizeof(stock_list));
+        store_stock_list(store, stock_list, max_items);
+
+        snapshot_shop.active = 1;
+        snapshot_shop.is_home = (store->feat == FEAT_HOME) ? 1 : 0;
+        if (f_info[store->feat].name)
+            strncpy(snapshot_shop.name, f_info[store->feat].name, sizeof(snapshot_shop.name) - 1);
+        if (store->owner && store->owner->name)
+            strncpy(snapshot_shop.owner, store->owner->name, sizeof(snapshot_shop.owner) - 1);
+
+        snapshot_shop.item_count = 0;
+        for (i = 0; i < max_items && stock_list[i] != NULL; ++i) {
+            struct object *obj = stock_list[i];
+            abfp_shop_item *si = &snapshot_shop.items[snapshot_shop.item_count];
+            snapshot_shop_ptrs[snapshot_shop.item_count] = obj;
+            memset(si, 0, sizeof(*si));
+            si->index = (int32_t)snapshot_shop.item_count;
+            si->quantity = obj->number;
+            si->price = snapshot_shop.is_home ? 0 : price_item(store, obj, false, 1);
+            si->category_id = obj->tval;
+            si->variant_id = obj->sval;
+            object_desc(si->name, sizeof(si->name), obj,
+                ODESC_PREFIX | ODESC_FULL | ODESC_STORE, player);
+            ++snapshot_shop.item_count;
+        }
+    }
+}
+
 void abfp_upstream_monster_died(const struct monster *mon)
 {
     abfp_event event;
@@ -348,6 +595,8 @@ bool abfp_upstream_refresh_snapshot(void)
         }
     }
 
+    abfp_refresh_inventory_and_shop();
+
     if (pending_message_count > 0) {
         memcpy(snapshot_messages, pending_messages,
             pending_message_count * sizeof(*pending_messages));
@@ -366,12 +615,21 @@ bool abfp_upstream_refresh_snapshot(void)
     next.player.mana = player->csp;
     next.player.max_mana = player->msp;
     next.player.is_dead = player->is_dead ? 1 : 0;
+    next.player.exp = player->exp;
+    next.player.max_exp = player->max_exp;
+    next.player.armor_class = player->known_state.ac + player->known_state.to_a;
+    next.player.speed = player->state.speed - 110;
+    next.player.food_pct = (PY_FOOD_FULL > 0) ?
+        (int32_t)((player->timed[TMD_FOOD] * 100) / PY_FOOD_FULL) : 100;
     next.cells = snapshot_cells;
     next.cell_count = ABFP_SNAPSHOT_CELLS;
     next.entities = snapshot_entities;
     next.entity_count = entity_count;
     next.messages = snapshot_messages;
     next.message_count = snapshot_message_count;
+    next.inventory = snapshot_inventory;
+    next.inventory_count = snapshot_inventory_count;
+    next.shop = snapshot_shop.active ? &snapshot_shop : NULL;
 
     if (snapshot_history_valid && next.dungeon_depth == previous_depth) {
         uint32_t i, j;

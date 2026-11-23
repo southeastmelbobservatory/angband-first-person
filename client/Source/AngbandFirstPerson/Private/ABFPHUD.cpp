@@ -18,8 +18,15 @@ void AABFPHUD::DrawHUD()
     DrawVitalsPanel(Pawn, Snapshot);
     DrawMessageLog(Pawn);
     DrawMinimap(Pawn, Snapshot);
-    DrawTargetAndPrompt(Pawn, Snapshot);
-    DrawControlsHelp(Pawn);
+    if (Pawn->GetActiveMenu() == EABFPMenuMode::None)
+    {
+        DrawTargetAndPrompt(Pawn, Snapshot);
+        DrawControlsHelp(Pawn);
+    }
+    else
+    {
+        DrawActiveMenu(Pawn, Snapshot);
+    }
 }
 
 void AABFPHUD::DrawStatusOverlay(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot)
@@ -48,13 +55,13 @@ void AABFPHUD::DrawVitalsPanel(const AABFPFirstPersonPawn* Pawn, const FABFPSnap
     UFont* SmallFont = GEngine->GetSmallFont();
     UFont* MedFont = GEngine->GetMediumFont();
 
-    const float PanelW = 290.0f;
-    const float PanelH = Snapshot.PlayerMaxMana > 0 ? 124.0f : 102.0f;
+    const float PanelW = 316.0f;
+    const float PanelH = Snapshot.PlayerMaxMana > 0 ? 148.0f : 126.0f;
     const float X = 20.0f;
     const float Y = Canvas->ClipY - PanelH - 20.0f;
 
-    DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.78f), X, Y, PanelW, PanelH);
-    DrawRect(FLinearColor(0.45f, 0.36f, 0.20f, 0.65f), X, Y, PanelW, 2.0f);
+    DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.82f), X, Y, PanelW, PanelH);
+    DrawRect(FLinearColor(0.55f, 0.43f, 0.22f, 0.75f), X, Y, PanelW, 2.0f);
 
     const FString ModeText = Pawn->IsLiveMode()
         ? (Pawn->HasAuthoritativeState() ? TEXT("ANGBAND LIVE") : TEXT("CONNECTING..."))
@@ -68,7 +75,7 @@ void AABFPHUD::DrawVitalsPanel(const AABFPFirstPersonPawn* Pawn, const FABFPSnap
         : FString::Printf(TEXT("Depth %d (%dft)"), Snapshot.DungeonDepth, Snapshot.DungeonDepth * 50);
 
     DrawText(ModeText, ModeColor, X + 12.0f, Y + 8.0f, SmallFont, 1.0f);
-    DrawText(DepthLabel, FLinearColor(0.90f, 0.85f, 0.72f), X + 150.0f, Y + 8.0f, SmallFont, 1.0f);
+    DrawText(DepthLabel, FLinearColor(0.92f, 0.87f, 0.74f), X + 166.0f, Y + 8.0f, SmallFont, 1.0f);
 
     /* Health bar */
     const float BarX = X + 12.0f;
@@ -88,7 +95,7 @@ void AABFPHUD::DrawVitalsPanel(const AABFPFirstPersonPawn* Pawn, const FABFPSnap
         : TEXT("HP  --");
     DrawText(HpText, FLinearColor::White, BarX + 8.0f, BarY + 2.0f, SmallFont, 0.95f);
 
-    float StatsY = BarY + 26.0f;
+    float StatsY = BarY + 25.0f;
     if (Snapshot.PlayerMaxMana > 0)
     {
         const float MpRatio = FMath::Clamp(
@@ -97,12 +104,31 @@ void AABFPHUD::DrawVitalsPanel(const AABFPFirstPersonPawn* Pawn, const FABFPSnap
         DrawRect(FLinearColor(0.20f, 0.45f, 0.92f), BarX, StatsY, BarW * MpRatio, 14.0f);
         DrawText(FString::Printf(TEXT("MP  %d / %d"), Snapshot.PlayerMana, Snapshot.PlayerMaxMana),
             FLinearColor(0.88f, 0.94f, 1.0f), BarX + 8.0f, StatsY, SmallFont, 0.85f);
-        StatsY += 22.0f;
+        StatsY += 21.0f;
     }
 
-    const FString StatsLine = FString::Printf(TEXT("Lv %d   Gold %d   Turn %lld"),
-        Snapshot.PlayerLevel, Snapshot.PlayerGold, Snapshot.Turn);
-    DrawText(StatsLine, FLinearColor(0.92f, 0.84f, 0.62f), BarX, StatsY + 2.0f, MedFont, 0.88f);
+    const FString StatsLine = FString::Printf(TEXT("Lv %d   AC %d   Gold %d"),
+        Snapshot.PlayerLevel, Snapshot.PlayerArmorClass, Snapshot.PlayerGold);
+    DrawText(StatsLine, FLinearColor(0.95f, 0.86f, 0.60f), BarX, StatsY + 2.0f, MedFont, 0.86f);
+
+    const FString SpeedStr = Snapshot.PlayerSpeed == 0
+        ? TEXT("Norm")
+        : (Snapshot.PlayerSpeed > 0
+            ? FString::Printf(TEXT("+%d"), Snapshot.PlayerSpeed)
+            : FString::Printf(TEXT("%d"), Snapshot.PlayerSpeed));
+
+    const FString FoodLabel = Snapshot.PlayerFoodPct >= 80 ? TEXT("Fed")
+        : (Snapshot.PlayerFoodPct >= 30 ? TEXT("OK")
+            : (Snapshot.PlayerFoodPct >= 15 ? TEXT("Hungry") : TEXT("Weak!")));
+    const FLinearColor FoodColor = Snapshot.PlayerFoodPct >= 30
+        ? FLinearColor(0.76f, 0.80f, 0.78f)
+        : (Snapshot.PlayerFoodPct >= 15 ? FLinearColor(0.95f, 0.72f, 0.22f) : FLinearColor(0.95f, 0.25f, 0.20f));
+
+    const FString SubLine1 = FString::Printf(TEXT("EXP %d   Spd %s   Turn %lld"),
+        Snapshot.PlayerExp, *SpeedStr, Snapshot.Turn);
+    DrawText(SubLine1, FLinearColor(0.76f, 0.80f, 0.84f), BarX, StatsY + 24.0f, SmallFont, 0.86f);
+    DrawText(FString::Printf(TEXT("Food: %s (%d%%)"), *FoodLabel, Snapshot.PlayerFoodPct),
+        FoodColor, BarX, StatsY + 41.0f, SmallFont, 0.86f);
 }
 
 void AABFPHUD::DrawMessageLog(const AABFPFirstPersonPawn* Pawn)
@@ -113,13 +139,13 @@ void AABFPHUD::DrawMessageLog(const AABFPFirstPersonPawn* Pawn)
     UFont* SmallFont = GEngine->GetSmallFont();
     const int32 VisibleLines = FMath::Min(History.Num(), 7);
     const float LineHeight = 18.0f;
-    const float PanelW = FMath::Min(620.0f, Canvas->ClipX * 0.50f);
+    const float PanelW = FMath::Min(620.0f, Canvas->ClipX * 0.48f);
     const float PanelH = VisibleLines * LineHeight + 18.0f;
     const float X = Canvas->ClipX - PanelW - 20.0f;
     const float Y = Canvas->ClipY - PanelH - 20.0f;
 
-    DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.72f), X, Y, PanelW, PanelH);
-    DrawRect(FLinearColor(0.45f, 0.36f, 0.20f, 0.55f), X, Y, PanelW, 2.0f);
+    DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.76f), X, Y, PanelW, PanelH);
+    DrawRect(FLinearColor(0.55f, 0.43f, 0.22f, 0.60f), X, Y, PanelW, 2.0f);
 
     const int32 StartIdx = History.Num() - VisibleLines;
     const int32 MaxChars = FMath::Max(24, static_cast<int32>((PanelW - 20.0f) / 7.5f));
@@ -133,7 +159,7 @@ void AABFPHUD::DrawMessageLog(const AABFPFirstPersonPawn* Pawn)
         {
             TextColor = FLinearColor(1.0f, 0.52f, 0.36f, AgeAlpha);
         }
-        else if (Lower.Contains(TEXT("pick")) || Lower.Contains(TEXT("gold")) || Lower.Contains(TEXT("found")))
+        else if (Lower.Contains(TEXT("pick")) || Lower.Contains(TEXT("gold")) || Lower.Contains(TEXT("bought")) || Lower.Contains(TEXT("sold")))
         {
             TextColor = FLinearColor(0.95f, 0.82f, 0.32f, AgeAlpha);
         }
@@ -150,19 +176,24 @@ void AABFPHUD::DrawMinimap(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot
 {
     if (Snapshot.Cells.Num() == 0) return;
 
-    constexpr int32 Radius = 10;
-    constexpr int32 GridSide = Radius * 2 + 1;
-    const float TilePx = 8.0f;
+    UFont* SmallFont = GEngine->GetSmallFont();
+    const bool bExpanded = Pawn->IsMinimapExpanded();
+    const int32 Radius = bExpanded ? 18 : 10;
+    const int32 GridSide = Radius * 2 + 1;
+    const float TilePx = bExpanded ? 9.0f : 8.0f;
     const float MapSize = GridSide * TilePx;
     const float Pad = 10.0f;
+    const float HeaderH = 18.0f;
     const float OriginX = Canvas->ClipX - MapSize - Pad * 2.0f - 20.0f;
     const float OriginY = 20.0f;
 
-    DrawRect(FLinearColor(0.03f, 0.035f, 0.05f, 0.80f), OriginX, OriginY, MapSize + Pad * 2.0f, MapSize + Pad * 2.0f);
-    DrawRect(FLinearColor(0.45f, 0.36f, 0.20f, 0.65f), OriginX, OriginY, MapSize + Pad * 2.0f, 2.0f);
+    DrawRect(FLinearColor(0.03f, 0.035f, 0.05f, 0.84f), OriginX, OriginY, MapSize + Pad * 2.0f, MapSize + Pad * 2.0f + HeaderH);
+    DrawRect(FLinearColor(0.55f, 0.43f, 0.22f, 0.70f), OriginX, OriginY, MapSize + Pad * 2.0f, 2.0f);
+    DrawText(bExpanded ? TEXT("MAP  ([M] shrink)") : TEXT("MAP  ([M] expand)"),
+        FLinearColor(0.90f, 0.82f, 0.56f), OriginX + Pad, OriginY + 5.0f, SmallFont, 0.80f);
 
     const float BaseX = OriginX + Pad;
-    const float BaseY = OriginY + Pad;
+    const float BaseY = OriginY + Pad + HeaderH;
 
     for (const FABFPCell& Cell : Snapshot.Cells)
     {
@@ -201,7 +232,7 @@ void AABFPHUD::DrawMinimap(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot
             Color = FLinearColor(0.45f, 0.38f, 0.30f);
             break;
         case EABFPTerrain::Shop:
-            Color = FLinearColor(0.90f, 0.58f, 0.18f);
+            Color = FLinearColor(0.95f, 0.64f, 0.18f);
             break;
         case EABFPTerrain::Trap:
             Color = FLinearColor(0.92f, 0.22f, 0.18f);
@@ -265,31 +296,41 @@ void AABFPHUD::DrawTargetAndPrompt(const AABFPFirstPersonPawn* Pawn, const FABFP
 
     if (FacedMonster)
     {
-        const float PlateW = 260.0f;
-        const float PlateH = 44.0f;
+        const float PlateW = 280.0f;
+        const float PlateH = 46.0f;
         const float PlateX = (Canvas->ClipX - PlateW) * 0.5f;
         const float PlateY = 24.0f;
-        DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.80f), PlateX, PlateY, PlateW, PlateH);
+        DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.84f), PlateX, PlateY, PlateW, PlateH);
+        DrawRect(FLinearColor(0.75f, 0.22f, 0.16f, 0.75f), PlateX, PlateY, PlateW, 2.0f);
         const FString Label = FacedMonster->Name.IsEmpty() ? TEXT("Unknown Creature") : FacedMonster->Name;
-        DrawText(Label, FLinearColor(0.96f, 0.86f, 0.68f), PlateX + 10.0f, PlateY + 6.0f, MedFont, 0.90f);
+        DrawText(Label, FLinearColor(0.96f, 0.86f, 0.68f), PlateX + 10.0f, PlateY + 7.0f, MedFont, 0.90f);
 
         const float Ratio = FacedMonster->MaxHitPoints > 0
             ? FMath::Clamp(static_cast<float>(FacedMonster->HitPoints) / static_cast<float>(FacedMonster->MaxHitPoints), 0.0f, 1.0f)
             : 1.0f;
-        DrawRect(FLinearColor(0.14f, 0.10f, 0.10f, 0.92f), PlateX + 10.0f, PlateY + 28.0f, PlateW - 20.0f, 9.0f);
-        DrawRect(FLinearColor(0.86f, 0.18f, 0.14f), PlateX + 10.0f, PlateY + 28.0f, (PlateW - 20.0f) * Ratio, 9.0f);
+        DrawRect(FLinearColor(0.14f, 0.10f, 0.10f, 0.92f), PlateX + 10.0f, PlateY + 30.0f, PlateW - 20.0f, 9.0f);
+        DrawRect(FLinearColor(0.86f, 0.18f, 0.14f), PlateX + 10.0f, PlateY + 30.0f, (PlateW - 20.0f) * Ratio, 9.0f);
     }
 
-    /* Context action hint (underfoot stairs/items or immediately ahead door/trap/rubble). */
+    /* Context action hint (active shop, underfoot items/stairs, or door/trap/rubble ahead). */
     FString Prompt;
-    for (const FABFPEntity& Entity : Snapshot.Entities)
+    if (Snapshot.Shop.bActive)
     {
-        if (Entity.Type == EABFPEntityType::Object &&
-            Entity.X == Snapshot.PlayerX && Entity.Y == Snapshot.PlayerY)
+        const FString ShopName = Snapshot.Shop.Name.IsEmpty() ? TEXT("Shop") : Snapshot.Shop.Name;
+        Prompt = FString::Printf(TEXT("[B / F] Enter %s"), *ShopName);
+    }
+
+    if (Prompt.IsEmpty())
+    {
+        for (const FABFPEntity& Entity : Snapshot.Entities)
         {
-            Prompt = FString::Printf(TEXT("[E] Pick up %s"),
-                Entity.Name.IsEmpty() ? TEXT("item") : *Entity.Name);
-            break;
+            if (Entity.Type == EABFPEntityType::Object &&
+                Entity.X == Snapshot.PlayerX && Entity.Y == Snapshot.PlayerY)
+            {
+                Prompt = FString::Printf(TEXT("[E / G] Pick up %s"),
+                    Entity.Name.IsEmpty() ? TEXT("item") : *Entity.Name);
+                break;
+            }
         }
     }
 
@@ -326,9 +367,208 @@ void AABFPHUD::DrawTargetAndPrompt(const AABFPFirstPersonPawn* Pawn, const FABFP
         const float BoxH = TextH + 12.0f;
         const float BoxX = (Canvas->ClipX - BoxW) * 0.5f;
         const float BoxY = Canvas->ClipY * 0.62f;
-        DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.78f), BoxX, BoxY, BoxW, BoxH);
+        DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.82f), BoxX, BoxY, BoxW, BoxH);
+        DrawRect(FLinearColor(0.65f, 0.50f, 0.22f, 0.70f), BoxX, BoxY, BoxW, 2.0f);
         DrawText(Prompt, FLinearColor(0.98f, 0.88f, 0.56f), BoxX + 12.0f, BoxY + 6.0f, SmallFont, 1.05f);
     }
+}
+
+void AABFPHUD::DrawActiveMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot)
+{
+    const EABFPMenuMode Mode = Pawn->GetActiveMenu();
+    if (Mode == EABFPMenuMode::None) return;
+
+    UFont* SmallFont = GEngine->GetSmallFont();
+    UFont* MedFont = GEngine->GetMediumFont();
+
+    /* Subtle dark modal backdrop */
+    DrawRect(FLinearColor(0.01f, 0.012f, 0.02f, 0.48f), 0.0f, 0.0f, Canvas->ClipX, Canvas->ClipY);
+
+    const float PanelW = FMath::Min(680.0f, Canvas->ClipX - 80.0f);
+    const float PanelH = FMath::Min(460.0f, Canvas->ClipY - 210.0f);
+    const float X = (Canvas->ClipX - PanelW) * 0.5f;
+    const float Y = FMath::Max(24.0f, (Canvas->ClipY - PanelH) * 0.42f);
+
+    DrawRect(FLinearColor(0.045f, 0.05f, 0.07f, 0.94f), X, Y, PanelW, PanelH);
+    DrawRect(FLinearColor(0.68f, 0.54f, 0.25f, 0.90f), X, Y, PanelW, 3.0f);
+    DrawRect(FLinearColor(0.32f, 0.26f, 0.14f, 0.70f), X, Y + PanelH - 2.0f, PanelW, 2.0f);
+
+    FString Title;
+    FString Subtitle;
+    FString Footer;
+
+    if (Mode == EABFPMenuMode::Inventory)
+    {
+        Title = TEXT("BACKPACK INVENTORY");
+        Subtitle = FString::Printf(TEXT("Gold: %d gp   |   [Tab] Switch to Equipment"), Snapshot.PlayerGold);
+        Footer = TEXT("[Up/Down] Select   [Enter/U] Use   [W] Wield   [L] Refill   [D] Drop   [I/Bksp] Close");
+    }
+    else if (Mode == EABFPMenuMode::Equipment)
+    {
+        Title = TEXT("WORN EQUIPMENT & CHARACTER");
+        Subtitle = FString::Printf(TEXT("Lv %d   AC %d   HP %d/%d   EXP %d   |   [Tab] Switch to Backpack"),
+            Snapshot.PlayerLevel, Snapshot.PlayerArmorClass,
+            Snapshot.PlayerHitPoints, Snapshot.PlayerMaxHitPoints, Snapshot.PlayerExp);
+        Footer = TEXT("[Up/Down] Select   [Enter/T] Take Off   [D] Drop   [Tab] Backpack   [C/Bksp] Close");
+    }
+    else if (Mode == EABFPMenuMode::ShopBuy)
+    {
+        const FString ShopName = Snapshot.Shop.Name.IsEmpty() ? TEXT("Town Shop") : Snapshot.Shop.Name;
+        Title = Snapshot.Shop.bIsHome
+            ? FString::Printf(TEXT("%s  —  RETRIEVE ITEMS"), *ShopName)
+            : FString::Printf(TEXT("%s  —  BUY GOODS"), *ShopName);
+        Subtitle = Snapshot.Shop.Owner.IsEmpty()
+            ? FString::Printf(TEXT("Your Gold: %d gp   |   [Tab] Switch to %s"),
+                Snapshot.PlayerGold, Snapshot.Shop.bIsHome ? TEXT("Stash") : TEXT("Sell"))
+            : FString::Printf(TEXT("Proprietor: %s   |   Your Gold: %d gp   |   [Tab] %s"),
+                *Snapshot.Shop.Owner, Snapshot.PlayerGold, Snapshot.Shop.bIsHome ? TEXT("Stash") : TEXT("Sell"));
+        Footer = Snapshot.Shop.bIsHome
+            ? TEXT("[Up/Down] Select   [Enter] Retrieve 1   [Tab] Stash from Pack   [B/Bksp] Leave")
+            : TEXT("[Up/Down] Select   [Enter] Buy 1   [Tab] Sell from Pack   [B/Bksp] Leave");
+    }
+    else if (Mode == EABFPMenuMode::ShopSell)
+    {
+        const FString ShopName = Snapshot.Shop.Name.IsEmpty() ? TEXT("Town Shop") : Snapshot.Shop.Name;
+        Title = Snapshot.Shop.bIsHome
+            ? FString::Printf(TEXT("%s  —  STASH FROM PACK"), *ShopName)
+            : FString::Printf(TEXT("%s  —  SELL FROM PACK"), *ShopName);
+        Subtitle = FString::Printf(TEXT("Your Gold: %d gp   |   [Tab] Switch to %s"),
+            Snapshot.PlayerGold, Snapshot.Shop.bIsHome ? TEXT("Retrieve") : TEXT("Buy"));
+        Footer = Snapshot.Shop.bIsHome
+            ? TEXT("[Up/Down] Select   [Enter] Stash 1   [Tab] Retrieve from Home   [B/Bksp] Leave")
+            : TEXT("[Up/Down] Select   [Enter] Sell 1   [Tab] Buy Goods   [B/Bksp] Leave");
+    }
+
+    DrawText(Title, FLinearColor(0.98f, 0.85f, 0.46f), X + 16.0f, Y + 12.0f, MedFont, 1.0f);
+    DrawText(Subtitle, FLinearColor(0.76f, 0.80f, 0.84f), X + 16.0f, Y + 36.0f, SmallFont, 0.90f);
+    DrawRect(FLinearColor(0.28f, 0.25f, 0.18f, 0.60f), X + 12.0f, Y + 56.0f, PanelW - 24.0f, 1.0f);
+
+    const float ListTop = Y + 64.0f;
+    const float RowH = 22.0f;
+    const float FooterH = 34.0f;
+    const int32 MaxVisible = FMath::Max(4, static_cast<int32>((PanelH - 64.0f - FooterH) / RowH));
+    const int32 Selected = Pawn->GetSelectedMenuIndex();
+
+    if (Mode == EABFPMenuMode::ShopBuy)
+    {
+        const int32 Total = Snapshot.Shop.Items.Num();
+        if (Total == 0)
+        {
+            DrawText(Snapshot.Shop.bIsHome ? TEXT("(Your home is empty)") : TEXT("(No goods currently in stock)"),
+                FLinearColor(0.65f, 0.66f, 0.70f), X + 20.0f, ListTop + 12.0f, SmallFont, 0.95f);
+        }
+        else
+        {
+            const int32 ScrollStart = FMath::Clamp(Selected - MaxVisible / 2, 0, FMath::Max(0, Total - MaxVisible));
+            const int32 EndIdx = FMath::Min(Total, ScrollStart + MaxVisible);
+            for (int32 Row = ScrollStart; Row < EndIdx; ++Row)
+            {
+                const FABFPShopItem& Item = Snapshot.Shop.Items[Row];
+                const float RowY = ListTop + (Row - ScrollStart) * RowH;
+                const bool bSel = (Row == Selected);
+                if (bSel)
+                {
+                    DrawRect(FLinearColor(0.26f, 0.22f, 0.11f, 0.90f), X + 12.0f, RowY - 1.0f, PanelW - 24.0f, RowH);
+                }
+                const TCHAR Letter = static_cast<TCHAR>('a' + (Row % 26));
+                const bool bAffordable = Snapshot.Shop.bIsHome || (Item.Price <= Snapshot.PlayerGold);
+                const FLinearColor NameColor = bSel
+                    ? FLinearColor(1.0f, 0.95f, 0.78f)
+                    : (bAffordable ? FLinearColor(0.88f, 0.88f, 0.86f) : FLinearColor(0.54f, 0.50f, 0.50f));
+                DrawText(FString::Printf(TEXT("%c) %s"), Letter, *Item.Name),
+                    NameColor, X + 18.0f, RowY + 3.0f, SmallFont, 0.92f);
+
+                if (!Snapshot.Shop.bIsHome)
+                {
+                    const FString PriceStr = FString::Printf(TEXT("%d gp"), Item.Price);
+                    const FLinearColor PriceColor = bAffordable
+                        ? FLinearColor(0.95f, 0.82f, 0.30f)
+                        : FLinearColor(0.88f, 0.28f, 0.24f);
+                    DrawText(PriceStr, PriceColor, X + PanelW - 96.0f, RowY + 3.0f, SmallFont, 0.92f);
+                }
+            }
+        }
+    }
+    else
+    {
+        const bool bEquip = (Mode == EABFPMenuMode::Equipment);
+        const TArray<int32> Indices = Pawn->GetMenuInventoryIndices(bEquip);
+        const int32 Total = Indices.Num();
+        if (Total == 0)
+        {
+            DrawText(bEquip ? TEXT("(No items equipped)") : TEXT("(Your pack is empty)"),
+                FLinearColor(0.65f, 0.66f, 0.70f), X + 20.0f, ListTop + 12.0f, SmallFont, 0.95f);
+        }
+        else
+        {
+            const int32 ScrollStart = FMath::Clamp(Selected - MaxVisible / 2, 0, FMath::Max(0, Total - MaxVisible));
+            const int32 EndIdx = FMath::Min(Total, ScrollStart + MaxVisible);
+            for (int32 Row = ScrollStart; Row < EndIdx; ++Row)
+            {
+                const FABFPInventoryItem& Item = Snapshot.Inventory[Indices[Row]];
+                const float RowY = ListTop + (Row - ScrollStart) * RowH;
+                const bool bSel = (Row == Selected);
+                if (bSel)
+                {
+                    DrawRect(FLinearColor(0.26f, 0.22f, 0.11f, 0.90f), X + 12.0f, RowY - 1.0f, PanelW - 24.0f, RowH);
+                }
+
+                const FString Label = Item.Label.IsEmpty() ? TEXT("-") : Item.Label;
+                FString RowText;
+                if (bEquip && !Item.SlotName.IsEmpty())
+                {
+                    RowText = FString::Printf(TEXT("%s) [%-10s]  %s"), *Label, *Item.SlotName, *Item.Name);
+                }
+                else
+                {
+                    RowText = FString::Printf(TEXT("%s) %s"), *Label, *Item.Name);
+                }
+
+                bool bDimmed = false;
+                if (Mode == EABFPMenuMode::ShopSell && !Snapshot.Shop.bIsHome &&
+                    (Item.Flags & ABFPItemFlags::Sellable) == 0)
+                {
+                    bDimmed = true;
+                }
+
+                const FLinearColor NameColor = bSel
+                    ? FLinearColor(1.0f, 0.95f, 0.78f)
+                    : (bDimmed ? FLinearColor(0.48f, 0.48f, 0.52f) : FLinearColor(0.88f, 0.88f, 0.86f));
+                DrawText(RowText, NameColor, X + 18.0f, RowY + 3.0f, SmallFont, 0.92f);
+
+                if (Mode == EABFPMenuMode::ShopSell && !Snapshot.Shop.bIsHome)
+                {
+                    if ((Item.Flags & ABFPItemFlags::Sellable) != 0)
+                    {
+                        DrawText(FString::Printf(TEXT("+%d gp"), Item.SellPrice),
+                            FLinearColor(0.42f, 0.92f, 0.48f), X + PanelW - 96.0f, RowY + 3.0f, SmallFont, 0.92f);
+                    }
+                    else
+                    {
+                        DrawText(TEXT("Unsellable"),
+                            FLinearColor(0.50f, 0.46f, 0.46f), X + PanelW - 102.0f, RowY + 3.0f, SmallFont, 0.86f);
+                    }
+                }
+                else if (Mode == EABFPMenuMode::Inventory)
+                {
+                    FString Tag;
+                    if ((Item.Flags & ABFPItemFlags::Potion) != 0) Tag = TEXT("[Quaff]");
+                    else if ((Item.Flags & ABFPItemFlags::Scroll) != 0) Tag = TEXT("[Read]");
+                    else if ((Item.Flags & ABFPItemFlags::Food) != 0) Tag = TEXT("[Eat]");
+                    else if ((Item.Flags & ABFPItemFlags::Fuel) != 0) Tag = TEXT("[Fuel]");
+                    else if ((Item.Flags & ABFPItemFlags::Usable) != 0) Tag = TEXT("[Use]");
+                    else if ((Item.Flags & ABFPItemFlags::Wearable) != 0) Tag = TEXT("[Wield]");
+                    if (!Tag.IsEmpty())
+                    {
+                        DrawText(Tag, FLinearColor(0.62f, 0.76f, 0.92f), X + PanelW - 88.0f, RowY + 3.0f, SmallFont, 0.86f);
+                    }
+                }
+            }
+        }
+    }
+
+    DrawRect(FLinearColor(0.28f, 0.25f, 0.18f, 0.60f), X + 12.0f, Y + PanelH - FooterH, PanelW - 24.0f, 1.0f);
+    DrawText(Footer, FLinearColor(0.86f, 0.78f, 0.56f), X + 16.0f, Y + PanelH - FooterH + 9.0f, SmallFont, 0.85f);
 }
 
 void AABFPHUD::DrawControlsHelp(const AABFPFirstPersonPawn* Pawn)
@@ -339,7 +579,7 @@ void AABFPHUD::DrawControlsHelp(const AABFPFirstPersonPawn* Pawn)
 
     if (!Pawn->IsHelpVisible())
     {
-        DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.65f), X, Y, 118.0f, 24.0f);
+        DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.68f), X, Y, 118.0f, 24.0f);
         DrawText(TEXT("[H] Controls"), FLinearColor(0.80f, 0.78f, 0.72f), X + 10.0f, Y + 5.0f, SmallFont, 0.90f);
         return;
     }
@@ -348,17 +588,21 @@ void AABFPHUD::DrawControlsHelp(const AABFPFirstPersonPawn* Pawn)
         TEXT("CONTROLS  ([H] hide)"),
         TEXT("Up / Down      Step forward / back"),
         TEXT("Left / Right   Turn 45 deg"),
-        TEXT("F              Interact / Door / Disarm"),
-        TEXT("E              Pick up item"),
+        TEXT("F              Interact / Door / Shop"),
+        TEXT("E / G          Pick up item"),
+        TEXT("I / C          Inventory / Equipment"),
+        TEXT("B              Open Town Shop"),
+        TEXT("Q / X / R      Quaff / Eat / Rest"),
+        TEXT("M              Expand Minimap"),
         TEXT("Space          Wait 1 turn"),
         TEXT("PgUp / PgDn    Ascend / Descend stairs")
     };
 
     const float LineH = 16.0f;
-    const float PanelW = 264.0f;
+    const float PanelW = 278.0f;
     const float PanelH = UE_ARRAY_COUNT(Lines) * LineH + 14.0f;
-    DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.74f), X, Y, PanelW, PanelH);
-    DrawRect(FLinearColor(0.45f, 0.36f, 0.20f, 0.60f), X, Y, PanelW, 2.0f);
+    DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.76f), X, Y, PanelW, PanelH);
+    DrawRect(FLinearColor(0.55f, 0.43f, 0.22f, 0.65f), X, Y, PanelW, 2.0f);
 
     for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(Lines); ++Idx)
     {

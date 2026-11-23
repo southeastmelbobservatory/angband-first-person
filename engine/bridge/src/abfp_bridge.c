@@ -41,14 +41,20 @@ void abfp_bridge_shutdown(void)
     memset(&snapshot, 0, sizeof(snapshot));
 }
 
-bool abfp_bridge_submit_command(abfp_command_type command)
+bool abfp_bridge_submit_command_ex(const abfp_command *command)
 {
+    if (!command) return false;
 #ifdef ABFP_WITH_ANGBAND
-    return abfp_upstream_queue_command(command);
+    return abfp_upstream_queue_command_ex(command);
 #else
-    (void)command;
     return false;
 #endif
+}
+
+bool abfp_bridge_submit_command(abfp_command_type command)
+{
+    abfp_command full = { command, 0, 1 };
+    return abfp_bridge_submit_command_ex(&full);
 }
 
 const abfp_snapshot *abfp_bridge_snapshot(void)

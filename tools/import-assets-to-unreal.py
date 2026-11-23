@@ -296,6 +296,45 @@ def assign_material_all_slots(mesh, material):
     unreal.EditorAssetLibrary.save_loaded_asset(mesh)
 
 
+def build_torch_flame_material(unreal_mat_folder: str):
+    """Build a glowing emissive ISM-safe Material for wall torch flames (DX11/SM5 bloom friendly)."""
+    if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):
+        unreal.EditorAssetLibrary.make_directory(unreal_mat_folder)
+
+    mat_name = "M_ABFP_TorchFlame"
+    mat_asset_path = f"{unreal_mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, unreal_mat_folder, unreal.Material, factory
+        )
+
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+
+    base_col = mel.create_material_expression(
+        mat, unreal.MaterialExpressionConstant3Vector, -360, -140
+    )
+    base_col.set_editor_property("constant", unreal.LinearColor(1.0, 0.58, 0.12, 1.0))
+    mel.connect_material_property(base_col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+
+    emissive_col = mel.create_material_expression(
+        mat, unreal.MaterialExpressionConstant3Vector, -360, 80
+    )
+    emissive_col.set_editor_property("constant", unreal.LinearColor(8.5, 3.4, 0.55, 1.0))
+    mel.connect_material_property(emissive_col, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
 def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0)):
     v = unreal.ABFPMeshVariant()
     v.set_editor_property("mesh", mesh)
@@ -323,8 +362,9 @@ def main():
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    # 1. Build Poly Haven 2K PBR Materials + ISM-safe master material for glTF terrain props
+    # 1. Build Poly Haven 2K PBR Materials + ISM-safe master & flame materials
     instanced_master_mat = build_instanced_master_material("/Game/Assets/Materials")
+    torch_flame_mat = build_torch_flame_material("/Game/Assets/Materials")
     materials_by_name = {}
     for entry in manifest.get("pbr_materials", []):
         tex_dir = raw_root / entry["dest_dir"]
@@ -385,6 +425,7 @@ def main():
     wall_variants = []
     vein_variants = []
     pillar_variants = []
+    wall_decor_variants = []
 
     # 4. Import Modular Dungeon Terrain Meshes
     for entry in manifest.get("terrain_meshes", []):
@@ -424,6 +465,8 @@ def main():
                 vein_variants.append(variant)
             elif slot == "dungeon.pillar":
                 pillar_variants.append(variant)
+            elif slot == "dungeon.wall_decor":
+                wall_decor_variants.append(variant)
             elif slot == "dungeon.door_frame":
                 dungeon_terrain.set_editor_property("door_frame", variant)
             elif slot == "dungeon.door_closed":
@@ -463,11 +506,15 @@ def main():
     dungeon_terrain.set_editor_property("wall_variants", wall_variants)
     dungeon_terrain.set_editor_property("vein_wall_variants", vein_variants)
     dungeon_terrain.set_editor_property("wall_pillar_variants", pillar_variants)
+    dungeon_terrain.set_editor_property("wall_decor_variants", wall_decor_variants)
     town_terrain.set_editor_property("floor_variants", town_floor_variants or floor_variants)
     town_terrain.set_editor_property("wall_variants", wall_variants)
+    town_terrain.set_editor_property("wall_decor_variants", wall_decor_variants)
 
     catalog.set_editor_property("dungeon_terrain", dungeon_terrain)
     catalog.set_editor_property("town_terrain", town_terrain)
+    if torch_flame_mat:
+        catalog.set_editor_property("torch_flame_material", torch_flame_mat)
 
     # 5. Import Poly Haven Hero Props (Lantern, Sword, Boulder, Goblets)
     item_entries = []
@@ -479,9 +526,20 @@ def main():
         try:
             unreal.log(f"[ABFP] Importing Poly Haven 3D prop {entry['id']}...")
             paths = import_asset(gltf_file, entry["unreal_dest"], is_skeletal=False)
+            hero_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh)
+            if entry["id"] == "Lantern_01" and hero_mesh:
+                catalog.set_editor_property(
+                    "first_person_lantern",
+                    make_mesh_variant(hero_mesh, scale=(0.40, 0.40, 0.40), loc=(0.0, 0.0, 0.0), rot=(0.0, 180.0, 0.0)),
+                )
+            elif entry["id"] == "antique_estoc" and hero_mesh:
+                catalog.set_editor_property(
+                    "first_person_weapon",
+                    make_mesh_variant(hero_mesh, scale=(0.46, 0.46, 0.46), loc=(0.0, 0.0, 0.0), rot=(62.0, -18.0, 12.0)),
+                )
             if "catalog_item" in entry:
                 ci = entry["catalog_item"]
-                mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh)
+                mesh = hero_mesh
                 if mesh:
                     item = unreal.ABFPItemVisualEntry()
                     item.set_editor_property("entry_name", ci["entry_name"])

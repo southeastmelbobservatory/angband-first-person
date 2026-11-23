@@ -8,8 +8,9 @@
 class AABFPFirstPersonPawn;
 
 /**
- * Lightweight 2D HUD presenting authoritative Angband vitals, 21x21 minimap,
- * look-ahead target/interaction indicator, and scrolling Angband message log.
+ * 2D HUD presenting authoritative Angband vitals (HP, MP, AC, Speed, Food, EXP),
+ * compact/expanded tactical minimap, look-ahead target & shop prompts,
+ * keyboard-driven Inventory / Equipment / Shop overlays, and message log.
  */
 UCLASS(Blueprintable)
 class ANGBANDFIRSTPERSON_API AABFPHUD : public AHUD
@@ -25,5 +26,6 @@ private:
     void DrawMinimap(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
     void DrawTargetAndPrompt(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
     void DrawControlsHelp(const AABFPFirstPersonPawn* Pawn);
+    void DrawActiveMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
     void DrawStatusOverlay(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
 };

@@ -198,6 +198,7 @@ static bool abfp_host_seed_test_monster(void)
 
 static errr abfp_host_get_command(cmd_context context)
 {
+    abfp_command cmd;
     abfp_command_type command;
 
     /* Birth, store, death and other non-game contexts retain the text UI. */
@@ -226,10 +227,11 @@ static errr abfp_host_get_command(cmd_context context)
         if (!initial_state_sent) {
             initial_state_sent = abfp_host_publish_state(true);
         }
-        if (!abfp_transport_wait_command(&command)) {
+        if (!abfp_transport_wait_command_ex(&cmd)) {
             initial_state_sent = false;
             continue;
         }
+        command = cmd.type;
 
         /*
          * CI-only fixture: put a real Angband down-stair under the player
@@ -273,7 +275,7 @@ static errr abfp_host_get_command(cmd_context context)
             test_monster_killed = true;
         }
 
-        if (abfp_frontend_submit_command(command)) return 0;
+        if (abfp_frontend_submit_command_ex(&cmd)) return 0;
     }
 }
 

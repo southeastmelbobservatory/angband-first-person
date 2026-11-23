@@ -15,6 +15,7 @@ extern "C" {
 bool abfp_bridge_init(void);
 void abfp_bridge_shutdown(void);
 bool abfp_bridge_submit_command(abfp_command_type command);
+bool abfp_bridge_submit_command_ex(const abfp_command *command);
 const abfp_snapshot *abfp_bridge_snapshot(void);
 void abfp_bridge_set_snapshot(const abfp_snapshot *snapshot);
 size_t abfp_bridge_event_count(void);

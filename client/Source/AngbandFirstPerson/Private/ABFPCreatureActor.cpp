@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequenceBase.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -37,6 +38,33 @@ AABFPCreatureActor::AABFPCreatureActor()
         TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(
         TEXT("/Engine/BasicShapes/Cone.Cone"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
+        TEXT("/Engine/BasicShapes/Cube.Cube"));
+
+    HealthBarRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HealthBarRoot"));
+    HealthBarRoot->SetupAttachment(SceneRoot);
+    HealthBarRoot->SetRelativeLocation(FVector(0.0f, 0.0f, 255.0f));
+
+    HealthBarBg = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HealthBarBg"));
+    HealthBarBg->SetupAttachment(HealthBarRoot);
+    HealthBarBg->SetRelativeScale3D(FVector(0.02f, 0.86f, 0.09f));
+    HealthBarBg->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    HealthBarBg->SetCastShadow(false);
+    HealthBarBg->SetVisibility(false);
+
+    HealthBarFill = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HealthBarFill"));
+    HealthBarFill->SetupAttachment(HealthBarRoot);
+    HealthBarFill->SetRelativeLocation(FVector(0.4f, 0.0f, 0.0f));
+    HealthBarFill->SetRelativeScale3D(FVector(0.024f, 0.82f, 0.065f));
+    HealthBarFill->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    HealthBarFill->SetCastShadow(false);
+    HealthBarFill->SetVisibility(false);
+
+    if (CubeMesh.Succeeded())
+    {
+        HealthBarBg->SetStaticMesh(CubeMesh.Object);
+        HealthBarFill->SetStaticMesh(CubeMesh.Object);
+    }
 
     auto MakePart = [this](const TCHAR* Name, UStaticMesh* Mesh,
         const FVector& Location, const FVector& Scale) -> UStaticMeshComponent*
@@ -83,8 +111,14 @@ AABFPCreatureActor::AABFPCreatureActor()
     {
         CreatureMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         UMaterialInstanceDynamic* EyeMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        UMaterialInstanceDynamic* HealthBgMat = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
+        HealthBarFillMat = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
         CreatureMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
         EyeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.55f, 0.08f));
+        HealthBgMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.06f, 0.05f, 0.05f));
+        HealthBarFillMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.88f, 0.16f, 0.12f));
+        if (HealthBarBg) HealthBarBg->SetMaterial(0, HealthBgMat);
+        if (HealthBarFill) HealthBarFill->SetMaterial(0, HealthBarFillMat);
         Body->SetMaterial(0, CreatureMaterial);
         Head->SetMaterial(0, CreatureMaterial);
         LeftArm->SetMaterial(0, CreatureMaterial);
@@ -207,11 +241,31 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
     SetProceduralPartsVisible(true);
 }
 
+void AABFPCreatureActor::UpdateHealthBar()
+{
+    const bool bShowBar = !bDying && MaxHitPoints > 0 && CurrentHitPoints > 0 && CurrentHitPoints < MaxHitPoints;
+    if (HealthBarBg) HealthBarBg->SetVisibility(bShowBar);
+    if (HealthBarFill) HealthBarFill->SetVisibility(bShowBar);
+    if (!bShowBar || !HealthBarFill) return;
+
+    const float Ratio = FMath::Clamp(
+        static_cast<float>(CurrentHitPoints) / static_cast<float>(MaxHitPoints), 0.04f, 1.0f);
+    HealthBarFill->SetRelativeScale3D(FVector(0.024f, 0.82f * Ratio, 0.065f));
+    HealthBarFill->SetRelativeLocation(FVector(0.4f, -(1.0f - Ratio) * 41.0f, 0.0f));
+    if (HealthBarFillMat)
+    {
+        const FLinearColor BarColor = Ratio > 0.55f ? FLinearColor(0.24f, 0.78f, 0.24f)
+            : (Ratio > 0.28f ? FLinearColor(0.92f, 0.62f, 0.12f) : FLinearColor(0.92f, 0.14f, 0.10f));
+        HealthBarFillMat->SetVectorParameterValue(TEXT("Color"), BarColor);
+    }
+}
+
 void AABFPCreatureActor::UpdateEntityState(const FABFPEntity& Entity)
 {
     CurrentHitPoints = Entity.HitPoints;
     MaxHitPoints = Entity.MaxHitPoints;
     SetCreatureAppearance(Entity.Name, Entity.KindId);
+    UpdateHealthBar();
     OnCreatureConfigured(Entity);
 }
 
@@ -304,6 +358,7 @@ void AABFPCreatureActor::PlayDeathReaction()
 {
     if (bDying) return;
     bDying = true;
+    UpdateHealthBar();
     DeathSeconds = 0.0f;
     DeathDuration = 0.72f;
     if (bInterpolating)
@@ -384,6 +439,19 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
             SetActorRotation(TargetRotation);
             bInterpolating = false;
             OnCreatureMovementChanged(false);
+        }
+    }
+
+    if (HealthBarRoot && HealthBarBg && HealthBarBg->IsVisible())
+    {
+        if (APlayerCameraManager* CamMgr = UGameplayStatics::GetPlayerCameraManager(this, 0))
+        {
+            const FVector ToCam = CamMgr->GetCameraLocation() - HealthBarRoot->GetComponentLocation();
+            if (!ToCam.IsNearlyZero())
+            {
+                const FRotator BillboardRot(0.0f, ToCam.Rotation().Yaw, 0.0f);
+                HealthBarRoot->SetWorldRotation(BillboardRot);
+            }
         }
     }
 

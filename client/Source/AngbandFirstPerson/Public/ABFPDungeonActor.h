@@ -10,6 +10,7 @@ class USceneComponent;
 class UExponentialHeightFogComponent;
 class USkyLightComponent;
 class UPointLightComponent;
+class UPostProcessComponent;
 class UMaterialInterface;
 class UStaticMesh;
 class UABFPVisualCatalog;
@@ -87,6 +88,7 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Shops;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Traps;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> WallTorches;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TorchFlames;
 
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomFloorPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomRememberedFloorPools;
@@ -95,13 +97,17 @@ private:
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomRememberedWallPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomVeinPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomPillarPools;
+    UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomWallDecorPools;
 
     UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> DungeonFog;
     UPROPERTY() TObjectPtr<USkyLightComponent> AmbientSky;
+    UPROPERTY() TObjectPtr<UPostProcessComponent> AtmospherePostProcess;
     UPROPERTY(Transient) TArray<TObjectPtr<UPointLightComponent>> RoomLights;
     UPROPERTY(Transient) TArray<float> RoomLightPhases;
 
     UPROPERTY(Transient) TObjectPtr<UStaticMesh> FallbackCubeMesh;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> FallbackSphereMesh;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackFlameMat;
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackFloorMat;
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackMemoryFloorMat;
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackCeilingMat;

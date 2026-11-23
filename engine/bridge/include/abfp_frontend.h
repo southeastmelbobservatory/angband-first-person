@@ -12,6 +12,7 @@ bool abfp_frontend_register(void);
 
 /* Queue one authoritative Angband command. Call on the Angband game thread. */
 bool abfp_frontend_submit_command(abfp_command_type command);
+bool abfp_frontend_submit_command_ex(const abfp_command *command);
 
 /* Read the latest bridge snapshot. Copy its arrays before the next sync. */
 const abfp_snapshot *abfp_frontend_snapshot(void);
