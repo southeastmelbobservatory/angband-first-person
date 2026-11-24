@@ -242,8 +242,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
     bool bSpawnLitRoomTorches = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting", meta=(ClampMin="0", ClampMax="32"))
-    int32 MaxDynamicRoomLights = 12;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting", meta=(ClampMin="0", ClampMax="12"))
+    int32 MaxDynamicRoomLights = 6;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lighting")
     float RoomTorchIntensity = 5.5f;

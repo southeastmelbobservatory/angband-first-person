@@ -68,9 +68,9 @@ AABFPDungeonActor::AABFPDungeonActor()
         return Comp;
     };
 
-    Floors = MakeLayer(TEXT("FloorInstances"), true);
+    Floors = MakeLayer(TEXT("FloorInstances"), false);
     RememberedFloors = MakeLayer(TEXT("RememberedFloorInstances"), false);
-    Ceilings = MakeLayer(TEXT("CeilingInstances"), true);
+    Ceilings = MakeLayer(TEXT("CeilingInstances"), false);
     RememberedCeilings = MakeLayer(TEXT("RememberedCeilingInstances"), false);
     Walls = MakeLayer(TEXT("WallInstances"), true);
     RememberedWalls = MakeLayer(TEXT("RememberedWallInstances"), false);
@@ -93,7 +93,7 @@ AABFPDungeonActor::AABFPDungeonActor()
     DungeonFog->FogDensity = 0.0035f;
     DungeonFog->FogHeightFalloff = 0.18f;
     DungeonFog->StartDistance = 450.0f;
-    DungeonFog->bEnableVolumetricFog = true;
+    DungeonFog->bEnableVolumetricFog = false;
 
     AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
     AmbientSky->SetupAttachment(SceneRoot);
@@ -232,7 +232,7 @@ void AABFPDungeonActor::SetVisualCatalog(UABFPVisualCatalog* InCatalog)
 void AABFPDungeonActor::EnsureRoomLightPool(int32 DesiredCount)
 {
     if (!GetWorld()) return;
-    DesiredCount = FMath::Clamp(DesiredCount, 0, 32);
+    DesiredCount = FMath::Clamp(DesiredCount, 0, 6);
 
     while (RoomLights.Num() < DesiredCount)
     {
@@ -397,14 +397,14 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     UMaterialInterface* RememberedMat = TerrainSet.RememberedMaterialOverride ?
         TerrainSet.RememberedMaterialOverride.Get() : FallbackMemoryWallMat.Get();
 
-    ConfigureMeshPool(CustomFloorPools, TerrainSet.FloorVariants, nullptr, true, TEXT("CustomFloor"));
+    ConfigureMeshPool(CustomFloorPools, TerrainSet.FloorVariants, nullptr, false, TEXT("CustomFloor"));
     ConfigureMeshPool(CustomRememberedFloorPools, TerrainSet.FloorVariants, RememberedMat, false, TEXT("CustomMemFloor"));
-    ConfigureMeshPool(CustomCeilingPools, TerrainSet.CeilingVariants, nullptr, true, TEXT("CustomCeiling"));
+    ConfigureMeshPool(CustomCeilingPools, TerrainSet.CeilingVariants, nullptr, false, TEXT("CustomCeiling"));
     ConfigureMeshPool(CustomWallPools, TerrainSet.WallVariants, nullptr, true, TEXT("CustomWall"));
     ConfigureMeshPool(CustomRememberedWallPools, TerrainSet.WallVariants, RememberedMat, false, TEXT("CustomMemWall"));
     ConfigureMeshPool(CustomVeinPools, TerrainSet.VeinWallVariants, nullptr, true, TEXT("CustomVein"));
     ConfigureMeshPool(CustomPillarPools, TerrainSet.WallPillarVariants, nullptr, true, TEXT("CustomPillar"));
-    ConfigureMeshPool(CustomWallDecorPools, TerrainSet.WallDecorVariants, nullptr, true, TEXT("CustomWallDecor"));
+    ConfigureMeshPool(CustomWallDecorPools, TerrainSet.WallDecorVariants, nullptr, false, TEXT("CustomWallDecor"));
 
     ConfigureSingleLayer(DoorFrames, TerrainSet.DoorFrame, FallbackCubeMesh, FallbackDoorFrameMat, nullptr);
     ConfigureSingleLayer(DoorsClosed, TerrainSet.DoorClosedPanel, FallbackCubeMesh, FallbackDoorMat, nullptr);

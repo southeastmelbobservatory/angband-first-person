@@ -35,7 +35,7 @@ AABFPFirstPersonPawn::AABFPFirstPersonPawn()
     Lantern->SetAttenuationRadius(2600.0f);
     Lantern->SetSourceRadius(16.0f);
     Lantern->SetLightColor(FLinearColor(1.0f, 0.80f, 0.56f));
-    Lantern->SetCastShadows(true);
+    Lantern->SetCastShadows(false);
 
     ViewModelMount = CreateDefaultSubobject<USceneComponent>(TEXT("ViewModelMount"));
     ViewModelMount->SetupAttachment(Camera);
