@@ -136,17 +136,15 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
         paths = import_asset(nor_file, unreal_tex_folder)
         nor_tex = find_asset_in_paths_or_folder(paths, unreal_tex_folder, unreal.Texture2D, nor_file.stem)
         if isinstance(nor_tex, unreal.Texture2D):
-            nor_tex.compression_settings = unreal.TextureCompressionSettings.TC_NORMALMAP
-            nor_tex.srgb = False
-            nor_tex.post_edit_change()
+            nor_tex.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_NORMALMAP)
+            nor_tex.set_editor_property("srgb", False)
             unreal.EditorAssetLibrary.save_loaded_asset(nor_tex)
     if arm_file:
         paths = import_asset(arm_file, unreal_tex_folder)
         arm_tex = find_asset_in_paths_or_folder(paths, unreal_tex_folder, unreal.Texture2D, arm_file.stem)
         if isinstance(arm_tex, unreal.Texture2D):
-            arm_tex.compression_settings = unreal.TextureCompressionSettings.TC_MASKS
-            arm_tex.srgb = False
-            arm_tex.post_edit_change()
+            arm_tex.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
+            arm_tex.set_editor_property("srgb", False)
             unreal.EditorAssetLibrary.save_loaded_asset(arm_tex)
 
     if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):

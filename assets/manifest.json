@@ -986,8 +986,8 @@
     },
     {
       "id": "cc0_fox",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/5-low-poly-animals/red-fox.glb",
-      "dest": "creatures/red_fox.glb",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/kitsune-fox/preview.glb",
+      "dest": "creatures/kitsune_fox.glb",
       "unreal_dest": "/Game/Assets/Creatures/Fox",
       "rigged": false,
       "keywords": [
