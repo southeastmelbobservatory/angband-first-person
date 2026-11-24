@@ -960,8 +960,12 @@ def main():
             unreal.log(f"[ABFP] Importing creature {entry['id']} from {import_src.name}...")
             paths = import_asset(import_src, entry["unreal_dest"], is_skeletal=is_skeletal)
 
-            skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, import_src.stem) if is_skeletal else None
-            static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, import_src.stem)
+            if is_skeletal:
+                skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, import_src.stem)
+                static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, import_src.stem)
+            else:
+                static_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, import_src.stem)
+                skel_mesh = None if static_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, import_src.stem)
             if not skel_mesh and not static_mesh:
                 unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']} (paths={paths})")
                 failed_species.append(f"{entry['id']}(no-mesh)")

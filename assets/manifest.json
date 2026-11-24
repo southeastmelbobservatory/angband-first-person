@@ -973,7 +973,7 @@
       "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/raven-0/raven_0.glb",
       "dest": "creatures/raven.glb",
       "unreal_dest": "/Game/Assets/Creatures/Raven",
-      "rigged": false,
+      "rigged": true,
       "keywords": [
         "raven",
         "crow",
@@ -2051,7 +2051,7 @@
       "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/auroch-male-and-female/auroch_bull.glb",
       "dest": "creatures/auroch_bull.glb",
       "unreal_dest": "/Game/Assets/Creatures/Auroch",
-      "rigged": false,
+      "rigged": true,
       "keywords": [
         "minotaur",
         "bull",
