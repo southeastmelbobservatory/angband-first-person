@@ -902,7 +902,18 @@ def main():
 
     catalog.set_editor_property("items", item_entries)
 
-    # 7. Import Creatures (Unified KayKit GLBs + Skeletal/Static + Idle Animations + Audio)
+    # 7. Import Creatures (Procedural Angband GLBs + Unified KayKit GLBs + Skeletal/Static + Audio)
+    gen_path = repo_root / "tools" / "generate-angband-creatures.py"
+    if gen_path.is_file():
+        try:
+            spec = importlib.util.spec_from_file_location("abfp_gen_creatures", str(gen_path))
+            gen_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gen_mod)
+            n_gen = gen_mod.generate_all(raw_root)
+            unreal.log(f"[ABFP] Generated {n_gen} procedural Angband dungeon creature GLBs.")
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed generating procedural creatures: {exc}")
+
     merge_kaykit_fn = load_kaykit_merger(repo_root)
     creature_entries = []
     default_creature_entry = None

@@ -612,6 +612,260 @@
       "license": "CC0-1.0"
     },
     {
+      "id": "abfp_floating_eye",
+      "source": "procedural",
+      "dest": "creatures/abfp_floating_eye.glb",
+      "unreal_dest": "/Game/Assets/Creatures/FloatingEye",
+      "rigged": false,
+      "keywords": [
+        "eye",
+        "eyeball",
+        "beholder"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "location_offset": [
+        0,
+        0,
+        95
+      ],
+      "target_height_cm": 98,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_mushroom_patch",
+      "source": "procedural",
+      "dest": "creatures/abfp_mushroom_patch.glb",
+      "unreal_dest": "/Game/Assets/Creatures/MushroomPatch",
+      "rigged": false,
+      "keywords": [
+        "mushroom patch",
+        "mushroom",
+        "shrieker",
+        "toadstool"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 105,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_mold",
+      "source": "procedural",
+      "dest": "creatures/abfp_mold.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Mold",
+      "rigged": false,
+      "keywords": [
+        "mold",
+        "fungus",
+        "lichen",
+        "spores"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 78,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_ant",
+      "source": "procedural",
+      "dest": "creatures/abfp_ant.glb",
+      "unreal_dest": "/Game/Assets/Creatures/GiantAnt",
+      "rigged": false,
+      "keywords": [
+        "soldier ant",
+        "ant",
+        "fire ant"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 92,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_centipede",
+      "source": "procedural",
+      "dest": "creatures/abfp_centipede.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Centipede",
+      "rigged": false,
+      "keywords": [
+        "centipede",
+        "millipede"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 58,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_worm_mass",
+      "source": "procedural",
+      "dest": "creatures/abfp_worm_mass.glb",
+      "unreal_dest": "/Game/Assets/Creatures/WormMass",
+      "rigged": false,
+      "keywords": [
+        "worm mass",
+        "worm",
+        "grub",
+        "leech"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 88,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_louse_beetle",
+      "source": "procedural",
+      "dest": "creatures/abfp_louse_beetle.glb",
+      "unreal_dest": "/Game/Assets/Creatures/LouseBeetle",
+      "rigged": false,
+      "keywords": [
+        "louse",
+        "lice",
+        "beetle",
+        "scarab",
+        "roach",
+        "tick",
+        "flea"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 68,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_gelatinous_cube",
+      "source": "procedural",
+      "dest": "creatures/abfp_gelatinous_cube.glb",
+      "unreal_dest": "/Game/Assets/Creatures/GelatinousCube",
+      "rigged": false,
+      "keywords": [
+        "gelatinous cube",
+        "cube"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 185,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_slime_jelly",
+      "source": "procedural",
+      "dest": "creatures/abfp_slime_jelly.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SlimeJelly",
+      "rigged": false,
+      "keywords": [
+        "slime",
+        "jelly",
+        "ooze",
+        "icky",
+        "blob",
+        "amoeba",
+        "pudding",
+        "vortex"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 96,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_frog",
+      "source": "procedural",
+      "dest": "creatures/abfp_frog.glb",
+      "unreal_dest": "/Game/Assets/Creatures/GiantFrog",
+      "rigged": false,
+      "keywords": [
+        "frog",
+        "toad",
+        "bullfrog"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 88,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_cobra",
+      "source": "procedural",
+      "dest": "creatures/abfp_cobra.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Cobra",
+      "rigged": false,
+      "keywords": [
+        "snake",
+        "cobra",
+        "mamba",
+        "python",
+        "adder",
+        "asp",
+        "boa",
+        "anaconda",
+        "naga",
+        "viper",
+        "serpent"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "target_height_cm": 145,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
       "id": "cc0_hornet",
       "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/3d-hornetwasp/hornet6-animating.glb",
       "dest": "creatures/hornet.glb",
@@ -624,20 +878,16 @@
         "neekerbreeker",
         "bee",
         "fly",
+        "dragon fly",
         "mosquito",
         "dragonfly",
         "moth",
         "insect",
         "midge",
         "stirge",
-        "tick",
-        "flea",
         "locust",
         "mantis",
-        "scorpion",
-        "scarab",
-        "roach",
-        "dragon fly"
+        "scorpion"
       ],
       "scale": [
         0.95,
@@ -854,10 +1104,7 @@
         "alligator",
         "crocodile",
         "gecko",
-        "newt",
-        "frog",
-        "toad",
-        "bullfrog"
+        "newt"
       ],
       "scale": [
         0.75,
@@ -884,19 +1131,13 @@
       "rigged": false,
       "keywords": [
         "spider",
-        "centipede",
-        "ant",
-        "beetle",
-        "lice",
-        "worm mass",
         "shelob",
         "ungoliant",
         "arachnid",
         "tarantula",
         "widow",
         "spinner",
-        "weaver",
-        "louse"
+        "weaver"
       ],
       "scale": [
         1.0,
@@ -939,79 +1180,6 @@
       "death_sound": "imp_death",
       "license": "CC0-1.0",
       "target_height_cm": 85
-    },
-    {
-      "id": "cc0_cobra",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cobra-0/cobra.glb",
-      "dest": "creatures/cobra.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Cobra",
-      "rigged": false,
-      "keywords": [
-        "snake",
-        "cobra",
-        "mamba",
-        "python",
-        "adder",
-        "asp",
-        "boa",
-        "anaconda",
-        "worm",
-        "naga",
-        "viper",
-        "serpent"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 115,
-      "use_vertex_color": false,
-      "fallback_color": [
-        0.025,
-        0.1,
-        0.02
-      ],
-      "fallback_roughness": 0.48
-    },
-    {
-      "id": "cc0_slime",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/fbx-blend-lowpoly-animated-slime/slime.glb",
-      "dest": "creatures/slime.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Slime",
-      "rigged": true,
-      "keywords": [
-        "slime",
-        "jelly",
-        "ooze",
-        "icky",
-        "blob",
-        "cube",
-        "gelatinous",
-        "vortex",
-        "amoeba",
-        "pudding",
-        "mound",
-        "spores"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 96,
-      "fallback_color": [
-        0.015,
-        0.24,
-        0.045
-      ],
-      "fallback_roughness": 0.16
     },
     {
       "id": "cc0_baby_dragon",
@@ -1418,10 +1586,9 @@
       "unreal_dest": "/Game/Assets/Creatures/Creep",
       "rigged": true,
       "keywords": [
-        "eye",
-        "mold",
-        "mushroom",
-        "crawler"
+        "crawler",
+        "carrion crawler",
+        "abomination"
       ],
       "scale": [
         0.9,

@@ -6,6 +6,7 @@ Uses Python 3 standard library only (no external pip dependencies).
 """
 
 import argparse
+import importlib.util
 import json
 import os
 import sys
@@ -143,7 +144,16 @@ def main() -> int:
             tasks.append((entry["url"], raw_root / entry["dest"]))
 
     if include_cat("creatures"):
+        gen_path = repo_root / "tools" / "generate-angband-creatures.py"
+        if gen_path.is_file() and not args.dry_run:
+            spec = importlib.util.spec_from_file_location("abfp_gen_creatures", str(gen_path))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            n_gen = mod.generate_all(raw_root)
+            print(f"Generated {n_gen} bespoke procedural Angband dungeon creature GLBs.")
         for entry in manifest.get("creatures", []):
+            if entry.get("source") == "procedural" or not entry.get("url"):
+                continue
             tasks.append((entry["url"], raw_root / entry["dest"]))
 
     if include_cat("items"):
