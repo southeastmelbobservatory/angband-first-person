@@ -15,7 +15,8 @@
       "dest_dir": "materials/stone_wall_02",
       "unreal_material_name": "M_DungeonWall_Ashlar",
       "role": "Dungeon stone walls (primary)",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.5
     },
     {
       "id": "stone_brick_wall_001",
@@ -30,7 +31,8 @@
       "dest_dir": "materials/stone_brick_wall_001",
       "unreal_material_name": "M_DungeonWall_Brick",
       "role": "Dungeon stone walls (variant)",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.0
     },
     {
       "id": "slate_floor_02",
@@ -45,7 +47,8 @@
       "dest_dir": "materials/slate_floor_02",
       "unreal_material_name": "M_DungeonFloor_Slate",
       "role": "Dungeon flagstone floor (primary)",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.5
     },
     {
       "id": "stone_floor",
@@ -60,7 +63,8 @@
       "dest_dir": "materials/stone_floor",
       "unreal_material_name": "M_DungeonFloor_Worn",
       "role": "Dungeon flagstone floor (variant)",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.5
     },
     {
       "id": "stone_wall_04",
@@ -75,7 +79,8 @@
       "dest_dir": "materials/stone_wall_04",
       "unreal_material_name": "M_DungeonCeiling_Stone",
       "role": "Subterranean dungeon ceiling",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.5
     },
     {
       "id": "rock_face",
@@ -90,7 +95,8 @@
       "dest_dir": "materials/rock_face",
       "unreal_material_name": "M_DungeonVein_Rock",
       "role": "Mineral / ore vein walls",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.25
     },
     {
       "id": "cobblestone_floor_08",
@@ -105,7 +111,8 @@
       "dest_dir": "materials/cobblestone_floor_08",
       "unreal_material_name": "M_TownFloor_Cobble",
       "role": "Town outdoor cobblestone floor",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "uv_tiling": 1.25
     },
     {
       "id": "dark_wood",
@@ -612,8 +619,8 @@
     },
     {
       "id": "kaykit_skeleton_warrior",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb",
-      "dest": "creatures/Skeleton_Warrior.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Warrior.fbx",
+      "dest": "creatures/Skeleton_Warrior.fbx",
       "unreal_dest": "/Game/Assets/Creatures/SkeletonWarrior",
       "rigged": true,
       "keywords": [
@@ -627,12 +634,14 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 180
+      "target_height_cm": 180,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_skeleton_mage",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Mage.glb",
-      "dest": "creatures/Skeleton_Mage.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Mage.fbx",
+      "dest": "creatures/Skeleton_Mage.fbx",
       "unreal_dest": "/Game/Assets/Creatures/SkeletonMage",
       "rigged": true,
       "keywords": [
@@ -663,12 +672,14 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 188
+      "target_height_cm": 188,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_skeleton_minion",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Minion.glb",
-      "dest": "creatures/Skeleton_Minion.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Minion.fbx",
+      "dest": "creatures/Skeleton_Minion.fbx",
       "unreal_dest": "/Game/Assets/Creatures/SkeletonMinion",
       "rigged": true,
       "keywords": [
@@ -684,12 +695,14 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 168
+      "target_height_cm": 168,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_rogue_hooded",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb",
-      "dest": "creatures/Rogue_Hooded.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/RogueHooded.fbx",
+      "dest": "creatures/RogueHooded.fbx",
       "unreal_dest": "/Game/Assets/Creatures/RogueHooded",
       "rigged": true,
       "keywords": [
@@ -709,12 +722,14 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 175
+      "target_height_cm": 175,
+      "character_texture": "creatures/rogue_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_mage",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb",
-      "dest": "creatures/Mage.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Mage.fbx",
+      "dest": "creatures/Mage.fbx",
       "unreal_dest": "/Game/Assets/Creatures/Mage",
       "rigged": true,
       "keywords": [
@@ -749,7 +764,9 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 178
+      "target_height_cm": 178,
+      "character_texture": "creatures/mage_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "cc0_mouse",
@@ -772,11 +789,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 38,
       "fallback_color": [
-        0.34,
-        0.3,
-        0.27
+        0.085,
+        0.068,
+        0.055
       ],
-      "fallback_roughness": 0.78
+      "fallback_roughness": 0.9
     },
     {
       "id": "cc0_giant_rat",
@@ -799,11 +816,11 @@
       "target_height_cm": 78,
       "use_vertex_color": true,
       "fallback_color": [
-        0.28,
-        0.22,
-        0.18
+        0.065,
+        0.042,
+        0.028
       ],
-      "fallback_roughness": 0.75
+      "fallback_roughness": 0.88
     },
     {
       "id": "cc0_slime",
@@ -837,9 +854,9 @@
       "license": "CC0-1.0",
       "target_height_cm": 96,
       "fallback_color": [
-        0.1,
-        0.56,
-        0.22
+        0.015,
+        0.24,
+        0.045
       ],
       "fallback_roughness": 0.16
     },
@@ -874,11 +891,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 95,
       "fallback_color": [
-        0.09,
-        0.07,
-        0.08
+        0.018,
+        0.012,
+        0.015
       ],
-      "fallback_roughness": 0.42
+      "fallback_roughness": 0.45
     },
     {
       "id": "cc0_vampire_bat",
@@ -938,11 +955,11 @@
       "target_height_cm": 115,
       "use_vertex_color": true,
       "fallback_color": [
-        0.16,
-        0.34,
-        0.14
+        0.025,
+        0.1,
+        0.02
       ],
-      "fallback_roughness": 0.45
+      "fallback_roughness": 0.48
     },
     {
       "id": "cc0_reptile_croc",
@@ -971,11 +988,11 @@
       "target_height_cm": 72,
       "use_vertex_color": true,
       "fallback_color": [
-        0.18,
-        0.3,
-        0.15
+        0.03,
+        0.08,
+        0.022
       ],
-      "fallback_roughness": 0.55
+      "fallback_roughness": 0.58
     },
     {
       "id": "cc0_house_cat",
@@ -1000,11 +1017,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 52,
       "fallback_color": [
-        0.46,
-        0.3,
-        0.16
+        0.16,
+        0.062,
+        0.018
       ],
-      "fallback_roughness": 0.78
+      "fallback_roughness": 0.9
     },
     {
       "id": "cc0_town_dog",
@@ -1029,11 +1046,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 64,
       "fallback_color": [
-        0.5,
-        0.36,
-        0.22
+        0.12,
+        0.058,
+        0.022
       ],
-      "fallback_roughness": 0.78
+      "fallback_roughness": 0.9
     },
     {
       "id": "cc0_fox",
@@ -1084,11 +1101,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 115,
       "fallback_color": [
-        0.24,
-        0.23,
-        0.22
+        0.055,
+        0.05,
+        0.046
       ],
-      "fallback_roughness": 0.78
+      "fallback_roughness": 0.9
     },
     {
       "id": "cc0_zombie",
@@ -1142,11 +1159,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 265,
       "fallback_color": [
-        0.18,
-        0.26,
-        0.11
+        0.032,
+        0.065,
+        0.014
       ],
-      "fallback_roughness": 0.85
+      "fallback_roughness": 0.92
     },
     {
       "id": "cc0_stone_golem",
@@ -1314,8 +1331,8 @@
     },
     {
       "id": "kaykit_knight",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb",
-      "dest": "creatures/Knight.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Knight.fbx",
+      "dest": "creatures/Knight.fbx",
       "unreal_dest": "/Game/Assets/Creatures/Knight",
       "rigged": true,
       "keywords": [
@@ -1346,12 +1363,14 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 185
+      "target_height_cm": 185,
+      "character_texture": "creatures/knight_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_barbarian",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian.glb",
-      "dest": "creatures/Barbarian.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Barbarian.fbx",
+      "dest": "creatures/Barbarian.fbx",
       "unreal_dest": "/Game/Assets/Creatures/Barbarian",
       "rigged": true,
       "keywords": [
@@ -1372,12 +1391,14 @@
       "hit_sound": "brute_hurt",
       "death_sound": "brute_death",
       "license": "CC0-1.0",
-      "target_height_cm": 192
+      "target_height_cm": 192,
+      "character_texture": "creatures/barbarian_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_rogue",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue.glb",
-      "dest": "creatures/Rogue.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Rogue.fbx",
+      "dest": "creatures/Rogue.fbx",
       "unreal_dest": "/Game/Assets/Creatures/Rogue",
       "rigged": true,
       "keywords": [
@@ -1420,12 +1441,14 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 170
+      "target_height_cm": 170,
+      "character_texture": "creatures/rogue_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "kaykit_skeleton_rogue",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Rogue.glb",
-      "dest": "creatures/Skeleton_Rogue.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Rogue.fbx",
+      "dest": "creatures/Skeleton_Rogue.fbx",
       "unreal_dest": "/Game/Assets/Creatures/SkeletonRogue",
       "rigged": true,
       "keywords": [
@@ -1443,7 +1466,9 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 178
+      "target_height_cm": 178,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true
     },
     {
       "id": "cc0_werewolf",
@@ -1492,11 +1517,11 @@
       "target_height_cm": 195,
       "use_vertex_color": true,
       "fallback_color": [
-        0.16,
-        0.15,
-        0.15
+        0.028,
+        0.024,
+        0.022
       ],
-      "fallback_roughness": 0.8
+      "fallback_roughness": 0.88
     },
     {
       "id": "cc0_yeti",
@@ -1569,9 +1594,9 @@
       "license": "CC0-1.0",
       "target_height_cm": 72,
       "fallback_color": [
-        0.06,
-        0.06,
-        0.08
+        0.012,
+        0.012,
+        0.018
       ],
       "fallback_roughness": 0.45
     },
@@ -1603,11 +1628,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 95,
       "fallback_color": [
-        0.32,
-        0.21,
-        0.11
+        0.085,
+        0.04,
+        0.014
       ],
-      "fallback_roughness": 0.72
+      "fallback_roughness": 0.85
     },
     {
       "id": "cc0_griffin",
@@ -1833,11 +1858,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 210,
       "fallback_color": [
-        0.22,
-        0.14,
-        0.09
+        0.045,
+        0.022,
+        0.01
       ],
-      "fallback_roughness": 0.82
+      "fallback_roughness": 0.9
     },
     {
       "id": "cc0_hornet",
@@ -1881,11 +1906,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 88,
       "fallback_color": [
-        0.74,
-        0.48,
-        0.06
+        0.42,
+        0.19,
+        0.008
       ],
-      "fallback_roughness": 0.38
+      "fallback_roughness": 0.42
     },
     {
       "id": "cc0_auroch",
@@ -1912,11 +1937,11 @@
       "license": "CC0-1.0",
       "target_height_cm": 205,
       "fallback_color": [
-        0.26,
-        0.14,
-        0.08
+        0.06,
+        0.022,
+        0.009
       ],
-      "fallback_roughness": 0.78
+      "fallback_roughness": 0.88
     }
   ],
   "item_meshes": [
@@ -2252,6 +2277,36 @@
       "id": "kk_adv_barbarian_tex",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/barbarian_texture.png",
       "dest": "items/barbarian_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_char_rogue_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/rogue_texture.png",
+      "dest": "creatures/rogue_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_char_knight_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/knight_texture.png",
+      "dest": "creatures/knight_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_char_mage_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/mage_texture.png",
+      "dest": "creatures/mage_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_char_barbarian_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/barbarian_texture.png",
+      "dest": "creatures/barbarian_texture.png",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_char_skeleton_tex",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/skeleton_texture.png",
+      "dest": "creatures/skeleton_texture.png",
       "license": "CC0-1.0"
     }
   ],

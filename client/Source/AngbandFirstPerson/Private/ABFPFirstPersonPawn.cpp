@@ -274,9 +274,10 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 
     if (Lantern)
     {
+        const float BaseLanternIntensity = (CurrentSnapshot.DungeonDepth == 0) ? 0.35f : 7.5f;
         const float Flicker = 1.0f + FMath::Sin(LanternElapsed * 6.5f) * 0.035f +
             FMath::Sin(LanternElapsed * 14.2f) * 0.02f;
-        Lantern->SetIntensity(7.5f * Flicker);
+        Lantern->SetIntensity(BaseLanternIntensity * Flicker);
         Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
             FLinearColor(1.0f, 0.08f, 0.04f) :
             FLinearColor(1.0f, 0.80f, 0.56f));

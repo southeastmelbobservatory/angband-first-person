@@ -61,6 +61,10 @@ def import_asset(source_file: Path, dest_path: str, asset_name: str = None, is_s
         opts.import_animations = is_skeletal
         if is_skeletal:
             opts.mesh_type_to_import = unreal.FBXImportType.FBXIT_SKELETAL_MESH
+            try:
+                opts.skeletal_mesh_import_data.set_editor_property("import_meshes_in_bone_hierarchy", True)
+            except Exception:
+                pass
         else:
             opts.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
             opts.static_mesh_import_data.combine_meshes = True
@@ -478,6 +482,51 @@ def build_torch_flame_material(unreal_mat_folder: str):
     return mat
 
 
+def build_creature_textured_material(entry_id: str, tex_path: Path, roughness: float = 0.80):
+    """Build a skeletal-mesh PBR Material directly from a companion character texture PNG
+    (used for KayKit FBX characters so every outfit/hood/armor renders crisply)."""
+    if not tex_path.is_file():
+        return None
+    tex_folder = "/Game/Assets/Materials/Textures/Creatures"
+    tex_name = f"T_Char_{tex_path.stem}"
+    paths = import_asset(tex_path, tex_folder, asset_name=tex_name)
+    tex = find_asset_in_paths_or_folder(paths, tex_folder, unreal.Texture2D, tex_name)
+    if not tex:
+        return None
+
+    mat_folder = "/Game/Assets/Materials/Creatures"
+    if not unreal.EditorAssetLibrary.does_directory_exist(mat_folder):
+        unreal.EditorAssetLibrary.make_directory(mat_folder)
+
+    mat_name = f"M_ABFP_CharTex_{tex_path.stem}"
+    mat_asset_path = f"{mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, mat_folder, unreal.Material, factory
+        )
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_skeletal_mesh", True)
+
+    node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -140)
+    node.texture = tex
+    connect_rgb_to_property(mel, node, unreal.MaterialProperty.MP_BASE_COLOR, f"{mat_name}.BaseColor")
+
+    rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 100)
+    rough.set_editor_property("r", float(roughness))
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
 def build_creature_color_material(entry_id: str, color_rgb, use_vertex_color: bool = False, roughness: float = 0.72):
     """Build a rich PBR Material for untextured/vertex-colored CC0 creature meshes so they never
     appear as flat untextured white clay."""
@@ -598,6 +647,7 @@ def main():
                 tex_dir,
                 f"/Game/Assets/Materials/Textures/{entry['id']}",
                 "/Game/Assets/Materials",
+                uv_tiling=float(entry.get("uv_tiling", 1.5)),
             )
             if mat:
                 materials_by_name[mat_name] = mat
@@ -842,10 +892,14 @@ def main():
             continue
         try:
             unreal.log(f"[ABFP] Importing creature {entry['id']}...")
+            # Clean stale split-part assets when switching a creature folder (e.g. KayKit GLB -> unified FBX)
+            if entry.get("clean_dest_before_import") and unreal.EditorAssetLibrary.does_directory_exist(entry["unreal_dest"]):
+                for old_path in unreal.EditorAssetLibrary.list_assets(entry["unreal_dest"], recursive=True, include_folder=False):
+                    unreal.EditorAssetLibrary.delete_asset(old_path)
             paths = import_asset(src, entry["unreal_dest"], is_skeletal=bool(entry.get("rigged", False)))
 
-            skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh)
-            static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh)
+            skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, src.stem)
+            static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, src.stem)
             if not skel_mesh and not static_mesh:
                 unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']}")
                 continue
@@ -856,12 +910,18 @@ def main():
             fit_scale, fit_loc = compute_creature_fit(skel_mesh or static_mesh, entry)
 
             creature_mat = None
-            if entry.get("fallback_color") or entry.get("use_vertex_color"):
+            if entry.get("character_texture"):
+                creature_mat = build_creature_textured_material(
+                    entry["id"],
+                    raw_root / entry["character_texture"],
+                    roughness=float(entry.get("fallback_roughness", 0.80)),
+                )
+            elif entry.get("fallback_color") or entry.get("use_vertex_color"):
                 creature_mat = build_creature_color_material(
                     entry["id"],
-                    entry.get("fallback_color", [0.45, 0.35, 0.25]),
+                    entry.get("fallback_color", [0.12, 0.08, 0.05]),
                     use_vertex_color=bool(entry.get("use_vertex_color", False)),
-                    roughness=float(entry.get("fallback_roughness", 0.72)),
+                    roughness=float(entry.get("fallback_roughness", 0.88)),
                 )
 
             if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and skel_mesh is not None):
