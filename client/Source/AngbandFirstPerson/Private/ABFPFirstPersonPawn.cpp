@@ -39,7 +39,7 @@ AABFPFirstPersonPawn::AABFPFirstPersonPawn()
 
     ViewModelMount = CreateDefaultSubobject<USceneComponent>(TEXT("ViewModelMount"));
     ViewModelMount->SetupAttachment(Camera);
-    ViewModelMount->SetRelativeLocation(FVector(46.0f, 28.0f, -28.0f));
+    ViewModelMount->SetRelativeLocation(FVector(44.0f, 22.0f, -22.0f));
 
     HeldWeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeldWeaponMesh"));
     HeldWeaponMesh->SetupAttachment(ViewModelMount);
@@ -49,7 +49,7 @@ AABFPFirstPersonPawn::AABFPFirstPersonPawn()
 
     LanternMount = CreateDefaultSubobject<USceneComponent>(TEXT("LanternMount"));
     LanternMount->SetupAttachment(Camera);
-    LanternMount->SetRelativeLocation(FVector(42.0f, -30.0f, -30.0f));
+    LanternMount->SetRelativeLocation(FVector(44.0f, -22.0f, -24.0f));
 
     HeldLanternMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeldLanternMesh"));
     HeldLanternMesh->SetupAttachment(LanternMount);
@@ -288,9 +288,9 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         const float Sway = FMath::Sin(LanternElapsed * 2.0f) * 0.9f;
         const float WalkBob = bInterpolatingMove ? FMath::Sin(StepBobElapsed * 12.0f) * 1.8f : 0.0f;
         ViewModelMount->SetRelativeLocation(FVector(
-            46.0f + SwingAlpha * 18.0f,
-            28.0f - SwingAlpha * 12.0f,
-            -28.0f + Sway + WalkBob - SwingAlpha * 8.0f));
+            44.0f + SwingAlpha * 18.0f,
+            22.0f - SwingAlpha * 12.0f,
+            -22.0f + Sway + WalkBob - SwingAlpha * 8.0f));
         ViewModelMount->SetRelativeRotation(FRotator(-SwingAlpha * 32.0f, -SwingAlpha * 20.0f, SwingAlpha * 8.0f));
     }
 
@@ -299,7 +299,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         const float SwayZ = FMath::Sin(LanternElapsed * 1.7f + 1.1f) * 0.9f;
         const float SwayRoll = FMath::Sin(LanternElapsed * 1.4f) * 2.2f;
         const float WalkBob = bInterpolatingMove ? FMath::Sin(StepBobElapsed * 12.0f + PI) * 1.6f : 0.0f;
-        LanternMount->SetRelativeLocation(FVector(42.0f, -30.0f, -30.0f + SwayZ + WalkBob));
+        LanternMount->SetRelativeLocation(FVector(44.0f, -22.0f, -24.0f + SwayZ + WalkBob));
         LanternMount->SetRelativeRotation(FRotator(0.0f, 0.0f, SwayRoll));
     }
 

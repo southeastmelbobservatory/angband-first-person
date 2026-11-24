@@ -14,6 +14,7 @@ Or headless via UnrealEditor-Cmd.exe:
 
 import json
 import os
+import struct
 import traceback
 from pathlib import Path
 
@@ -95,7 +96,16 @@ def find_asset_in_paths_or_folder(imported_paths: list, folder_path: str, asset_
     return fallback
 
 
-def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unreal_mat_folder: str):
+def connect_uv_to_sampler(mel, uv_node, sampler_node):
+    for pin_name in ("UVs", "Coordinates"):
+        try:
+            mel.connect_material_expressions(uv_node, "", sampler_node, pin_name)
+            return
+        except Exception:
+            continue
+
+
+def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unreal_mat_folder: str, uv_tiling: float = 2.0):
     """Import Poly Haven 2K Diffuse, DirectX Normal, and ARM maps and wire a UE PBR Material."""
     diff_file = next(tex_dir.glob("*_diff_*"), None)
     nor_file = next(tex_dir.glob("*_nor_dx_*"), None)
@@ -144,24 +154,145 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
     mel.delete_all_material_expressions(mat)
     mat.set_editor_property("used_with_instanced_static_meshes", True)
 
+    uv_node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureCoordinate, -680, 40)
+    uv_node.set_editor_property("u_tiling", float(uv_tiling))
+    uv_node.set_editor_property("v_tiling", float(uv_tiling))
+
     if diff_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -240)
         node.texture = diff_tex
+        connect_uv_to_sampler(mel, uv_node, node)
         mel.connect_material_property(node, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
 
     if nor_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, 40)
         node.texture = nor_tex
         node.sampler_type = unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL
+        connect_uv_to_sampler(mel, uv_node, node)
         mel.connect_material_property(node, "RGB", unreal.MaterialProperty.MP_NORMAL)
 
     if arm_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, 320)
         node.texture = arm_tex
         node.sampler_type = unreal.MaterialSamplerType.SAMPLERTYPE_MASKS
+        connect_uv_to_sampler(mel, uv_node, node)
         mel.connect_material_property(node, "R", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
         mel.connect_material_property(node, "G", unreal.MaterialProperty.MP_ROUGHNESS)
         mel.connect_material_property(node, "B", unreal.MaterialProperty.MP_METALLIC)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
+def extract_glb_embedded_png(glb_path: Path, out_png: Path) -> bool:
+    """Extract the first embedded PNG image from a binary glTF (.glb) file."""
+    try:
+        data = glb_path.read_bytes()
+        if len(data) < 28 or data[:4] != b"glTF":
+            return False
+        json_len = struct.unpack_from("<I", data, 12)[0]
+        gltf = json.loads(data[20 : 20 + json_len].decode("utf-8"))
+        bin_offset = 20 + json_len + 8
+        images = gltf.get("images", [])
+        if not images:
+            return False
+        bv = gltf["bufferViews"][images[0]["bufferView"]]
+        start = bin_offset + bv.get("byteOffset", 0)
+        img_bytes = data[start : start + bv["byteLength"]]
+        if not img_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            return False
+        out_png.parent.mkdir(parents=True, exist_ok=True)
+        out_png.write_bytes(img_bytes)
+        return True
+    except Exception as exc:
+        unreal.log_warning(f"[ABFP] Could not extract embedded PNG from {glb_path}: {exc}")
+        return False
+
+
+def build_kaykit_dungeon_material(raw_root: Path, unreal_mat_folder: str):
+    """Build a single ISM-safe Material using KayKit Dungeon's embedded palette texture
+    so every KayKit prop (doors, pillars, torches, banners, barrels, crates, candles)
+    renders with full medieval colors and zero InstancedStaticMeshes warnings."""
+    terrain_dir = raw_root / "terrain"
+    palette_png = terrain_dir / "kaykit_dungeon_palette.png"
+    if not palette_png.is_file() and terrain_dir.exists():
+        for glb in sorted(terrain_dir.glob("*.glb")):
+            if extract_glb_embedded_png(glb, palette_png):
+                unreal.log(f"[ABFP] Extracted KayKit dungeon palette PNG from {glb.name}")
+                break
+
+    if not palette_png.is_file():
+        return None
+
+    tex_folder = "/Game/Assets/Materials/Textures/KayKitDungeon"
+    paths = import_asset(palette_png, tex_folder, asset_name="T_KayKitDungeonPalette")
+    palette_tex = find_asset_in_paths_or_folder(paths, tex_folder, unreal.Texture2D, "KayKitDungeonPalette")
+    if not palette_tex:
+        return None
+
+    if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):
+        unreal.EditorAssetLibrary.make_directory(unreal_mat_folder)
+
+    mat_name = "M_ABFP_KayKitDungeon"
+    mat_asset_path = f"{unreal_mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, unreal_mat_folder, unreal.Material, factory
+        )
+
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+
+    tex_node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -140)
+    tex_node.texture = palette_tex
+    mel.connect_material_property(tex_node, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+
+    rough_const = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 140)
+    rough_const.set_editor_property("r", 0.78)
+    mel.connect_material_property(rough_const, "", unreal.MaterialProperty.MP_ROUGHNESS)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
+def build_remembered_material(unreal_mat_folder: str):
+    """Build a dark cool-stone ISM-safe Material for explored fog-of-war cells."""
+    if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):
+        unreal.EditorAssetLibrary.make_directory(unreal_mat_folder)
+
+    mat_name = "M_ABFP_RememberedStone"
+    mat_asset_path = f"{unreal_mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, unreal_mat_folder, unreal.Material, factory
+        )
+
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+
+    col = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -100)
+    col.set_editor_property("constant", unreal.LinearColor(0.055, 0.062, 0.08, 1.0))
+    mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+
+    rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 100)
+    rough.set_editor_property("r", 0.92)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
 
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
@@ -362,8 +493,10 @@ def main():
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    # 1. Build Poly Haven 2K PBR Materials + ISM-safe master & flame materials
+    # 1. Build Poly Haven 2K PBR Materials + ISM-safe KayKit, Remembered & Flame materials
     instanced_master_mat = build_instanced_master_material("/Game/Assets/Materials")
+    kaykit_dungeon_mat = build_kaykit_dungeon_material(raw_root, "/Game/Assets/Materials")
+    remembered_mat = build_remembered_material("/Game/Assets/Materials")
     torch_flame_mat = build_torch_flame_material("/Game/Assets/Materials")
     materials_by_name = {}
     for entry in manifest.get("pbr_materials", []):
@@ -426,14 +559,48 @@ def main():
     vein_variants = []
     pillar_variants = []
     wall_decor_variants = []
+    ceiling_variants = []
 
-    # 4. Import Modular Dungeon Terrain Meshes
+    # 4a. Build watertight solid 400x400x320cm Walls/Veins and 400x400x12cm Floors/Ceilings
+    # using UE's box-UV BasicShapes/Cube paired with our 2K Poly Haven PBR stone/cobble materials.
+    # This eliminates open-slab alcoves, corner gaps, and KayKit collapsed palette UVs.
+    cube_mesh = unreal.EditorAssetLibrary.load_asset("/Engine/BasicShapes/Cube")
+    if cube_mesh:
+        for mat_name in ("M_DungeonFloor_Slate", "M_DungeonFloor_Worn"):
+            mat = materials_by_name.get(mat_name)
+            if mat:
+                floor_variants.append(
+                    make_mesh_variant(cube_mesh, material=mat, scale=(4.0, 4.0, 0.12), loc=(0.0, 0.0, -6.0))
+                )
+        town_cobble = materials_by_name.get("M_TownFloor_Cobble") or materials_by_name.get("M_DungeonFloor_Slate")
+        if town_cobble:
+            town_floor_variants.append(
+                make_mesh_variant(cube_mesh, material=town_cobble, scale=(4.0, 4.0, 0.12), loc=(0.0, 0.0, -6.0))
+            )
+        ceil_mat = materials_by_name.get("M_DungeonCeiling_Stone") or materials_by_name.get("M_DungeonWall_Ashlar")
+        if ceil_mat:
+            ceiling_variants.append(
+                make_mesh_variant(cube_mesh, material=ceil_mat, scale=(4.0, 4.0, 0.12), loc=(0.0, 0.0, 6.0))
+            )
+        for mat_name in ("M_DungeonWall_Ashlar", "M_DungeonWall_Brick"):
+            mat = materials_by_name.get(mat_name)
+            if mat:
+                wall_variants.append(
+                    make_mesh_variant(cube_mesh, material=mat, scale=(4.0, 4.0, 3.2), loc=(0.0, 0.0, 160.0))
+                )
+        vein_mat = materials_by_name.get("M_DungeonVein_Rock")
+        if vein_mat:
+            vein_variants.append(
+                make_mesh_variant(cube_mesh, material=vein_mat, scale=(4.0, 4.0, 3.2), loc=(0.0, 0.0, 160.0))
+            )
+
+    # 4b. Import Modular Dungeon Props (Pillars, Doors, Stairs, Traps, Torches, Shop Archways, Wall Decor)
     for entry in manifest.get("terrain_meshes", []):
         src = raw_root / entry["dest"]
         if not src.exists():
             continue
         try:
-            unreal.log(f"[ABFP] Importing terrain mesh {entry['id']}...")
+            unreal.log(f"[ABFP] Importing terrain prop {entry['id']}...")
             dest_sub = f"{entry['unreal_dest']}/{entry['id']}"
             paths = import_asset(src, dest_sub, is_skeletal=False)
             mesh = find_asset_in_paths_or_folder(paths, dest_sub, unreal.StaticMesh)
@@ -443,7 +610,7 @@ def main():
 
             mat_override = materials_by_name.get(entry.get("material_override", ""))
             if not mat_override:
-                mat_override = make_instanced_material_for_mesh(
+                mat_override = kaykit_dungeon_mat or make_instanced_material_for_mesh(
                     entry["id"], paths, dest_sub, instanced_master_mat
                 )
             assign_material_all_slots(mesh, mat_override)
@@ -489,18 +656,6 @@ def main():
         except Exception as exc:
             unreal.log_warning(f"[ABFP] Failed importing terrain {entry['id']}: {exc}")
 
-    ceiling_variants = []
-    if floor_variants:
-        ceil_mat = materials_by_name.get("M_DungeonCeiling_Stone")
-        ceiling_variants.append(
-            make_mesh_variant(
-                floor_variants[0].get_editor_property("mesh"),
-                material=ceil_mat,
-                scale=(1.0, 1.0, 1.0),
-                rot=(180.0, 0.0, 0.0),
-            )
-        )
-
     dungeon_terrain.set_editor_property("floor_variants", floor_variants)
     dungeon_terrain.set_editor_property("ceiling_variants", ceiling_variants)
     dungeon_terrain.set_editor_property("wall_variants", wall_variants)
@@ -509,7 +664,11 @@ def main():
     dungeon_terrain.set_editor_property("wall_decor_variants", wall_decor_variants)
     town_terrain.set_editor_property("floor_variants", town_floor_variants or floor_variants)
     town_terrain.set_editor_property("wall_variants", wall_variants)
+    town_terrain.set_editor_property("wall_pillar_variants", pillar_variants)
     town_terrain.set_editor_property("wall_decor_variants", wall_decor_variants)
+    if remembered_mat:
+        dungeon_terrain.set_editor_property("remembered_material_override", remembered_mat)
+        town_terrain.set_editor_property("remembered_material_override", remembered_mat)
 
     catalog.set_editor_property("dungeon_terrain", dungeon_terrain)
     catalog.set_editor_property("town_terrain", town_terrain)
@@ -530,12 +689,12 @@ def main():
             if entry["id"] == "Lantern_01" and hero_mesh:
                 catalog.set_editor_property(
                     "first_person_lantern",
-                    make_mesh_variant(hero_mesh, scale=(0.40, 0.40, 0.40), loc=(0.0, 0.0, 0.0), rot=(0.0, 180.0, 0.0)),
+                    make_mesh_variant(hero_mesh, scale=(0.95, 0.95, 0.95), loc=(0.0, 0.0, 0.0), rot=(0.0, 180.0, 0.0)),
                 )
             elif entry["id"] == "antique_estoc" and hero_mesh:
                 catalog.set_editor_property(
                     "first_person_weapon",
-                    make_mesh_variant(hero_mesh, scale=(0.46, 0.46, 0.46), loc=(0.0, 0.0, 0.0), rot=(62.0, -18.0, 12.0)),
+                    make_mesh_variant(hero_mesh, scale=(0.65, 0.65, 0.65), loc=(0.0, 0.0, -6.0), rot=(38.0, -25.0, 12.0)),
                 )
             if "catalog_item" in entry:
                 ci = entry["catalog_item"]
@@ -589,6 +748,7 @@ def main():
 
     # 7. Import Creatures (Skeletal + Static Fallbacks + Idle Animations + Audio)
     creature_entries = []
+    default_creature_entry = None
     for entry in manifest.get("creatures", []):
         src = raw_root / entry["dest"]
         if not src.exists():
@@ -606,6 +766,22 @@ def main():
             idle_anim = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
             hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
             death_sound = audio_by_id.get(entry.get("death_sound", ""))
+
+            if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and skel_mesh is not None):
+                dc = unreal.ABFPCreatureVisualEntry()
+                dc.set_editor_property("entry_name", f"Default_{entry['id']}")
+                if skel_mesh:
+                    dc.set_editor_property("skeletal_mesh", skel_mesh)
+                    if idle_anim:
+                        dc.set_editor_property("idle_anim", idle_anim)
+                elif static_mesh:
+                    dc.set_editor_property("static_mesh_fallback", static_mesh)
+                dc.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
+                if hit_sound:
+                    dc.set_editor_property("hit_sound", hit_sound)
+                if death_sound:
+                    dc.set_editor_property("death_sound", death_sound)
+                default_creature_entry = dc
 
             for keyword in entry.get("keywords", []):
                 ce = unreal.ABFPCreatureVisualEntry()
@@ -628,6 +804,8 @@ def main():
             unreal.log_warning(f"[ABFP] Failed importing creature {entry['id']}: {exc}")
 
     catalog.set_editor_property("creatures", creature_entries)
+    if default_creature_entry:
+        catalog.set_editor_property("default_creature", default_creature_entry)
 
     # 8. Set DX11/SM5 non-inverse-square torchlight intensity defaults on the catalog
     catalog.set_editor_property("room_torch_intensity", 5.5)

@@ -9,6 +9,8 @@ class UInstancedStaticMeshComponent;
 class USceneComponent;
 class UExponentialHeightFogComponent;
 class USkyLightComponent;
+class USkyAtmosphereComponent;
+class UDirectionalLightComponent;
 class UPointLightComponent;
 class UPostProcessComponent;
 class UMaterialInterface;
@@ -101,6 +103,8 @@ private:
 
     UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> DungeonFog;
     UPROPERTY() TObjectPtr<USkyLightComponent> AmbientSky;
+    UPROPERTY() TObjectPtr<USkyAtmosphereComponent> TownSky;
+    UPROPERTY() TObjectPtr<UDirectionalLightComponent> TownSunLight;
     UPROPERTY() TObjectPtr<UPostProcessComponent> AtmospherePostProcess;
     UPROPERTY(Transient) TArray<TObjectPtr<UPointLightComponent>> RoomLights;
     UPROPERTY(Transient) TArray<float> RoomLightPhases;

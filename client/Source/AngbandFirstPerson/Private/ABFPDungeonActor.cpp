@@ -3,11 +3,13 @@
 #include "ABFPCreatureActor.h"
 #include "ABFPItemActor.h"
 #include "ABFPVisualCatalog.h"
+#include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -96,6 +98,19 @@ AABFPDungeonActor::AABFPDungeonActor()
     AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
     AmbientSky->SetupAttachment(SceneRoot);
     AmbientSky->SetIntensity(0.95f);
+
+    TownSky = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("TownSky"));
+    TownSky->SetupAttachment(SceneRoot);
+    TownSky->SetVisibility(false);
+
+    TownSunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("TownSunLight"));
+    TownSunLight->SetupAttachment(SceneRoot);
+    TownSunLight->SetRelativeRotation(FRotator(-28.0f, -45.0f, 0.0f));
+    TownSunLight->SetIntensity(2.4f);
+    TownSunLight->SetLightColor(FLinearColor(1.0f, 0.84f, 0.66f));
+    TownSunLight->SetAtmosphereSunLight(true);
+    TownSunLight->SetCastShadows(true);
+    TownSunLight->SetVisibility(false);
 
     AtmospherePostProcess = CreateDefaultSubobject<UPostProcessComponent>(TEXT("AtmospherePostProcess"));
     AtmospherePostProcess->SetupAttachment(SceneRoot);
@@ -331,12 +346,20 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     if (ConfiguredVisualDepthCategory == DepthCategory) return;
     ConfiguredVisualDepthCategory = DepthCategory;
 
+    if (TownSky)
+    {
+        TownSky->SetVisibility(DepthCategory == 0);
+    }
+    if (TownSunLight)
+    {
+        TownSunLight->SetVisibility(DepthCategory == 0);
+    }
     if (AmbientSky)
     {
         if (DepthCategory == 0)
         {
-            AmbientSky->SetIntensity(1.55f);
-            AmbientSky->SetLightColor(FLinearColor(0.95f, 0.88f, 0.78f));
+            AmbientSky->SetIntensity(1.15f);
+            AmbientSky->SetLightColor(FLinearColor(0.88f, 0.86f, 0.96f));
         }
         else if (DepthCategory == 1)
         {
@@ -795,19 +818,24 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
         else if (Cell.Terrain == EABFPTerrain::Shop)
         {
+            const bool bWallsNS = IsWallAt(Cell.X, Cell.Y - 1) || IsWallAt(Cell.X, Cell.Y + 1);
+            const bool bWallsEW = IsWallAt(Cell.X - 1, Cell.Y) || IsWallAt(Cell.X + 1, Cell.Y);
+            const float ShopYaw = (bWallsNS && !bWallsEW) ? 90.0f : 0.0f;
+            const FRotator ShopRot(0.0f, ShopYaw, 0.0f);
+
             if (TerrainSet && TerrainSet->ShopFacade.IsValid())
             {
-                Shops->AddInstance(ComposeVariantTransform(Tile, FRotator::ZeroRotator, TerrainSet->ShopFacade));
+                Shops->AddInstance(ComposeVariantTransform(Tile, ShopRot, TerrainSet->ShopFacade));
             }
             else
             {
-                Shops->AddInstance(FTransform(FRotator::ZeroRotator,
-                    Tile + FVector(0.0f, -CellSize * 0.42f, 110.0f),
+                Shops->AddInstance(FTransform(ShopRot,
+                    Tile + ShopRot.RotateVector(FVector(0.0f, -CellSize * 0.42f, 110.0f)),
                     FVector(0.18f, 0.18f, 2.2f)));
-                Shops->AddInstance(FTransform(FRotator::ZeroRotator,
-                    Tile + FVector(0.0f, CellSize * 0.42f, 110.0f),
+                Shops->AddInstance(FTransform(ShopRot,
+                    Tile + ShopRot.RotateVector(FVector(0.0f, CellSize * 0.42f, 110.0f)),
                     FVector(0.18f, 0.18f, 2.2f)));
-                Shops->AddInstance(FTransform(FRotator::ZeroRotator,
+                Shops->AddInstance(FTransform(ShopRot,
                     Tile + FVector(0.0f, 0.0f, 220.0f),
                     FVector(0.20f, CellScaleXY, 0.22f)));
             }
@@ -850,8 +878,9 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
 
         /* Non-blocking decorative medieval wall props (banners, barrels, crates, shelves) along room edges. */
+        const uint32 DecorMod = (Snapshot.DungeonDepth == 0) ? 11u : 7u;
         if (Cell.bVisible && Cell.Terrain == EABFPTerrain::Floor && CustomWallDecorPools.Num() > 0 &&
-            (CellHash % 7u) == 0u)
+            (CellHash % DecorMod) == 0u)
         {
             static const FIntPoint DecorDirs[4] = {
                 FIntPoint(0, -1), FIntPoint(1, 0), FIntPoint(0, 1), FIntPoint(-1, 0)
