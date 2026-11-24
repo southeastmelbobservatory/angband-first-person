@@ -409,10 +409,18 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     ConfigureMeshPool(CustomPillarPools, TerrainSet.WallPillarVariants, nullptr, true, TEXT("CustomPillar"));
     ConfigureMeshPool(CustomWallDecorPools, TerrainSet.WallDecorVariants, nullptr, false, TEXT("CustomWallDecor"));
 
-    ConfigureSingleLayer(DoorFrames, TerrainSet.DoorFrame, FallbackCubeMesh, FallbackDoorFrameMat, nullptr);
-    ConfigureSingleLayer(DoorsClosed, TerrainSet.DoorClosedPanel, FallbackCubeMesh, FallbackDoorMat, nullptr);
-    ConfigureSingleLayer(DoorsOpen, TerrainSet.DoorOpenPanel, FallbackCubeMesh, FallbackDoorMat, nullptr);
-    ConfigureSingleLayer(DoorsBroken, TerrainSet.DoorBrokenPanel, FallbackCubeMesh, FallbackDoorMat, nullptr);
+    ConfigureSingleLayer(DoorFrames, TerrainSet.DoorFrame, FallbackCubeMesh,
+        TerrainSet.DoorFrame.MaterialOverride ? TerrainSet.DoorFrame.MaterialOverride.Get() : FallbackDoorFrameMat.Get(),
+        nullptr);
+    ConfigureSingleLayer(DoorsClosed, TerrainSet.DoorClosedPanel, FallbackCubeMesh,
+        TerrainSet.DoorClosedPanel.MaterialOverride ? TerrainSet.DoorClosedPanel.MaterialOverride.Get() : FallbackDoorMat.Get(),
+        nullptr);
+    ConfigureSingleLayer(DoorsOpen, TerrainSet.DoorOpenPanel, FallbackCubeMesh,
+        TerrainSet.DoorOpenPanel.MaterialOverride ? TerrainSet.DoorOpenPanel.MaterialOverride.Get() : FallbackDoorMat.Get(),
+        nullptr);
+    ConfigureSingleLayer(DoorsBroken, TerrainSet.DoorBrokenPanel, FallbackCubeMesh,
+        TerrainSet.DoorBrokenPanel.MaterialOverride ? TerrainSet.DoorBrokenPanel.MaterialOverride.Get() : FallbackDoorMat.Get(),
+        nullptr);
     ConfigureSingleLayer(StairsUp, TerrainSet.StairsUp, FallbackCubeMesh, FallbackUpStairMat, nullptr);
     ConfigureSingleLayer(StairsDown, TerrainSet.StairsDown, FallbackCubeMesh, FallbackDownStairMat, nullptr);
     ConfigureSingleLayer(Rubble, TerrainSet.Rubble, FallbackCubeMesh, FallbackRubbleMat, nullptr);
@@ -834,20 +842,16 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             }
             else
             {
-                /* Full-height warm oak timber shop portal (left jamb, right jamb, heavy signboard lintel & awning). */
+                /* Full-height warm 2K dark-oak timber shop portal (left jamb, right jamb, heavy header beam & signboard). */
                 Shops->AddInstance(FTransform(ShopRot,
-                    Tile + ShopRot.RotateVector(FVector(-CellSize * 0.42f, 0.0f, WallHeight * 0.46f)),
-                    FVector(0.42f, 0.56f, (WallHeight * 0.92f) / 100.0f)));
+                    Tile + ShopRot.RotateVector(FVector(-CellSize * 0.43f, 0.0f, WallHeight * 0.50f)),
+                    FVector(0.54f, 0.72f, WallScaleZ)));
                 Shops->AddInstance(FTransform(ShopRot,
-                    Tile + ShopRot.RotateVector(FVector(CellSize * 0.42f, 0.0f, WallHeight * 0.46f)),
-                    FVector(0.42f, 0.56f, (WallHeight * 0.92f) / 100.0f)));
+                    Tile + ShopRot.RotateVector(FVector(CellSize * 0.43f, 0.0f, WallHeight * 0.50f)),
+                    FVector(0.54f, 0.72f, WallScaleZ)));
                 Shops->AddInstance(FTransform(ShopRot,
                     Tile + FVector(0.0f, 0.0f, WallHeight * 0.90f),
-                    FVector(CellScaleXY, 0.72f, 0.68f)));
-                /* Upper shop parapet wall so it meets adjacent 320cm stone walls flush with zero gap. */
-                DoorFrames->AddInstance(FTransform(ShopRot,
-                    Tile + FVector(0.0f, 0.0f, WallHeight * 0.96f),
-                    FVector(CellScaleXY, 1.1f, 0.28f)));
+                    FVector(CellScaleXY, 0.84f, 0.64f)));
             }
         }
         else if (Cell.Terrain == EABFPTerrain::Trap)

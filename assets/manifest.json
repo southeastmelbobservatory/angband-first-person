@@ -236,82 +236,22 @@
   ],
   "terrain_meshes": [
     {
-      "id": "kk_pillar",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/pillar.gltf.glb",
-      "dest": "terrain/pillar.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.pillar",
-      "scale": [
-        0.65,
-        0.65,
-        0.8
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_pillar_decorated",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/pillar_decorated.gltf.glb",
-      "dest": "terrain/pillar_decorated.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.pillar",
-      "scale": [
-        0.65,
-        0.65,
-        0.8
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_wall_doorway",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_doorway.glb",
-      "dest": "terrain/wall_doorway.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.door_frame",
-      "scale": [
-        1.0,
-        1.0,
-        0.8
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_wall_gated",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_gated.gltf.glb",
-      "dest": "terrain/wall_gated.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.door_closed",
-      "scale": [
-        1.0,
-        1.0,
-        0.8
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_wall_doorway_open",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_doorway_sides.gltf.glb",
-      "dest": "terrain/wall_doorway_sides.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.door_open",
-      "scale": [
-        1.0,
-        1.0,
-        0.8
-      ],
-      "license": "CC0-1.0"
-    },
-    {
       "id": "kk_stairs_up",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/stairs_walled.gltf.glb",
       "dest": "terrain/stairs_walled.glb",
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.stairs_up",
       "scale": [
-        0.8,
-        1.0,
-        0.8
+        0.68,
+        0.68,
+        0.68
       ],
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "location_offset": [
+        0,
+        0,
+        0
+      ]
     },
     {
       "id": "kk_stairs_down",
@@ -320,16 +260,21 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.stairs_down",
       "scale": [
-        1.0,
-        1.0,
-        0.8
+        0.52,
+        0.52,
+        0.52
       ],
       "rotation_offset": [
         0,
         180,
         0
       ],
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "location_offset": [
+        0,
+        0,
+        0
+      ]
     },
     {
       "id": "kk_rubble_large",
@@ -338,11 +283,16 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.rubble",
       "scale": [
-        1.2,
-        1.2,
-        1.2
+        0.45,
+        0.45,
+        0.45
       ],
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "location_offset": [
+        0,
+        0,
+        0
+      ]
     },
     {
       "id": "kk_trap_spikes",
@@ -377,14 +327,14 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.wall_decor",
       "scale": [
-        0.85,
-        0.85,
-        0.85
+        0.72,
+        0.72,
+        0.72
       ],
       "location_offset": [
         0,
         0,
-        145
+        0
       ],
       "license": "CC0-1.0"
     },
@@ -395,14 +345,14 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.wall_decor",
       "scale": [
-        0.85,
-        0.85,
-        0.85
+        0.72,
+        0.72,
+        0.72
       ],
       "location_offset": [
         0,
         0,
-        145
+        0
       ],
       "license": "CC0-1.0"
     },
@@ -413,9 +363,9 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.wall_decor",
       "scale": [
-        0.75,
-        0.75,
-        0.75
+        0.55,
+        0.55,
+        0.55
       ],
       "location_offset": [
         0,
@@ -431,32 +381,14 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.wall_decor",
       "scale": [
-        0.68,
-        0.68,
-        0.68
+        0.52,
+        0.52,
+        0.52
       ],
       "location_offset": [
         0,
         0,
         0
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_decor_wall_shelves",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_shelves.gltf.glb",
-      "dest": "terrain/wall_shelves.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.wall_decor",
-      "scale": [
-        0.85,
-        0.85,
-        0.85
-      ],
-      "location_offset": [
-        0,
-        0,
-        115
       ],
       "license": "CC0-1.0"
     },
@@ -467,9 +399,27 @@
       "unreal_dest": "/Game/Assets/Terrain",
       "catalog_slot": "dungeon.wall_decor",
       "scale": [
-        1.15,
-        1.15,
-        1.15
+        0.85,
+        0.85,
+        0.85
+      ],
+      "location_offset": [
+        0,
+        0,
+        0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_decor_shelves",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/shelves.gltf.glb",
+      "dest": "terrain/shelves.glb",
+      "unreal_dest": "/Game/Assets/Terrain",
+      "catalog_slot": "dungeon.wall_decor",
+      "scale": [
+        0.82,
+        0.82,
+        0.82
       ],
       "location_offset": [
         0,
