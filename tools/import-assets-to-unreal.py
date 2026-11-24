@@ -99,10 +99,24 @@ def find_asset_in_paths_or_folder(imported_paths: list, folder_path: str, asset_
 def connect_uv_to_sampler(mel, uv_node, sampler_node):
     for pin_name in ("UVs", "Coordinates"):
         try:
-            mel.connect_material_expressions(uv_node, "", sampler_node, pin_name)
-            return
+            if mel.connect_material_expressions(uv_node, "", sampler_node, pin_name):
+                return True
         except Exception:
             continue
+    return False
+
+
+def connect_rgb_to_property(mel, from_node, mat_prop, label=""):
+    """Connect a TextureSample/TextureSampleParameter2D RGB output to a material property.
+    In UE 5.x, TextureSample output 0 (RGB) is named '' (NAME_None), not 'RGB'."""
+    for out_pin in ("", "RGBA", "RGB"):
+        try:
+            if mel.connect_material_property(from_node, out_pin, mat_prop):
+                return True
+        except Exception:
+            continue
+    unreal.log_warning(f"[ABFP] Failed connecting {label} output pin to {mat_prop}")
+    return False
 
 
 def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unreal_mat_folder: str, uv_tiling: float = 2.0):
@@ -162,14 +176,14 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -240)
         node.texture = diff_tex
         connect_uv_to_sampler(mel, uv_node, node)
-        mel.connect_material_property(node, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+        connect_rgb_to_property(mel, node, unreal.MaterialProperty.MP_BASE_COLOR, f"{mat_name}.BaseColor")
 
     if nor_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, 40)
         node.texture = nor_tex
         node.sampler_type = unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL
         connect_uv_to_sampler(mel, uv_node, node)
-        mel.connect_material_property(node, "RGB", unreal.MaterialProperty.MP_NORMAL)
+        connect_rgb_to_property(mel, node, unreal.MaterialProperty.MP_NORMAL, f"{mat_name}.Normal")
 
     if arm_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, 320)
@@ -253,7 +267,7 @@ def build_kaykit_dungeon_material(raw_root: Path, unreal_mat_folder: str):
 
     tex_node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -140)
     tex_node.texture = palette_tex
-    mel.connect_material_property(tex_node, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+    connect_rgb_to_property(mel, tex_node, unreal.MaterialProperty.MP_BASE_COLOR, "KayKitDungeon.BaseColor")
 
     rough_const = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 140)
     rough_const.set_editor_property("r", 0.78)
@@ -370,7 +384,7 @@ def build_instanced_master_material(unreal_mat_folder: str):
         mat, unreal.MaterialExpressionTextureSampleParameter2D, -420, -140
     )
     tex_param.set_editor_property("parameter_name", "BaseColorTexture")
-    mel.connect_material_property(tex_param, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+    connect_rgb_to_property(mel, tex_param, unreal.MaterialProperty.MP_BASE_COLOR, "InstancedMaster.BaseColor")
 
     rough_const = mel.create_material_expression(
         mat, unreal.MaterialExpressionConstant, -320, 140
@@ -464,6 +478,36 @@ def build_torch_flame_material(unreal_mat_folder: str):
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
     return mat
+
+
+def compute_creature_fit(mesh, entry: dict):
+    """Compute uniform scale and floor-grounding Z offset from the imported Unreal mesh bounds
+    so every creature matches its target_height_cm and stands cleanly on the floor."""
+    fallback_scale = tuple(entry.get("scale", [1.0, 1.0, 1.0]))
+    base_loc = list(entry.get("location_offset", [0.0, 0.0, 0.0]))
+    target_h = float(entry.get("target_height_cm", 0.0))
+    if not mesh or target_h <= 0.0:
+        return fallback_scale, tuple(base_loc)
+    try:
+        bounds = mesh.get_bounds()
+        ext = bounds.box_extent
+        orig = bounds.origin
+        raw_h = max(1.0, float(ext.z) * 2.0)
+        raw_xy = max(1.0, float(ext.x) * 2.0, float(ext.y) * 2.0)
+        fit_scale = min(target_h / raw_h, 310.0 / raw_xy)
+        fit_scale = max(0.01, min(fit_scale, 30.0))
+        bottom_z = float(orig.z) - float(ext.z)
+        # Ground the mesh cleanly onto Z=0 if its pivot is centered instead of at its feet
+        if abs(bottom_z) > 2.0:
+            base_loc[2] = float(base_loc[2]) - bottom_z * fit_scale
+        unreal.log(
+            f"[ABFP] Fitted {entry['id']}: raw=({ext.x*2:.0f}x{ext.y*2:.0f}x{raw_h:.0f}cm) "
+            f"-> scale={fit_scale:.3f}, z_off={base_loc[2]:.1f}cm (target_h={target_h:.0f}cm)"
+        )
+        return (fit_scale, fit_scale, fit_scale), tuple(base_loc)
+    except Exception as exc:
+        unreal.log_warning(f"[ABFP] Could not compute bounds for {entry['id']}: {exc}")
+        return fallback_scale, tuple(base_loc)
 
 
 def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0)):
@@ -766,6 +810,7 @@ def main():
             idle_anim = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
             hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
             death_sound = audio_by_id.get(entry.get("death_sound", ""))
+            fit_scale, fit_loc = compute_creature_fit(skel_mesh or static_mesh, entry)
 
             if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and skel_mesh is not None):
                 dc = unreal.ABFPCreatureVisualEntry()
@@ -776,7 +821,8 @@ def main():
                         dc.set_editor_property("idle_anim", idle_anim)
                 elif static_mesh:
                     dc.set_editor_property("static_mesh_fallback", static_mesh)
-                dc.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
+                dc.set_editor_property("scale", unreal.Vector(*fit_scale))
+                dc.set_editor_property("location_offset", unreal.Vector(*fit_loc))
                 if hit_sound:
                     dc.set_editor_property("hit_sound", hit_sound)
                 if death_sound:
@@ -793,8 +839,8 @@ def main():
                         ce.set_editor_property("idle_anim", idle_anim)
                 elif static_mesh:
                     ce.set_editor_property("static_mesh_fallback", static_mesh)
-                ce.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
-                ce.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 0])))
+                ce.set_editor_property("scale", unreal.Vector(*fit_scale))
+                ce.set_editor_property("location_offset", unreal.Vector(*fit_loc))
                 if hit_sound:
                     ce.set_editor_property("hit_sound", hit_sound)
                 if death_sound:

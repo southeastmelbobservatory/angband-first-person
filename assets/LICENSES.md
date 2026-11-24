@@ -17,7 +17,7 @@ All external assets referenced in [manifest.json](manifest.json) and fetched by 
    - Rigged & animated `Orc`, `Demon`, `BlueDemon`, `CreepCreature`, plus CC0 combat/footstep `.wav` effects.
 
 4. **CC0 Monsters Catalog** (`https://github.com/oosawak/cc0-monsters`, sourced from OpenGameArt & Grab3D CC0 releases) — **CC0 1.0 Universal**
-   - `giant_rat`, `slime`, `spider`, `bat`, `cobra`, `wolf`, `zombie_rigged`, `stone_golem_rigged`, `gargoyle`, `mimic`, `dragon`, `crystal_dragon`, `wyvern`, `werewolf_rigged`, `yeti_rigged`, `hydra`, `griffin`, `phoenix`, `horror_monster`, `kraken`, `sabertooth`, `bear`, `hornet`, `auroch_bull`.
+   - `mouse`, `giant_rat`, `house_cat`, `town_dog`, `red_fox`, `slime`, `spider`, `bat`, `cobra`, `crocodile`, `wolf`, `zombie_rigged`, `forest_monster`, `stone_golem_rigged`, `gargoyle`, `mimic`, `baby_dragon`, `dragon`, `crystal_dragon`, `wyvern`, `werewolf_rigged`, `gorilla`, `yeti_rigged`, `hydra`, `raven`, `eagle`, `griffin`, `phoenix`, `horror_monster`, `kraken`, `sabertooth`, `mammoth`, `unicorn`, `spirit_stag`, `bear`, `hornet`, `auroch_bull`.
 
 ## Updating or Replacing Assets
 
