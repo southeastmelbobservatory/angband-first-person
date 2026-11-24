@@ -770,7 +770,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 38
+      "target_height_cm": 38,
+      "fallback_color": [
+        0.34,
+        0.3,
+        0.27
+      ],
+      "fallback_roughness": 0.78
     },
     {
       "id": "cc0_giant_rat",
@@ -790,7 +796,14 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 78
+      "target_height_cm": 78,
+      "use_vertex_color": true,
+      "fallback_color": [
+        0.28,
+        0.22,
+        0.18
+      ],
+      "fallback_roughness": 0.75
     },
     {
       "id": "cc0_slime",
@@ -822,7 +835,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 96
+      "target_height_cm": 96,
+      "fallback_color": [
+        0.1,
+        0.56,
+        0.22
+      ],
+      "fallback_roughness": 0.16
     },
     {
       "id": "cc0_spider",
@@ -853,7 +872,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 95
+      "target_height_cm": 95,
+      "fallback_color": [
+        0.09,
+        0.07,
+        0.08
+      ],
+      "fallback_roughness": 0.42
     },
     {
       "id": "cc0_vampire_bat",
@@ -910,7 +935,14 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 115
+      "target_height_cm": 115,
+      "use_vertex_color": true,
+      "fallback_color": [
+        0.16,
+        0.34,
+        0.14
+      ],
+      "fallback_roughness": 0.45
     },
     {
       "id": "cc0_reptile_croc",
@@ -936,7 +968,14 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 72
+      "target_height_cm": 72,
+      "use_vertex_color": true,
+      "fallback_color": [
+        0.18,
+        0.3,
+        0.15
+      ],
+      "fallback_roughness": 0.55
     },
     {
       "id": "cc0_house_cat",
@@ -959,7 +998,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 52
+      "target_height_cm": 52,
+      "fallback_color": [
+        0.46,
+        0.3,
+        0.16
+      ],
+      "fallback_roughness": 0.78
     },
     {
       "id": "cc0_town_dog",
@@ -982,7 +1027,13 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 64
+      "target_height_cm": 64,
+      "fallback_color": [
+        0.5,
+        0.36,
+        0.22
+      ],
+      "fallback_roughness": 0.78
     },
     {
       "id": "cc0_fox",
@@ -1031,7 +1082,13 @@
       "hit_sound": "grunt_hurt",
       "death_sound": "grunt_death",
       "license": "CC0-1.0",
-      "target_height_cm": 115
+      "target_height_cm": 115,
+      "fallback_color": [
+        0.24,
+        0.23,
+        0.22
+      ],
+      "fallback_roughness": 0.78
     },
     {
       "id": "cc0_zombie",
@@ -1083,7 +1140,13 @@
       "hit_sound": "brute_hurt",
       "death_sound": "brute_death",
       "license": "CC0-1.0",
-      "target_height_cm": 265
+      "target_height_cm": 265,
+      "fallback_color": [
+        0.18,
+        0.26,
+        0.11
+      ],
+      "fallback_roughness": 0.85
     },
     {
       "id": "cc0_stone_golem",
@@ -1426,7 +1489,14 @@
       "hit_sound": "brute_hurt",
       "death_sound": "brute_death",
       "license": "CC0-1.0",
-      "target_height_cm": 195
+      "target_height_cm": 195,
+      "use_vertex_color": true,
+      "fallback_color": [
+        0.16,
+        0.15,
+        0.15
+      ],
+      "fallback_roughness": 0.8
     },
     {
       "id": "cc0_yeti",
@@ -1497,7 +1567,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 72
+      "target_height_cm": 72,
+      "fallback_color": [
+        0.06,
+        0.06,
+        0.08
+      ],
+      "fallback_roughness": 0.45
     },
     {
       "id": "cc0_eagle",
@@ -1525,7 +1601,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 95
+      "target_height_cm": 95,
+      "fallback_color": [
+        0.32,
+        0.21,
+        0.11
+      ],
+      "fallback_roughness": 0.72
     },
     {
       "id": "cc0_griffin",
@@ -1749,7 +1831,13 @@
       "hit_sound": "brute_hurt",
       "death_sound": "brute_death",
       "license": "CC0-1.0",
-      "target_height_cm": 210
+      "target_height_cm": 210,
+      "fallback_color": [
+        0.22,
+        0.14,
+        0.09
+      ],
+      "fallback_roughness": 0.82
     },
     {
       "id": "cc0_hornet",
@@ -1791,7 +1879,13 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 88
+      "target_height_cm": 88,
+      "fallback_color": [
+        0.74,
+        0.48,
+        0.06
+      ],
+      "fallback_roughness": 0.38
     },
     {
       "id": "cc0_auroch",
@@ -1816,7 +1910,13 @@
       "hit_sound": "brute_hurt",
       "death_sound": "brute_death",
       "license": "CC0-1.0",
-      "target_height_cm": 205
+      "target_height_cm": 205,
+      "fallback_color": [
+        0.26,
+        0.14,
+        0.08
+      ],
+      "fallback_roughness": 0.78
     }
   ],
   "item_meshes": [

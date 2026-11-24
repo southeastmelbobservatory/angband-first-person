@@ -299,7 +299,7 @@ def build_remembered_material(unreal_mat_folder: str):
     mat.set_editor_property("used_with_instanced_static_meshes", True)
 
     col = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -100)
-    col.set_editor_property("constant", unreal.LinearColor(0.055, 0.062, 0.08, 1.0))
+    col.set_editor_property("constant", unreal.LinearColor(0.14, 0.15, 0.18, 1.0))
     mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
 
     rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 100)
@@ -478,6 +478,50 @@ def build_torch_flame_material(unreal_mat_folder: str):
     return mat
 
 
+def build_creature_color_material(entry_id: str, color_rgb, use_vertex_color: bool = False, roughness: float = 0.72):
+    """Build a rich PBR Material for untextured/vertex-colored CC0 creature meshes so they never
+    appear as flat untextured white clay."""
+    mat_folder = "/Game/Assets/Materials/Creatures"
+    if not unreal.EditorAssetLibrary.does_directory_exist(mat_folder):
+        unreal.EditorAssetLibrary.make_directory(mat_folder)
+
+    mat_name = f"M_ABFP_Creature_{entry_id}"
+    mat_asset_path = f"{mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, mat_folder, unreal.Material, factory
+        )
+
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_skeletal_mesh", True)
+
+    if use_vertex_color:
+        vc = mel.create_material_expression(mat, unreal.MaterialExpressionVertexColor, -420, -140)
+        connect_rgb_to_property(mel, vc, unreal.MaterialProperty.MP_BASE_COLOR, f"{mat_name}.VertexColor")
+    else:
+        col = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -140)
+        col.set_editor_property(
+            "constant",
+            unreal.LinearColor(float(color_rgb[0]), float(color_rgb[1]), float(color_rgb[2]), 1.0),
+        )
+        mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+
+    rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 100)
+    rough.set_editor_property("r", float(roughness))
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
 def compute_creature_fit(mesh, entry: dict):
     """Compute uniform scale and floor-grounding Z offset from the imported Unreal mesh bounds
     so every creature matches its target_height_cm and stands cleanly on the floor."""
@@ -495,8 +539,9 @@ def compute_creature_fit(mesh, entry: dict):
         fit_scale = min(target_h / raw_h, 310.0 / raw_xy)
         fit_scale = max(0.01, min(fit_scale, 30.0))
         bottom_z = float(orig.z) - float(ext.z)
-        # Ground the mesh cleanly onto Z=0 if its pivot is centered instead of at its feet
-        if abs(bottom_z) > 2.0:
+        # Only lift upward if the mesh actually extends below Z=0 (centered pivot);
+        # never push already-grounded skeletal meshes (e.g. KayKit) underground!
+        if bottom_z < -5.0:
             base_loc[2] = float(base_loc[2]) - bottom_z * fit_scale
         unreal.log(
             f"[ABFP] Fitted {entry['id']}: raw=({ext.x*2:.0f}x{ext.y*2:.0f}x{raw_h:.0f}cm) "
@@ -810,6 +855,15 @@ def main():
             death_sound = audio_by_id.get(entry.get("death_sound", ""))
             fit_scale, fit_loc = compute_creature_fit(skel_mesh or static_mesh, entry)
 
+            creature_mat = None
+            if entry.get("fallback_color") or entry.get("use_vertex_color"):
+                creature_mat = build_creature_color_material(
+                    entry["id"],
+                    entry.get("fallback_color", [0.45, 0.35, 0.25]),
+                    use_vertex_color=bool(entry.get("use_vertex_color", False)),
+                    roughness=float(entry.get("fallback_roughness", 0.72)),
+                )
+
             if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and skel_mesh is not None):
                 dc = unreal.ABFPCreatureVisualEntry()
                 dc.set_editor_property("entry_name", f"Default_{entry['id']}")
@@ -819,6 +873,8 @@ def main():
                         dc.set_editor_property("idle_anim", idle_anim)
                 elif static_mesh:
                     dc.set_editor_property("static_mesh_fallback", static_mesh)
+                if creature_mat:
+                    dc.set_editor_property("material_override", creature_mat)
                 dc.set_editor_property("scale", unreal.Vector(*fit_scale))
                 dc.set_editor_property("location_offset", unreal.Vector(*fit_loc))
                 if hit_sound:
@@ -837,6 +893,8 @@ def main():
                         ce.set_editor_property("idle_anim", idle_anim)
                 elif static_mesh:
                     ce.set_editor_property("static_mesh_fallback", static_mesh)
+                if creature_mat:
+                    ce.set_editor_property("material_override", creature_mat)
                 ce.set_editor_property("scale", unreal.Vector(*fit_scale))
                 ce.set_editor_property("location_offset", unreal.Vector(*fit_loc))
                 if hit_sound:

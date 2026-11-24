@@ -98,6 +98,8 @@ AABFPDungeonActor::AABFPDungeonActor()
     AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
     AmbientSky->SetupAttachment(SceneRoot);
     AmbientSky->SetIntensity(0.95f);
+    AmbientSky->bLowerHemisphereIsBlack = false;
+    AmbientSky->SetLowerHemisphereColor(FLinearColor(0.22f, 0.20f, 0.18f));
 
     TownSky = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("TownSky"));
     TownSky->SetupAttachment(SceneRoot);
@@ -358,8 +360,8 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     {
         if (DepthCategory == 0)
         {
-            AmbientSky->SetIntensity(1.15f);
-            AmbientSky->SetLightColor(FLinearColor(0.88f, 0.86f, 0.96f));
+            AmbientSky->SetIntensity(1.35f);
+            AmbientSky->SetLightColor(FLinearColor(0.88f, 0.88f, 0.96f));
         }
         else if (DepthCategory == 1)
         {
@@ -371,6 +373,7 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
             AmbientSky->SetIntensity(0.78f);
             AmbientSky->SetLightColor(FLinearColor(0.92f, 0.68f, 0.56f));
         }
+        AmbientSky->RecaptureSky();
     }
     if (DungeonFog)
     {

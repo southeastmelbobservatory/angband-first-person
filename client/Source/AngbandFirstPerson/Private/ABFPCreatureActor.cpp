@@ -190,7 +190,11 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
         SkeletalMeshComp->SetRelativeScale3D(Entry->Scale);
         if (Entry->MaterialOverride)
         {
-            SkeletalMeshComp->SetMaterial(0, Entry->MaterialOverride);
+            const int32 NumMats = FMath::Max(1, SkeletalMeshComp->GetNumMaterials());
+            for (int32 MatIdx = 0; MatIdx < NumMats; ++MatIdx)
+            {
+                SkeletalMeshComp->SetMaterial(MatIdx, Entry->MaterialOverride);
+            }
         }
         if (Entry->AnimClass)
         {
@@ -219,7 +223,11 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
         CustomStaticMeshComp->SetRelativeScale3D(Entry->Scale);
         if (Entry->MaterialOverride)
         {
-            CustomStaticMeshComp->SetMaterial(0, Entry->MaterialOverride);
+            const int32 NumMats = FMath::Max(1, CustomStaticMeshComp->GetNumMaterials());
+            for (int32 MatIdx = 0; MatIdx < NumMats; ++MatIdx)
+            {
+                CustomStaticMeshComp->SetMaterial(MatIdx, Entry->MaterialOverride);
+            }
         }
         CustomStaticMeshComp->SetVisibility(true);
         return;
