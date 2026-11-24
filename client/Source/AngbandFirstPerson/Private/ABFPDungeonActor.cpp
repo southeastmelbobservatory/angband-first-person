@@ -629,6 +629,21 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         return Found && IsWallLike(*Found);
     };
 
+    /* Compute portal yaw so jambs span between opposite walls (works for both 2-wall corridors and 3-wall shop alcoves). */
+    auto ComputePortalYaw = [&IsWallAt](int32 X, int32 Y) -> float
+    {
+        const bool bN = IsWallAt(X, Y - 1);
+        const bool bS = IsWallAt(X, Y + 1);
+        const bool bW = IsWallAt(X - 1, Y);
+        const bool bE = IsWallAt(X + 1, Y);
+        const bool bPairNS = bN && bS;
+        const bool bPairEW = bW && bE;
+        if (bPairNS && !bPairEW) return 90.0f;
+        if (bPairEW && !bPairNS) return 0.0f;
+        if ((bN || bS) && !(bW || bE)) return 90.0f;
+        return 0.0f;
+    };
+
     const FABFPTerrainVisualSet* TerrainSet = VisualCatalog ?
         &VisualCatalog->GetTerrainSetForDepth(Snapshot.DungeonDepth) : nullptr;
     const bool bShouldBuildCeilings = (Snapshot.DungeonDepth > 0) &&
@@ -718,9 +733,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             Cell.Terrain == EABFPTerrain::DoorOpen ||
             Cell.Terrain == EABFPTerrain::DoorBroken)
         {
-            const bool bWallsNS = IsWallAt(Cell.X, Cell.Y - 1) || IsWallAt(Cell.X, Cell.Y + 1);
-            const bool bWallsEW = IsWallAt(Cell.X - 1, Cell.Y) || IsWallAt(Cell.X + 1, Cell.Y);
-            const float DoorYaw = (bWallsNS && !bWallsEW) ? 90.0f : 0.0f;
+            const float DoorYaw = ComputePortalYaw(Cell.X, Cell.Y);
             const FRotator DoorRot(0.0f, DoorYaw, 0.0f);
 
             if (TerrainSet && TerrainSet->DoorFrame.IsValid())
@@ -831,9 +844,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
         else if (Cell.Terrain == EABFPTerrain::Shop)
         {
-            const bool bWallsNS = IsWallAt(Cell.X, Cell.Y - 1) || IsWallAt(Cell.X, Cell.Y + 1);
-            const bool bWallsEW = IsWallAt(Cell.X - 1, Cell.Y) || IsWallAt(Cell.X + 1, Cell.Y);
-            const float ShopYaw = (bWallsNS && !bWallsEW) ? 90.0f : 0.0f;
+            const float ShopYaw = ComputePortalYaw(Cell.X, Cell.Y);
             const FRotator ShopRot(0.0f, ShopYaw, 0.0f);
 
             if (TerrainSet && TerrainSet->ShopFacade.IsValid())
