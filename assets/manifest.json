@@ -358,19 +358,6 @@
       "license": "CC0-1.0"
     },
     {
-      "id": "kk_shop_facade",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/wall_archedwindow_open.gltf.glb",
-      "dest": "terrain/wall_archedwindow_open.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
-      "catalog_slot": "dungeon.shop",
-      "scale": [
-        1.0,
-        1.0,
-        0.8
-      ],
-      "license": "CC0-1.0"
-    },
-    {
       "id": "kk_torch_mounted",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf.glb",
       "dest": "terrain/torch_mounted.glb",
@@ -494,6 +481,828 @@
   ],
   "creatures": [
     {
+      "id": "kaykit_skeleton_warrior",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb",
+      "dest": "creatures/Skeleton_Warrior.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonWarrior",
+      "rigged": false,
+      "keywords": [
+        "skeleton"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 180,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_skeleton_mage",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Mage.glb",
+      "dest": "creatures/Skeleton_Mage.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonMage",
+      "rigged": false,
+      "keywords": [
+        "wraith",
+        "ghost",
+        "lich",
+        "necromancer",
+        "spectre",
+        "soul",
+        "banshee",
+        "revenant",
+        "draugr",
+        "nazgûl",
+        "nazgul",
+        "ringwraith",
+        "death knight",
+        "dreadmaster",
+        "dracolich",
+        "khamûl",
+        "khamul",
+        "witch-king"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 188,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_skeleton_minion",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Minion.glb",
+      "dest": "creatures/Skeleton_Minion.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonMinion",
+      "rigged": false,
+      "keywords": [
+        "ghoul",
+        "wight",
+        "barrow"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 168,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_skeleton_rogue",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Rogue.glb",
+      "dest": "creatures/Skeleton_Rogue.glb",
+      "unreal_dest": "/Game/Assets/Creatures/SkeletonRogue",
+      "rigged": false,
+      "keywords": [
+        "vampire",
+        "phantom",
+        "shade",
+        "shadow",
+        "poltergeist"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 178,
+      "character_texture": "creatures/skeleton_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kk_creeping_coins",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf.glb",
+      "dest": "items/coin_stack_large.glb",
+      "unreal_dest": "/Game/Assets/Creatures/CreepingCoins",
+      "rigged": false,
+      "keywords": [
+        "creeping",
+        "coins"
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "target_height_cm": 65,
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "cc0_hornet",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/3d-hornetwasp/hornet6-animating.glb",
+      "dest": "creatures/hornet.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Hornet",
+      "rigged": true,
+      "keywords": [
+        "wasp",
+        "hornet",
+        "hummerhorn",
+        "neekerbreeker",
+        "bee",
+        "fly",
+        "mosquito",
+        "dragonfly",
+        "moth",
+        "insect",
+        "midge",
+        "stirge",
+        "tick",
+        "flea",
+        "locust",
+        "mantis",
+        "scorpion",
+        "scarab",
+        "roach",
+        "dragon fly"
+      ],
+      "scale": [
+        0.95,
+        0.95,
+        0.95
+      ],
+      "location_offset": [
+        0,
+        0,
+        110
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 88,
+      "fallback_color": [
+        0.42,
+        0.19,
+        0.008
+      ],
+      "fallback_roughness": 0.42
+    },
+    {
+      "id": "cc0_house_cat",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/animated-animales-low-poly/cat.glb",
+      "dest": "creatures/house_cat.glb",
+      "unreal_dest": "/Game/Assets/Creatures/HouseCat",
+      "rigged": true,
+      "keywords": [
+        "scrawny cat",
+        "wild cat",
+        "cat",
+        "kitten",
+        "feline"
+      ],
+      "scale": [
+        0.45,
+        0.45,
+        0.45
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 52,
+      "fallback_color": [
+        0.16,
+        0.062,
+        0.018
+      ],
+      "fallback_roughness": 0.9
+    },
+    {
+      "id": "cc0_town_dog",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/dog-low-poly-rigged/dog-jack-russel-release.glb",
+      "dest": "creatures/town_dog.glb",
+      "unreal_dest": "/Game/Assets/Creatures/TownDog",
+      "rigged": true,
+      "keywords": [
+        "little dog",
+        "dog",
+        "mutt",
+        "pup",
+        "terrier"
+      ],
+      "scale": [
+        0.55,
+        0.55,
+        0.55
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 64,
+      "fallback_color": [
+        0.12,
+        0.058,
+        0.022
+      ],
+      "fallback_roughness": 0.9
+    },
+    {
+      "id": "cc0_mouse",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/mouse-basemesh/mouse.glb",
+      "dest": "creatures/mouse.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Mouse",
+      "rigged": false,
+      "keywords": [
+        "mouse",
+        "shrew",
+        "vole"
+      ],
+      "scale": [
+        0.45,
+        0.45,
+        0.45
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 38,
+      "fallback_color": [
+        0.085,
+        0.068,
+        0.055
+      ],
+      "fallback_roughness": 0.9
+    },
+    {
+      "id": "cc0_giant_rat",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/evil-giant-rat/rat_2.glb",
+      "dest": "creatures/giant_rat.glb",
+      "unreal_dest": "/Game/Assets/Creatures/GiantRat",
+      "rigged": false,
+      "keywords": [
+        "rat",
+        "rodent"
+      ],
+      "scale": [
+        0.85,
+        0.85,
+        0.85
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 78,
+      "use_vertex_color": false,
+      "fallback_color": [
+        0.065,
+        0.042,
+        0.028
+      ],
+      "fallback_roughness": 0.88
+    },
+    {
+      "id": "cc0_raven",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/raven-0/raven_0.glb",
+      "dest": "creatures/raven.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Raven",
+      "rigged": false,
+      "keywords": [
+        "raven",
+        "crow",
+        "craban",
+        "crebain",
+        "vulture"
+      ],
+      "scale": [
+        0.65,
+        0.65,
+        0.65
+      ],
+      "location_offset": [
+        0,
+        0,
+        100
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 72,
+      "fallback_color": [
+        0.012,
+        0.012,
+        0.018
+      ],
+      "fallback_roughness": 0.45
+    },
+    {
+      "id": "cc0_eagle",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/animated-animales-low-poly/eagle.glb",
+      "dest": "creatures/eagle.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Eagle",
+      "rigged": true,
+      "keywords": [
+        "eagle",
+        "hawk",
+        "falcon",
+        "owl",
+        "condor"
+      ],
+      "scale": [
+        0.85,
+        0.85,
+        0.85
+      ],
+      "location_offset": [
+        0,
+        0,
+        110
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 95,
+      "fallback_color": [
+        0.085,
+        0.04,
+        0.014
+      ],
+      "fallback_roughness": 0.85
+    },
+    {
+      "id": "cc0_reptile_croc",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/crocodile/croc2.glb",
+      "dest": "creatures/crocodile.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Reptile",
+      "rigged": false,
+      "keywords": [
+        "lizard",
+        "salamander",
+        "iguana",
+        "komodo",
+        "alligator",
+        "crocodile",
+        "gecko",
+        "newt",
+        "frog",
+        "toad",
+        "bullfrog"
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 72,
+      "use_vertex_color": false,
+      "fallback_color": [
+        0.03,
+        0.08,
+        0.022
+      ],
+      "fallback_roughness": 0.58
+    },
+    {
+      "id": "cc0_spider",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/pixispider/pixispider.glb",
+      "dest": "creatures/spider.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Spider",
+      "rigged": false,
+      "keywords": [
+        "spider",
+        "centipede",
+        "ant",
+        "beetle",
+        "lice",
+        "worm mass",
+        "shelob",
+        "ungoliant",
+        "arachnid",
+        "tarantula",
+        "widow",
+        "spinner",
+        "weaver",
+        "louse"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 95,
+      "fallback_color": [
+        0.018,
+        0.012,
+        0.015
+      ],
+      "fallback_roughness": 0.45
+    },
+    {
+      "id": "cc0_vampire_bat",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/vampire-bat-animated/bat_v5.glb",
+      "dest": "creatures/bat.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Bat",
+      "rigged": true,
+      "keywords": [
+        "bat",
+        "bird",
+        "harpy"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "location_offset": [
+        0,
+        0,
+        120
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 85
+    },
+    {
+      "id": "cc0_cobra",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cobra-0/cobra.glb",
+      "dest": "creatures/cobra.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Cobra",
+      "rigged": false,
+      "keywords": [
+        "snake",
+        "cobra",
+        "mamba",
+        "python",
+        "adder",
+        "asp",
+        "boa",
+        "anaconda",
+        "worm",
+        "naga",
+        "viper",
+        "serpent"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 115,
+      "use_vertex_color": false,
+      "fallback_color": [
+        0.025,
+        0.1,
+        0.02
+      ],
+      "fallback_roughness": 0.48
+    },
+    {
+      "id": "cc0_slime",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/fbx-blend-lowpoly-animated-slime/slime.glb",
+      "dest": "creatures/slime.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Slime",
+      "rigged": true,
+      "keywords": [
+        "slime",
+        "jelly",
+        "ooze",
+        "icky",
+        "blob",
+        "cube",
+        "gelatinous",
+        "vortex",
+        "amoeba",
+        "pudding",
+        "mound",
+        "spores"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 96,
+      "fallback_color": [
+        0.015,
+        0.24,
+        0.045
+      ],
+      "fallback_roughness": 0.16
+    },
+    {
+      "id": "cc0_baby_dragon",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/baby-dragon/preview.glb",
+      "dest": "creatures/baby_dragon.glb",
+      "unreal_dest": "/Game/Assets/Creatures/BabyDragon",
+      "rigged": false,
+      "keywords": [
+        "baby",
+        "young dragon",
+        "pseudodragon",
+        "hatchling"
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ],
+      "hit_sound": "imp_hurt",
+      "death_sound": "imp_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 115
+    },
+    {
+      "id": "cc0_crystal_dragon",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/crystal-dragon/preview.glb",
+      "dest": "creatures/crystal_dragon.glb",
+      "unreal_dest": "/Game/Assets/Creatures/CrystalDragon",
+      "rigged": false,
+      "keywords": [
+        "ancient dragon",
+        "great wyrm",
+        "crystal",
+        "ethereal dragon",
+        "power dragon",
+        "smaug",
+        "ancalagon",
+        "glaurung",
+        "scatha",
+        "itangast",
+        "tselageh"
+      ],
+      "scale": [
+        1.4,
+        1.4,
+        1.4
+      ],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 280
+    },
+    {
+      "id": "cc0_wyvern",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/wyvern/preview.glb",
+      "dest": "creatures/wyvern.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Wyvern",
+      "rigged": false,
+      "keywords": [
+        "wyvern",
+        "drake",
+        "pseudodragon",
+        "jabberwock"
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ],
+      "location_offset": [
+        0,
+        0,
+        50
+      ],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 255
+    },
+    {
+      "id": "cc0_dragon",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cethiels-dragon-3d/dragon.glb",
+      "dest": "creatures/dragon.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Dragon",
+      "rigged": true,
+      "keywords": [
+        "dragon",
+        "wyrm"
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        1.3
+      ],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 270
+    },
+    {
+      "id": "kaykit_rogue_hooded",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb",
+      "dest": "creatures/Rogue_Hooded.glb",
+      "unreal_dest": "/Game/Assets/Creatures/RogueHooded",
+      "rigged": false,
+      "keywords": [
+        "thief",
+        "rogue",
+        "bandit",
+        "cutpurse",
+        "cultist",
+        "novice",
+        "street"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 175,
+      "character_texture": "creatures/rogue_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_rogue",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue.glb",
+      "dest": "creatures/Rogue.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Rogue",
+      "rigged": false,
+      "keywords": [
+        "archer",
+        "ranger",
+        "scruffy",
+        "beggar",
+        "urchin",
+        "peasant",
+        "citizen",
+        "drunk",
+        "idiot",
+        "wretch",
+        "leper",
+        "maggot",
+        "hobbit",
+        "elf",
+        "elven",
+        "christmas",
+        "merchant",
+        "agent",
+        "scout",
+        "tamer",
+        "ruffian",
+        "sméagol",
+        "smeagol",
+        "easterling",
+        "haradrim",
+        "outlaw",
+        "brigand",
+        "pilgrim",
+        "bard",
+        "minstrel"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 170,
+      "character_texture": "creatures/rogue_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_mage",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb",
+      "dest": "creatures/Mage.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Mage",
+      "rigged": false,
+      "keywords": [
+        "mage",
+        "priest",
+        "acolyte",
+        "sorcerer",
+        "town",
+        "apprentice",
+        "witch",
+        "druid",
+        "illusionist",
+        "warlock",
+        "wizard",
+        "conjurer",
+        "enchanter",
+        "alchemist",
+        "mystic",
+        "shaman",
+        "hermit",
+        "sage",
+        "saruman",
+        "sauron",
+        "morgoth",
+        "mouth"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 178,
+      "character_texture": "creatures/mage_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_knight",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb",
+      "dest": "creatures/Knight.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Knight",
+      "rigged": false,
+      "keywords": [
+        "knight",
+        "paladin",
+        "warrior",
+        "guard",
+        "soldier",
+        "mercenary",
+        "berserker",
+        "veteran",
+        "swordsman",
+        "blackguard",
+        "numenorean",
+        "númenórean",
+        "captain",
+        "commander",
+        "dwarf",
+        "dwarven",
+        "nár",
+        "nar",
+        "gallant"
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hit_sound": "grunt_hurt",
+      "death_sound": "grunt_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 185,
+      "character_texture": "creatures/knight_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
+      "id": "kaykit_barbarian",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian.glb",
+      "dest": "creatures/Barbarian.glb",
+      "unreal_dest": "/Game/Assets/Creatures/Barbarian",
+      "rigged": false,
+      "keywords": [
+        "barbarian",
+        "viking",
+        "champion",
+        "gladiator",
+        "half-troll",
+        "half-orc",
+        "chief",
+        "chieftain"
+      ],
+      "scale": [
+        1.05,
+        1.05,
+        1.05
+      ],
+      "hit_sound": "brute_hurt",
+      "death_sound": "brute_death",
+      "license": "CC0-1.0",
+      "target_height_cm": 192,
+      "character_texture": "creatures/barbarian_texture.png",
+      "clean_dest_before_import": true,
+      "merge_kaykit_body": true
+    },
+    {
       "id": "quaternius_orc",
       "url": "https://raw.githubusercontent.com/511action/descent-3d-assets/main/models/Orc.gltf",
       "dest": "creatures/Orc.gltf",
@@ -583,7 +1392,14 @@
       "keywords": [
         "troll",
         "ogre",
-        "giant"
+        "hill giant",
+        "stone giant",
+        "fire giant",
+        "cloud giant",
+        "storm giant",
+        "titan",
+        "ettin",
+        "cyclops"
       ],
       "scale": [
         1.25,
@@ -616,441 +1432,6 @@
       "death_sound": "imp_death",
       "license": "CC0-1.0",
       "target_height_cm": 195
-    },
-    {
-      "id": "kaykit_skeleton_warrior",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Warrior.fbx",
-      "dest": "creatures/Skeleton_Warrior.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonWarrior",
-      "rigged": true,
-      "keywords": [
-        "skeleton"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 180,
-      "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_skeleton_mage",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Mage.fbx",
-      "dest": "creatures/Skeleton_Mage.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonMage",
-      "rigged": true,
-      "keywords": [
-        "wraith",
-        "ghost",
-        "lich",
-        "necromancer",
-        "spectre",
-        "soul",
-        "banshee",
-        "revenant",
-        "draugr",
-        "nazgûl",
-        "nazgul",
-        "ringwraith",
-        "death knight",
-        "dreadmaster",
-        "dracolich",
-        "khamûl",
-        "khamul",
-        "witch-king"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 188,
-      "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_skeleton_minion",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Minion.fbx",
-      "dest": "creatures/Skeleton_Minion.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonMinion",
-      "rigged": true,
-      "keywords": [
-        "ghoul",
-        "wight",
-        "barrow"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 168,
-      "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_rogue_hooded",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/RogueHooded.fbx",
-      "dest": "creatures/RogueHooded.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/RogueHooded",
-      "rigged": true,
-      "keywords": [
-        "thief",
-        "rogue",
-        "bandit",
-        "cutpurse",
-        "cultist",
-        "novice",
-        "street"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 175,
-      "character_texture": "creatures/rogue_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_mage",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Mage.fbx",
-      "dest": "creatures/Mage.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/Mage",
-      "rigged": true,
-      "keywords": [
-        "mage",
-        "priest",
-        "acolyte",
-        "sorcerer",
-        "town",
-        "apprentice",
-        "witch",
-        "druid",
-        "illusionist",
-        "warlock",
-        "wizard",
-        "conjurer",
-        "enchanter",
-        "alchemist",
-        "mystic",
-        "shaman",
-        "hermit",
-        "sage",
-        "saruman",
-        "sauron",
-        "morgoth",
-        "mouth"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 178,
-      "character_texture": "creatures/mage_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "cc0_mouse",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/mouse-basemesh/mouse.glb",
-      "dest": "creatures/mouse.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Mouse",
-      "rigged": false,
-      "keywords": [
-        "mouse",
-        "shrew",
-        "vole"
-      ],
-      "scale": [
-        0.45,
-        0.45,
-        0.45
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 38,
-      "fallback_color": [
-        0.085,
-        0.068,
-        0.055
-      ],
-      "fallback_roughness": 0.9
-    },
-    {
-      "id": "cc0_giant_rat",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/evil-giant-rat/rat_2.glb",
-      "dest": "creatures/giant_rat.glb",
-      "unreal_dest": "/Game/Assets/Creatures/GiantRat",
-      "rigged": false,
-      "keywords": [
-        "rat",
-        "rodent"
-      ],
-      "scale": [
-        0.85,
-        0.85,
-        0.85
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 78,
-      "use_vertex_color": true,
-      "fallback_color": [
-        0.065,
-        0.042,
-        0.028
-      ],
-      "fallback_roughness": 0.88
-    },
-    {
-      "id": "cc0_slime",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/fbx-blend-lowpoly-animated-slime/slime.glb",
-      "dest": "creatures/slime.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Slime",
-      "rigged": true,
-      "keywords": [
-        "slime",
-        "jelly",
-        "ooze",
-        "icky",
-        "blob",
-        "cube",
-        "gelatinous",
-        "vortex",
-        "amoeba",
-        "pudding",
-        "mound",
-        "spores",
-        "creeping",
-        "coins"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 96,
-      "fallback_color": [
-        0.015,
-        0.24,
-        0.045
-      ],
-      "fallback_roughness": 0.16
-    },
-    {
-      "id": "cc0_spider",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/pixispider/pixispider.glb",
-      "dest": "creatures/spider.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Spider",
-      "rigged": false,
-      "keywords": [
-        "spider",
-        "centipede",
-        "ant",
-        "beetle",
-        "lice",
-        "worm mass",
-        "shelob",
-        "ungoliant",
-        "arachnid",
-        "tarantula",
-        "widow",
-        "spinner",
-        "weaver"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 95,
-      "fallback_color": [
-        0.018,
-        0.012,
-        0.015
-      ],
-      "fallback_roughness": 0.45
-    },
-    {
-      "id": "cc0_vampire_bat",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/vampire-bat-animated/bat_v5.glb",
-      "dest": "creatures/bat.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Bat",
-      "rigged": true,
-      "keywords": [
-        "bat",
-        "bird",
-        "harpy",
-        "crow"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "location_offset": [
-        0,
-        0,
-        120
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 85
-    },
-    {
-      "id": "cc0_cobra",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cobra-0/cobra.glb",
-      "dest": "creatures/cobra.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Cobra",
-      "rigged": false,
-      "keywords": [
-        "snake",
-        "cobra",
-        "mamba",
-        "python",
-        "adder",
-        "asp",
-        "boa",
-        "anaconda",
-        "worm",
-        "naga",
-        "viper",
-        "serpent"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 115,
-      "use_vertex_color": true,
-      "fallback_color": [
-        0.025,
-        0.1,
-        0.02
-      ],
-      "fallback_roughness": 0.48
-    },
-    {
-      "id": "cc0_reptile_croc",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/crocodile/croc2.glb",
-      "dest": "creatures/crocodile.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Reptile",
-      "rigged": false,
-      "keywords": [
-        "lizard",
-        "salamander",
-        "iguana",
-        "komodo",
-        "alligator",
-        "crocodile",
-        "gecko",
-        "newt"
-      ],
-      "scale": [
-        0.75,
-        0.75,
-        0.75
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 72,
-      "use_vertex_color": true,
-      "fallback_color": [
-        0.03,
-        0.08,
-        0.022
-      ],
-      "fallback_roughness": 0.58
-    },
-    {
-      "id": "cc0_house_cat",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/animated-animales-low-poly/cat.glb",
-      "dest": "creatures/house_cat.glb",
-      "unreal_dest": "/Game/Assets/Creatures/HouseCat",
-      "rigged": true,
-      "keywords": [
-        "scrawny cat",
-        "wild cat",
-        "cat",
-        "kitten",
-        "feline"
-      ],
-      "scale": [
-        0.45,
-        0.45,
-        0.45
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 52,
-      "fallback_color": [
-        0.16,
-        0.062,
-        0.018
-      ],
-      "fallback_roughness": 0.9
-    },
-    {
-      "id": "cc0_town_dog",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/dog-low-poly-rigged/dog-jack-russel-release.glb",
-      "dest": "creatures/town_dog.glb",
-      "unreal_dest": "/Game/Assets/Creatures/TownDog",
-      "rigged": true,
-      "keywords": [
-        "little dog",
-        "dog",
-        "mutt",
-        "pup",
-        "terrier"
-      ],
-      "scale": [
-        0.55,
-        0.55,
-        0.55
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 64,
-      "fallback_color": [
-        0.12,
-        0.058,
-        0.022
-      ],
-      "fallback_roughness": 0.9
     },
     {
       "id": "cc0_fox",
@@ -1232,245 +1613,6 @@
       "target_height_cm": 92
     },
     {
-      "id": "cc0_baby_dragon",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/baby-dragon/preview.glb",
-      "dest": "creatures/baby_dragon.glb",
-      "unreal_dest": "/Game/Assets/Creatures/BabyDragon",
-      "rigged": false,
-      "keywords": [
-        "baby",
-        "young dragon",
-        "pseudodragon",
-        "hatchling"
-      ],
-      "scale": [
-        0.7,
-        0.7,
-        0.7
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 115
-    },
-    {
-      "id": "cc0_crystal_dragon",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/crystal-dragon/preview.glb",
-      "dest": "creatures/crystal_dragon.glb",
-      "unreal_dest": "/Game/Assets/Creatures/CrystalDragon",
-      "rigged": false,
-      "keywords": [
-        "ancient dragon",
-        "great wyrm",
-        "crystal",
-        "ethereal dragon",
-        "power dragon",
-        "smaug",
-        "ancalagon",
-        "glaurung",
-        "scatha",
-        "itangast",
-        "tselageh"
-      ],
-      "scale": [
-        1.4,
-        1.4,
-        1.4
-      ],
-      "hit_sound": "brute_hurt",
-      "death_sound": "brute_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 280
-    },
-    {
-      "id": "cc0_wyvern",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/wyvern/preview.glb",
-      "dest": "creatures/wyvern.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Wyvern",
-      "rigged": false,
-      "keywords": [
-        "wyvern",
-        "drake",
-        "pseudodragon",
-        "jabberwock"
-      ],
-      "scale": [
-        1.15,
-        1.15,
-        1.15
-      ],
-      "location_offset": [
-        0,
-        0,
-        50
-      ],
-      "hit_sound": "brute_hurt",
-      "death_sound": "brute_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 255
-    },
-    {
-      "id": "cc0_dragon",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cethiels-dragon-3d/dragon.glb",
-      "dest": "creatures/dragon.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Dragon",
-      "rigged": true,
-      "keywords": [
-        "dragon",
-        "wyrm"
-      ],
-      "scale": [
-        1.3,
-        1.3,
-        1.3
-      ],
-      "hit_sound": "brute_hurt",
-      "death_sound": "brute_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 270
-    },
-    {
-      "id": "kaykit_knight",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Knight.fbx",
-      "dest": "creatures/Knight.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/Knight",
-      "rigged": true,
-      "keywords": [
-        "knight",
-        "paladin",
-        "warrior",
-        "guard",
-        "soldier",
-        "mercenary",
-        "berserker",
-        "veteran",
-        "swordsman",
-        "blackguard",
-        "numenorean",
-        "númenórean",
-        "captain",
-        "commander",
-        "dwarf",
-        "dwarven",
-        "nár",
-        "nar"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 185,
-      "character_texture": "creatures/knight_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_barbarian",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Barbarian.fbx",
-      "dest": "creatures/Barbarian.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/Barbarian",
-      "rigged": true,
-      "keywords": [
-        "barbarian",
-        "viking",
-        "champion",
-        "gladiator",
-        "half-troll",
-        "half-orc",
-        "chief",
-        "chieftain"
-      ],
-      "scale": [
-        1.05,
-        1.05,
-        1.05
-      ],
-      "hit_sound": "brute_hurt",
-      "death_sound": "brute_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 192,
-      "character_texture": "creatures/barbarian_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_rogue",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/fbx/Rogue.fbx",
-      "dest": "creatures/Rogue.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/Rogue",
-      "rigged": true,
-      "keywords": [
-        "archer",
-        "ranger",
-        "scruffy",
-        "beggar",
-        "urchin",
-        "peasant",
-        "citizen",
-        "drunk",
-        "idiot",
-        "wretch",
-        "leper",
-        "maggot",
-        "hobbit",
-        "elf",
-        "elven",
-        "christmas",
-        "merchant",
-        "agent",
-        "scout",
-        "tamer",
-        "ruffian",
-        "sméagol",
-        "smeagol",
-        "easterling",
-        "haradrim",
-        "outlaw",
-        "brigand",
-        "pilgrim",
-        "bard",
-        "minstrel"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "grunt_hurt",
-      "death_sound": "grunt_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 170,
-      "character_texture": "creatures/rogue_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
-      "id": "kaykit_skeleton_rogue",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/fbx/Skeleton_Rogue.fbx",
-      "dest": "creatures/Skeleton_Rogue.fbx",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonRogue",
-      "rigged": true,
-      "keywords": [
-        "vampire",
-        "phantom",
-        "shade",
-        "shadow",
-        "poltergeist"
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 178,
-      "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true
-    },
-    {
       "id": "cc0_werewolf",
       "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/werewolf/rigged/werewolf-rigged.glb",
       "dest": "creatures/werewolf_rigged.glb",
@@ -1515,7 +1657,7 @@
       "death_sound": "brute_death",
       "license": "CC0-1.0",
       "target_height_cm": 195,
-      "use_vertex_color": true,
+      "use_vertex_color": false,
       "fallback_color": [
         0.028,
         0.024,
@@ -1565,74 +1707,6 @@
       "death_sound": "brute_death",
       "license": "CC0-1.0",
       "target_height_cm": 260
-    },
-    {
-      "id": "cc0_raven",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/raven-0/raven_0.glb",
-      "dest": "creatures/raven.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Raven",
-      "rigged": false,
-      "keywords": [
-        "raven",
-        "crow",
-        "craban",
-        "crebain",
-        "vulture"
-      ],
-      "scale": [
-        0.65,
-        0.65,
-        0.65
-      ],
-      "location_offset": [
-        0,
-        0,
-        100
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 72,
-      "fallback_color": [
-        0.012,
-        0.012,
-        0.018
-      ],
-      "fallback_roughness": 0.45
-    },
-    {
-      "id": "cc0_eagle",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/animated-animales-low-poly/eagle.glb",
-      "dest": "creatures/eagle.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Eagle",
-      "rigged": true,
-      "keywords": [
-        "eagle",
-        "hawk",
-        "falcon",
-        "owl",
-        "condor"
-      ],
-      "scale": [
-        0.85,
-        0.85,
-        0.85
-      ],
-      "location_offset": [
-        0,
-        0,
-        110
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 95,
-      "fallback_color": [
-        0.085,
-        0.04,
-        0.014
-      ],
-      "fallback_roughness": 0.85
     },
     {
       "id": "cc0_griffin",
@@ -1863,54 +1937,6 @@
         0.01
       ],
       "fallback_roughness": 0.9
-    },
-    {
-      "id": "cc0_hornet",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/3d-hornetwasp/hornet6-animating.glb",
-      "dest": "creatures/hornet.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Hornet",
-      "rigged": true,
-      "keywords": [
-        "wasp",
-        "hornet",
-        "hummerhorn",
-        "neekerbreeker",
-        "bee",
-        "fly",
-        "mosquito",
-        "dragonfly",
-        "moth",
-        "insect",
-        "midge",
-        "stirge",
-        "tick",
-        "flea",
-        "locust",
-        "mantis",
-        "scorpion",
-        "scarab",
-        "roach"
-      ],
-      "scale": [
-        0.95,
-        0.95,
-        0.95
-      ],
-      "location_offset": [
-        0,
-        0,
-        110
-      ],
-      "hit_sound": "imp_hurt",
-      "death_sound": "imp_death",
-      "license": "CC0-1.0",
-      "target_height_cm": 88,
-      "fallback_color": [
-        0.42,
-        0.19,
-        0.008
-      ],
-      "fallback_roughness": 0.42
     },
     {
       "id": "cc0_auroch",

@@ -12,6 +12,7 @@ Or headless via UnrealEditor-Cmd.exe:
   UnrealEditor-Cmd.exe "<project>.uproject" -run=pythonscript -script="<repo>/tools/import-assets-to-unreal.py" -stdout -FullStdOutLogOutput -nop4 -unattended -nosplash
 """
 
+import importlib.util
 import json
 import os
 import struct
@@ -19,6 +20,16 @@ import traceback
 from pathlib import Path
 
 import unreal
+
+
+def load_kaykit_merger(repo_root: Path):
+    merger_path = repo_root / "tools" / "merge-kaykit-glb.py"
+    if not merger_path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("abfp_merge_kaykit", str(merger_path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.merge_kaykit_glb
 
 
 def find_repo_root() -> Path:
@@ -807,6 +818,14 @@ def main():
         dungeon_terrain.set_editor_property("remembered_material_override", remembered_mat)
         town_terrain.set_editor_property("remembered_material_override", remembered_mat)
 
+    # Full-height 2K dark-oak timber shop doorway (Mesh=None lets ABFPDungeonActor build the flush oak portal)
+    wood_mat = materials_by_name.get("M_DungeonDoor_Wood")
+    if wood_mat:
+        shop_portal = unreal.ABFPMeshVariant()
+        shop_portal.set_editor_property("material_override", wood_mat)
+        dungeon_terrain.set_editor_property("shop_facade", shop_portal)
+        town_terrain.set_editor_property("shop_facade", shop_portal)
+
     catalog.set_editor_property("dungeon_terrain", dungeon_terrain)
     catalog.set_editor_property("town_terrain", town_terrain)
     if torch_flame_mat:
@@ -883,7 +902,8 @@ def main():
 
     catalog.set_editor_property("items", item_entries)
 
-    # 7. Import Creatures (Skeletal + Static Fallbacks + Idle Animations + Audio)
+    # 7. Import Creatures (Unified KayKit GLBs + Skeletal/Static + Idle Animations + Audio)
+    merge_kaykit_fn = load_kaykit_merger(repo_root)
     creature_entries = []
     default_creature_entry = None
     for entry in manifest.get("creatures", []):
@@ -891,15 +911,23 @@ def main():
         if not src.exists():
             continue
         try:
-            unreal.log(f"[ABFP] Importing creature {entry['id']}...")
-            # Clean stale split-part assets when switching a creature folder (e.g. KayKit GLB -> unified FBX)
+            import_src = src
+            is_skeletal = bool(entry.get("rigged", False))
+            if entry.get("merge_kaykit_body") and merge_kaykit_fn is not None:
+                merged_path = src.with_name(f"{src.stem}_unified.glb")
+                if merge_kaykit_fn(src, merged_path):
+                    import_src = merged_path
+                    is_skeletal = False
+                    unreal.log(f"[ABFP] Merged KayKit body parts -> {merged_path.name}")
+            unreal.log(f"[ABFP] Importing creature {entry['id']} from {import_src.name}...")
+            # Clean stale split-part assets when switching a creature folder
             if entry.get("clean_dest_before_import") and unreal.EditorAssetLibrary.does_directory_exist(entry["unreal_dest"]):
                 for old_path in unreal.EditorAssetLibrary.list_assets(entry["unreal_dest"], recursive=True, include_folder=False):
                     unreal.EditorAssetLibrary.delete_asset(old_path)
-            paths = import_asset(src, entry["unreal_dest"], is_skeletal=bool(entry.get("rigged", False)))
+            paths = import_asset(import_src, entry["unreal_dest"], is_skeletal=is_skeletal)
 
-            skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, src.stem)
-            static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, src.stem)
+            skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, import_src.stem) if is_skeletal else None
+            static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, import_src.stem)
             if not skel_mesh and not static_mesh:
                 unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']}")
                 continue
@@ -910,7 +938,7 @@ def main():
             fit_scale, fit_loc = compute_creature_fit(skel_mesh or static_mesh, entry)
 
             creature_mat = None
-            if entry.get("character_texture"):
+            if entry.get("character_texture") and not entry.get("merge_kaykit_body"):
                 creature_mat = build_creature_textured_material(
                     entry["id"],
                     raw_root / entry["character_texture"],
@@ -924,7 +952,7 @@ def main():
                     roughness=float(entry.get("fallback_roughness", 0.88)),
                 )
 
-            if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and skel_mesh is not None):
+            if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and (skel_mesh is not None or static_mesh is not None)):
                 dc = unreal.ABFPCreatureVisualEntry()
                 dc.set_editor_property("entry_name", f"Default_{entry['id']}")
                 if skel_mesh:

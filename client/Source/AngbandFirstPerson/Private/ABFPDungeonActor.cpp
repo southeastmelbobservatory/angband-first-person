@@ -416,7 +416,9 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     ConfigureSingleLayer(StairsUp, TerrainSet.StairsUp, FallbackCubeMesh, FallbackUpStairMat, nullptr);
     ConfigureSingleLayer(StairsDown, TerrainSet.StairsDown, FallbackCubeMesh, FallbackDownStairMat, nullptr);
     ConfigureSingleLayer(Rubble, TerrainSet.Rubble, FallbackCubeMesh, FallbackRubbleMat, nullptr);
-    ConfigureSingleLayer(Shops, TerrainSet.ShopFacade, FallbackCubeMesh, FallbackShopMat, nullptr);
+    ConfigureSingleLayer(Shops, TerrainSet.ShopFacade, FallbackCubeMesh,
+        TerrainSet.ShopFacade.MaterialOverride ? TerrainSet.ShopFacade.MaterialOverride.Get() : FallbackDoorMat.Get(),
+        nullptr);
     ConfigureSingleLayer(Traps, TerrainSet.TrapMarker, FallbackCubeMesh, FallbackTrapMat, nullptr);
     ConfigureSingleLayer(WallTorches, TerrainSet.WallTorchProp, FallbackCubeMesh, FallbackTorchMat, nullptr);
 
@@ -832,15 +834,20 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             }
             else
             {
+                /* Full-height warm oak timber shop portal (left jamb, right jamb, heavy signboard lintel & awning). */
                 Shops->AddInstance(FTransform(ShopRot,
-                    Tile + ShopRot.RotateVector(FVector(0.0f, -CellSize * 0.42f, 110.0f)),
-                    FVector(0.18f, 0.18f, 2.2f)));
+                    Tile + ShopRot.RotateVector(FVector(-CellSize * 0.42f, 0.0f, WallHeight * 0.46f)),
+                    FVector(0.42f, 0.56f, (WallHeight * 0.92f) / 100.0f)));
                 Shops->AddInstance(FTransform(ShopRot,
-                    Tile + ShopRot.RotateVector(FVector(0.0f, CellSize * 0.42f, 110.0f)),
-                    FVector(0.18f, 0.18f, 2.2f)));
+                    Tile + ShopRot.RotateVector(FVector(CellSize * 0.42f, 0.0f, WallHeight * 0.46f)),
+                    FVector(0.42f, 0.56f, (WallHeight * 0.92f) / 100.0f)));
                 Shops->AddInstance(FTransform(ShopRot,
-                    Tile + FVector(0.0f, 0.0f, 220.0f),
-                    FVector(0.20f, CellScaleXY, 0.22f)));
+                    Tile + FVector(0.0f, 0.0f, WallHeight * 0.90f),
+                    FVector(CellScaleXY, 0.72f, 0.68f)));
+                /* Upper shop parapet wall so it meets adjacent 320cm stone walls flush with zero gap. */
+                DoorFrames->AddInstance(FTransform(ShopRot,
+                    Tile + FVector(0.0f, 0.0f, WallHeight * 0.96f),
+                    FVector(CellScaleXY, 1.1f, 0.28f)));
             }
         }
         else if (Cell.Terrain == EABFPTerrain::Trap)

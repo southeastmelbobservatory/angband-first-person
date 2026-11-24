@@ -1,5 +1,37 @@
 #include "ABFPVisualCatalog.h"
 
+namespace
+{
+    bool MatchesWordKeyword(const FString& LowerName, const FString& LowerKeyword)
+    {
+        if (LowerKeyword.IsEmpty()) return false;
+        const int32 NameLen = LowerName.Len();
+        const int32 KeyLen = LowerKeyword.Len();
+        int32 SearchStart = 0;
+
+        while (SearchStart <= NameLen - KeyLen)
+        {
+            const int32 Pos = LowerName.Find(LowerKeyword, ESearchCase::CaseSensitive, ESearchDir::FromStart, SearchStart);
+            if (Pos == INDEX_NONE) return false;
+
+            const bool bLeftBoundary = (Pos == 0) || !FChar::IsAlpha(LowerName[Pos - 1]);
+            const int32 After = Pos + KeyLen;
+            bool bRightBoundary = (After >= NameLen) || !FChar::IsAlpha(LowerName[After]);
+            if (!bRightBoundary && LowerName[After] == TEXT('s'))
+            {
+                bRightBoundary = (After + 1 >= NameLen) || !FChar::IsAlpha(LowerName[After + 1]);
+            }
+
+            if (bLeftBoundary && bRightBoundary)
+            {
+                return true;
+            }
+            SearchStart = Pos + 1;
+        }
+        return false;
+    }
+}
+
 const FABFPCreatureVisualEntry* UABFPVisualCatalog::FindCreatureVisual(
     const FABFPEntity& Entity) const
 {
@@ -15,7 +47,7 @@ const FABFPCreatureVisualEntry* UABFPVisualCatalog::FindCreatureVisual(
     for (const FABFPCreatureVisualEntry& Entry : Creatures)
     {
         if (Entry.KindId < 0 && !Entry.NameContains.IsEmpty() && Entry.HasVisualOverride() &&
-            LowerName.Contains(Entry.NameContains.ToLower()))
+            MatchesWordKeyword(LowerName, Entry.NameContains.ToLower()))
         {
             return &Entry;
         }
