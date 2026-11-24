@@ -434,7 +434,7 @@
       "id": "kaykit_skeleton_warrior",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb",
       "dest": "creatures/Skeleton_Warrior.glb",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonWarrior",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/SkeletonWarrior",
       "rigged": false,
       "keywords": [
         "skeleton"
@@ -449,14 +449,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 180,
       "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_skeleton_mage",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Mage.glb",
       "dest": "creatures/Skeleton_Mage.glb",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonMage",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/SkeletonMage",
       "rigged": false,
       "keywords": [
         "wraith",
@@ -488,14 +487,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 188,
       "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_skeleton_minion",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Minion.glb",
       "dest": "creatures/Skeleton_Minion.glb",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonMinion",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/SkeletonMinion",
       "rigged": false,
       "keywords": [
         "ghoul",
@@ -512,14 +510,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 168,
       "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_skeleton_rogue",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Rogue.glb",
       "dest": "creatures/Skeleton_Rogue.glb",
-      "unreal_dest": "/Game/Assets/Creatures/SkeletonRogue",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/SkeletonRogue",
       "rigged": false,
       "keywords": [
         "vampire",
@@ -538,7 +535,6 @@
       "license": "CC0-1.0",
       "target_height_cm": 178,
       "character_texture": "creatures/skeleton_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
@@ -1233,7 +1229,7 @@
       "id": "kaykit_rogue_hooded",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb",
       "dest": "creatures/Rogue_Hooded.glb",
-      "unreal_dest": "/Game/Assets/Creatures/RogueHooded",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/RogueHooded",
       "rigged": false,
       "keywords": [
         "thief",
@@ -1254,14 +1250,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 175,
       "character_texture": "creatures/rogue_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_rogue",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue.glb",
       "dest": "creatures/Rogue.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Rogue",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/Rogue",
       "rigged": false,
       "keywords": [
         "archer",
@@ -1305,14 +1300,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 170,
       "character_texture": "creatures/rogue_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_mage",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb",
       "dest": "creatures/Mage.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Mage",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/Mage",
       "rigged": false,
       "keywords": [
         "mage",
@@ -1348,14 +1342,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 178,
       "character_texture": "creatures/mage_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_knight",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb",
       "dest": "creatures/Knight.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Knight",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/Knight",
       "rigged": false,
       "keywords": [
         "knight",
@@ -1388,14 +1381,13 @@
       "license": "CC0-1.0",
       "target_height_cm": 185,
       "character_texture": "creatures/knight_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {
       "id": "kaykit_barbarian",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian.glb",
       "dest": "creatures/Barbarian.glb",
-      "unreal_dest": "/Game/Assets/Creatures/Barbarian",
+      "unreal_dest": "/Game/Assets/Creatures/Unified/Barbarian",
       "rigged": false,
       "keywords": [
         "barbarian",
@@ -1417,7 +1409,6 @@
       "license": "CC0-1.0",
       "target_height_cm": 192,
       "character_texture": "creatures/barbarian_texture.png",
-      "clean_dest_before_import": true,
       "merge_kaykit_body": true
     },
     {

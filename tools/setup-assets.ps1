@@ -72,10 +72,22 @@ if (-not (Test-Path $EditorCmd)) {
 }
 
 $env:ABFP_REPO_ROOT = $RepoRoot
+$LogDir = Join-Path $RepoRoot "Saved\Logs"
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$ImportLog = Join-Path $LogDir "asset-import.log"
+
 Write-Host "Running headless Unreal Python importer against $ProjectPath..."
-& $EditorCmd $ProjectPath "-run=pythonscript" "-script=$ImportScript" "-stdout" "-FullStdOutLogOutput" "-nop4" "-unattended" "-nosplash"
-if ($LASTEXITCODE -ne 0) {
-    throw "UnrealEditor-Cmd import failed with exit code $LASTEXITCODE."
+& $EditorCmd $ProjectPath "-run=pythonscript" "-script=$ImportScript" "-abslog=$ImportLog" "-stdout" "-FullStdOutLogOutput" "-nop4" "-unattended" "-nosplash"
+$ImportExit = $LASTEXITCODE
+
+if (Test-Path $ImportLog) {
+    Write-Host ""
+    Write-Host "=== [ABFP] Import Summary ===" -ForegroundColor Cyan
+    Select-String -Path $ImportLog -Pattern "\[ABFP\] (Creature species imported|Default creature|Saved /Game/Data|No mesh found|Failed importing|Failed building)" | ForEach-Object { Write-Host $_.Line }
+}
+
+if ($ImportExit -ne 0) {
+    throw "UnrealEditor-Cmd import failed with exit code $ImportExit. Full log: $ImportLog"
 }
 
 $ProjectDir = Split-Path -Parent $ProjectPath

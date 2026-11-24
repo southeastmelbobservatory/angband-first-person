@@ -790,12 +790,16 @@ def main():
                 dungeon_terrain.set_editor_property("door_open_panel", variant)
             elif slot == "dungeon.stairs_up":
                 dungeon_terrain.set_editor_property("stairs_up", variant)
+                town_terrain.set_editor_property("stairs_up", variant)
             elif slot == "dungeon.stairs_down":
                 dungeon_terrain.set_editor_property("stairs_down", variant)
+                town_terrain.set_editor_property("stairs_down", variant)
             elif slot == "dungeon.rubble":
                 dungeon_terrain.set_editor_property("rubble", variant)
+                town_terrain.set_editor_property("rubble", variant)
             elif slot == "dungeon.trap":
                 dungeon_terrain.set_editor_property("trap_marker", variant)
+                town_terrain.set_editor_property("trap_marker", variant)
             elif slot == "dungeon.shop":
                 dungeon_terrain.set_editor_property("shop_facade", variant)
                 town_terrain.set_editor_property("shop_facade", variant)
@@ -834,6 +838,9 @@ def main():
         dungeon_terrain.set_editor_property("door_open_panel", wood_v)
         dungeon_terrain.set_editor_property("door_broken_panel", wood_v)
         dungeon_terrain.set_editor_property("shop_facade", wood_v)
+        town_terrain.set_editor_property("door_closed_panel", wood_v)
+        town_terrain.set_editor_property("door_open_panel", wood_v)
+        town_terrain.set_editor_property("door_broken_panel", wood_v)
         town_terrain.set_editor_property("shop_facade", wood_v)
 
     catalog.set_editor_property("dungeon_terrain", dungeon_terrain)
@@ -927,9 +934,19 @@ def main():
     merge_kaykit_fn = load_kaykit_merger(repo_root)
     creature_entries = []
     default_creature_entry = None
+    default_creature_priority = 999
+    default_candidates = {
+        "kaykit_rogue_hooded": 0,
+        "kaykit_rogue": 1,
+        "quaternius_orc": 2,
+        "quaternius_demon": 3,
+    }
+    imported_species = 0
+    failed_species = []
     for entry in manifest.get("creatures", []):
         src = raw_root / entry["dest"]
         if not src.exists():
+            failed_species.append(f"{entry['id']}(missing-file)")
             continue
         try:
             import_src = src
@@ -941,18 +958,16 @@ def main():
                     is_skeletal = False
                     unreal.log(f"[ABFP] Merged KayKit body parts -> {merged_path.name}")
             unreal.log(f"[ABFP] Importing creature {entry['id']} from {import_src.name}...")
-            # Clean stale split-part assets when switching a creature folder
-            if entry.get("clean_dest_before_import") and unreal.EditorAssetLibrary.does_directory_exist(entry["unreal_dest"]):
-                for old_path in unreal.EditorAssetLibrary.list_assets(entry["unreal_dest"], recursive=True, include_folder=False):
-                    unreal.EditorAssetLibrary.delete_asset(old_path)
             paths = import_asset(import_src, entry["unreal_dest"], is_skeletal=is_skeletal)
 
             skel_mesh = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.SkeletalMesh, import_src.stem) if is_skeletal else None
             static_mesh = None if skel_mesh else find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.StaticMesh, import_src.stem)
             if not skel_mesh and not static_mesh:
-                unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']}")
+                unreal.log_warning(f"[ABFP] No mesh found after importing {entry['id']} (paths={paths})")
+                failed_species.append(f"{entry['id']}(no-mesh)")
                 continue
 
+            imported_species += 1
             idle_anim = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
             hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
             death_sound = audio_by_id.get(entry.get("death_sound", ""))
@@ -973,7 +988,9 @@ def main():
                     roughness=float(entry.get("fallback_roughness", 0.88)),
                 )
 
-            if entry["id"] == "kaykit_rogue_hooded" or (default_creature_entry is None and (skel_mesh is not None or static_mesh is not None)):
+            cand_prio = default_candidates.get(entry["id"], 999)
+            if cand_prio < default_creature_priority:
+                default_creature_priority = cand_prio
                 dc = unreal.ABFPCreatureVisualEntry()
                 dc.set_editor_property("entry_name", f"Default_{entry['id']}")
                 if skel_mesh:
@@ -1013,10 +1030,14 @@ def main():
                 creature_entries.append(ce)
         except Exception as exc:
             unreal.log_warning(f"[ABFP] Failed importing creature {entry['id']}: {exc}")
+            failed_species.append(f"{entry['id']}(exc)")
+
+    unreal.log(f"[ABFP] Creature species imported: {imported_species}/{len(manifest.get('creatures', []))} (failed={failed_species})")
 
     catalog.set_editor_property("creatures", creature_entries)
     if default_creature_entry:
         catalog.set_editor_property("default_creature", default_creature_entry)
+        unreal.log(f"[ABFP] Default creature: {default_creature_entry.get_editor_property('entry_name')}")
 
     # 8. Set DX11/SM5 non-inverse-square torchlight intensity defaults on the catalog
     catalog.set_editor_property("room_torch_intensity", 5.5)

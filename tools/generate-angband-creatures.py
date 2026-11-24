@@ -384,7 +384,9 @@ class MeshBuilder:
         pos_raw = struct.pack(f"<{len(self.pos) * 3}f", *[v for p in self.pos for v in p])
         nor_raw = struct.pack(f"<{len(self.nor) * 3}f", *[v for n in self.nor for v in n])
         uv_raw = struct.pack(f"<{len(self.uv) * 2}f", *[v for t in self.uv for v in t])
-        idx_raw = struct.pack(f"<{len(self.idx)}I", *self.idx)
+        use_u16 = len(self.pos) < 65535
+        idx_comp_type = 5123 if use_u16 else 5125
+        idx_raw = struct.pack(f"<{len(self.idx)}{'H' if use_u16 else 'I'}", *self.idx)
 
         pos_off, pos_len = add_chunk(pos_raw)
         nor_off, nor_len = add_chunk(nor_raw)
@@ -398,7 +400,7 @@ class MeshBuilder:
         gltf = {
             "asset": {"version": "2.0", "generator": "ABFP Procedural Bestiary"},
             "scene": 0,
-            "scenes": [{"nodes": [0]}],
+            "scenes": [{"name": "Scene", "nodes": [0]}],
             "nodes": [{"name": out_path.stem, "mesh": 0}],
             "meshes": [
                 {
@@ -416,15 +418,14 @@ class MeshBuilder:
                 {
                     "name": f"{out_path.stem}_Mat",
                     "pbrMetallicRoughness": {
-                        "baseColorTexture": {"index": 0},
+                        "baseColorTexture": {"index": 0, "texCoord": 0},
                         "metallicFactor": metallic,
                         "roughnessFactor": roughness,
                     },
                 }
             ],
-            "textures": [{"sampler": 0, "source": 0}],
-            "samplers": [{"magFilter": 9729, "minFilter": 9987}],
-            "images": [{"bufferView": 4, "mimeType": "image/png"}],
+            "textures": [{"source": 0}],
+            "images": [{"bufferView": 4, "mimeType": "image/png", "name": f"{out_path.stem}_Tex"}],
             "bufferViews": [
                 {"buffer": 0, "byteOffset": pos_off, "byteLength": pos_len, "target": 34962},
                 {"buffer": 0, "byteOffset": nor_off, "byteLength": nor_len, "target": 34962},
@@ -436,7 +437,7 @@ class MeshBuilder:
                 {"bufferView": 0, "componentType": 5126, "count": len(self.pos), "type": "VEC3", "min": pmin, "max": pmax},
                 {"bufferView": 1, "componentType": 5126, "count": len(self.nor), "type": "VEC3"},
                 {"bufferView": 2, "componentType": 5126, "count": len(self.uv), "type": "VEC2"},
-                {"bufferView": 3, "componentType": 5125, "count": len(self.idx), "type": "SCALAR"},
+                {"bufferView": 3, "componentType": idx_comp_type, "count": len(self.idx), "type": "SCALAR", "min": [0], "max": [max(self.idx)]},
             ],
             "buffers": [{"byteLength": len(buf)}],
         }

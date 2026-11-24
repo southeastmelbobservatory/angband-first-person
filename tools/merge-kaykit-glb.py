@@ -216,7 +216,9 @@ def merge_kaykit_glb(src_path: Path, dst_path: Path) -> bool:
     pos_raw = struct.pack(f"<{len(all_pos) * 3}f", *[v for p in all_pos for v in p])
     nor_raw = struct.pack(f"<{len(all_nor) * 3}f", *[v for n in all_nor for v in n])
     uv_raw = struct.pack(f"<{len(all_uv) * 2}f", *[v for t in all_uv for v in t])
-    idx_raw = struct.pack(f"<{len(all_idx)}I", *all_idx)
+    use_u16 = len(all_pos) < 65535
+    idx_comp_type = 5123 if use_u16 else 5125
+    idx_raw = struct.pack(f"<{len(all_idx)}{'H' if use_u16 else 'I'}", *all_idx)
 
     pos_off, pos_len = add_chunk(pos_raw)
     nor_off, nor_len = add_chunk(nor_raw)
@@ -233,13 +235,13 @@ def merge_kaykit_glb(src_path: Path, dst_path: Path) -> bool:
         {"bufferView": 0, "componentType": 5126, "count": len(all_pos), "type": "VEC3", "min": pmin, "max": pmax},
         {"bufferView": 1, "componentType": 5126, "count": len(all_nor), "type": "VEC3"},
         {"bufferView": 2, "componentType": 5126, "count": len(all_uv), "type": "VEC2"},
-        {"bufferView": 3, "componentType": 5125, "count": len(all_idx), "type": "SCALAR"},
+        {"bufferView": 3, "componentType": idx_comp_type, "count": len(all_idx), "type": "SCALAR", "min": [0], "max": [max(all_idx)]},
     ]
 
     out_gltf = {
         "asset": {"version": "2.0", "generator": "ABFP KayKit Unified Merger"},
         "scene": 0,
-        "scenes": [{"nodes": [0]}],
+        "scenes": [{"name": "Scene", "nodes": [0]}],
         "nodes": [{"name": dst_path.stem, "mesh": 0}],
         "meshes": [
             {
@@ -271,10 +273,9 @@ def merge_kaykit_glb(src_path: Path, dst_path: Path) -> bool:
     if img_bytes:
         img_off, img_len = add_chunk(img_bytes)
         buffer_views.append({"buffer": 0, "byteOffset": img_off, "byteLength": img_len})
-        out_gltf["images"] = [{"bufferView": 4, "mimeType": img_mime}]
-        out_gltf["samplers"] = [{"magFilter": 9729, "minFilter": 9987}]
-        out_gltf["textures"] = [{"sampler": 0, "source": 0}]
-        out_gltf["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"] = {"index": 0}
+        out_gltf["images"] = [{"bufferView": 4, "mimeType": img_mime, "name": f"{dst_path.stem}_Tex"}]
+        out_gltf["textures"] = [{"source": 0}]
+        out_gltf["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"] = {"index": 0, "texCoord": 0}
 
     while len(buf) % 4 != 0:
         buf.append(0)
