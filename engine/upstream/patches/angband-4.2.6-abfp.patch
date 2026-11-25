@@ -1,58 +1,10 @@
-diff --git a/src/main.c b/src/main.c
-index 0000000..0000000 100644
---- a/src/main.c
-+++ b/src/main.c
-@@ -20,5 +20,6 @@
- #include "ui-prefs.h"
- #include "ui-signals.h"
-+#include "../../../host/include/abfp_host.h"
- 
- #ifdef SOUND
- #include "sound.h"
-@@ -468,6 +469,9 @@ int main(int argc, char *argv[])
- 	init_angband();
- 	textui_init();
- 
-+	if (!abfp_host_install(47652))
-+		quit("Unable to start ABFP loopback command transport");
-+
- 	/* Wait for response */
- 	pause_line(Term);
- 
-@@ -476,5 +479,6 @@ int main(int argc, char *argv[])
- 	play_game((select_game) ?
- 		GAME_SELECT : ((new_game) ? GAME_NEW : GAME_LOAD));
- 
-+	abfp_host_shutdown();
- 	/* Free resources */
- 	textui_cleanup();
-diff --git a/src/ui-game.c b/src/ui-game.c
-index 0000000..0000000 100644
---- a/src/ui-game.c
-+++ b/src/ui-game.c
-@@ -52,2 +52,4 @@
- #include "ui-game.h"
-+#include "../../../bridge/include/abfp_frontend.h"
-+#include "../../../host/include/abfp_host.h"
- #include "ui-help.h"
-@@ -1038,8 +1040,11 @@ void play_game(enum game_mode_type mode)
- 			pre_turn_refresh();
- 			cmd_get_hook(CTX_GAME);
- 			run_game_loop();
-+			abfp_frontend_after_game_loop();
-+			abfp_host_publish_state(false);
- 		}
- 
- 		/* Close game on death or quitting */
- 		close_game(true);
-+		abfp_host_game_closed();
- 
-
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 0000000..0000000 100644
+index 920c537f..03ac28b1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -379,3 +379,19 @@
+@@ -377,6 +377,22 @@ add_library(OurCoreLib OBJECT
+ )
+ 
  set_target_properties(OurCoreLib PROPERTIES C_STANDARD 99)
 +find_package(Threads REQUIRED)
 +target_sources(OurCoreLib PRIVATE
@@ -72,27 +24,57 @@ index 0000000..0000000 100644
 +target_compile_definitions(OurCoreLib PRIVATE ABFP_WITH_ANGBAND=1)
  set(ANGBAND_CORE_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src")
  set(ANGBAND_CORE_LINK_LIBRARIES "")
-@@ -437,6 +452,7 @@
- target_include_directories(OurExecutable PRIVATE
+ 
+@@ -438,6 +454,7 @@ target_include_directories(OurExecutable PRIVATE
      ${ANGBAND_CORE_INCLUDE_DIRS}
  )
  target_link_libraries(OurExecutable PRIVATE ${ANGBAND_CORE_LINK_LIBRARIES})
 +target_link_libraries(OurExecutable PRIVATE Threads::Threads)
  
  # Allow for some introspection:  have rules to print out names that something
-
+ # downstream could use.  Have the output start with "our-<something>=" so it
+diff --git a/src/main.c b/src/main.c
+index b685bc80..95bbb10a 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -27,6 +27,7 @@
+ #include "ui-input.h"
+ #include "ui-prefs.h"
+ #include "ui-signals.h"
++#include "../../../host/include/abfp_host.h"
+ 
+ #ifdef SOUND
+ #include "sound.h"
+@@ -539,6 +540,9 @@ int main(int argc, char *argv[])
+ 	init_angband();
+ 	textui_init();
+ 
++	if (!abfp_host_install(47652))
++		quit("Unable to start ABFP loopback command transport");
++
+ 	/* Wait for response */
+ 	pause_line(Term);
+ 
+@@ -546,6 +550,7 @@ int main(int argc, char *argv[])
+ 	play_game((select_game) ?
+ 		GAME_SELECT : ((new_game) ? GAME_NEW : GAME_LOAD));
+ 
++	abfp_host_shutdown();
+ 	/* Free resources */
+ 	textui_cleanup();
+ 	cleanup_angband();
 diff --git a/src/mon-util.c b/src/mon-util.c
-index 0000000..0000000 100644
+index 1c8033b1..f26fb194 100644
 --- a/src/mon-util.c
 +++ b/src/mon-util.c
-@@ -30,6 +30,7 @@
- #include "mon-spell.h"
+@@ -31,6 +31,7 @@
  #include "mon-summon.h"
  #include "mon-timed.h"
  #include "mon-util.h"
 +#include "../../../bridge/include/abfp_upstream_adapter.h"
  #include "obj-desc.h"
  #include "obj-gear.h"
+ #include "obj-ignore.h"
 @@ -953,6 +954,7 @@ void monster_death(struct monster *mon, struct player *p, bool stats)
  	struct object *obj = mon->held_obj;
  
@@ -101,3 +83,61 @@ index 0000000..0000000 100644
  
  	/* Delete any mimicked objects */
  	if (mon->mimicked_obj) {
+diff --git a/src/ui-game.c b/src/ui-game.c
+index 0f97d18d..acc39f65 100644
+--- a/src/ui-game.c
++++ b/src/ui-game.c
+@@ -42,6 +42,8 @@
+ #include "ui-death.h"
+ #include "ui-display.h"
+ #include "ui-game.h"
++#include "../../../bridge/include/abfp_frontend.h"
++#include "../../../host/include/abfp_host.h"
+ #include "ui-help.h"
+ #include "ui-init.h"
+ #include "ui-input.h"
+@@ -719,7 +721,9 @@ static bool start_game(bool new_game)
+ 	/* No living character loaded */
+ 	if (player->is_dead || new_game) {
+ 		character_generated = false;
+-		textui_do_birth();
++		if (!abfp_host_run_birth()) {
++			textui_do_birth();
++		}
+ 	} else {
+ 		/*
+ 		 * Bring the stock curse objects up-to-date with what the
+@@ -940,11 +944,24 @@ void play_game(enum game_mode_type mode)
+ 		while (!player->is_dead && player->upkeep->playing) {
+ 			pre_turn_refresh();
+ 			cmd_get_hook(CTX_GAME);
++			if (!player->upkeep->playing) break;
+ 			run_game_loop();
++			abfp_frontend_after_game_loop();
++			abfp_host_publish_state(false);
+ 		}
+ 
+ 		/* Close game on death or quitting */
+-		close_game(true);
++		if (abfp_host_handle_game_end()) {
++			if (!player->is_dead && savefile[0]) (void)savefile_save(savefile);
++			wipe_mon_list(cave, player);
++			event_signal(EVENT_LEAVE_GAME);
++			abfp_host_game_closed();
++			play_again = true;
++			mode = GAME_NEW;
++		} else {
++			close_game(true);
++			abfp_host_game_closed();
++		}
+ 
+ 		if (!play_again) break;
+ 
+@@ -955,6 +972,7 @@ void play_game(enum game_mode_type mode)
+ 			(*reinit_hook)();
+ 		}
+ 		textui_init();
++		abfp_host_rebind_hooks();
+ 		if (mode == GAME_LOAD) {
+ 			mode = GAME_NEW;
+ 		}

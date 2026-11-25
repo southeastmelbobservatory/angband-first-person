@@ -15,9 +15,12 @@
 #include "obj-tval.h"
 #include "obj-util.h"
 #include "object.h"
+#include "player-spell.h"
 #include "player-timed.h"
 #include "player-util.h"
+#include "project.h"
 #include "store.h"
+#include "target.h"
 #include <string.h>
 
 #define ABFP_SNAPSHOT_RADIUS 10
@@ -53,6 +56,18 @@ static struct object *snapshot_inventory_ptrs[ABFP_MAX_INVENTORY_ITEMS];
 static uint32_t snapshot_inventory_count;
 static abfp_shop_state snapshot_shop;
 static struct object *snapshot_shop_ptrs[ABFP_MAX_SHOP_ITEMS];
+static abfp_spell_entry snapshot_spells[ABFP_MAX_SPELLS];
+static uint32_t snapshot_spell_count;
+static bool pending_bolt_active;
+static struct loc pending_bolt_from;
+static struct loc pending_bolt_to;
+static int32_t pending_bolt_proj_type;
+static bool pending_missile_active;
+static struct loc pending_missile_from;
+static struct loc pending_missile_to;
+static bool pending_explosion_active;
+static struct loc pending_explosion_center;
+static int32_t pending_explosion_proj_type;
 static abfp_player_state previous_player;
 static int32_t previous_depth;
 static bool snapshot_history_valid;
@@ -115,11 +130,96 @@ static void abfp_message_received(game_event_type type,
     strncpy(slot->text, data->message.msg, sizeof(slot->text) - 1);
 }
 
+static void abfp_flush_projectile_events(void)
+{
+    if (pending_bolt_active) {
+        abfp_event event = {0};
+        event.type = ABFP_EVENT_SPELL;
+        event.turn = (uint64_t)turn;
+        event.subject_id = (player && loc_eq(pending_bolt_from, player->grid)) ? 1 : 0;
+        event.from_x = pending_bolt_from.x;
+        event.from_y = pending_bolt_from.y;
+        event.to_x = pending_bolt_to.x;
+        event.to_y = pending_bolt_to.y;
+        event.value = pending_bolt_proj_type + 1;
+        abfp_bridge_emit(&event);
+        pending_bolt_active = false;
+    }
+    if (pending_missile_active) {
+        abfp_event event = {0};
+        event.type = ABFP_EVENT_SPELL;
+        event.turn = (uint64_t)turn;
+        event.subject_id = 1;
+        event.from_x = pending_missile_from.x;
+        event.from_y = pending_missile_from.y;
+        event.to_x = pending_missile_to.x;
+        event.to_y = pending_missile_to.y;
+        event.value = 0; /* Physical arrow/shot/thrown weapon */
+        abfp_bridge_emit(&event);
+        pending_missile_active = false;
+    }
+    if (pending_explosion_active) {
+        abfp_event event = {0};
+        event.type = ABFP_EVENT_SPELL;
+        event.turn = (uint64_t)turn;
+        event.subject_id = 0;
+        event.from_x = event.to_x = pending_explosion_center.x;
+        event.from_y = event.to_y = pending_explosion_center.y;
+        event.value = 1000 + pending_explosion_proj_type;
+        abfp_bridge_emit(&event);
+        pending_explosion_active = false;
+    }
+}
+
+static void abfp_bolt_received(game_event_type type,
+    game_event_data *data, void *user)
+{
+    (void)type;
+    (void)user;
+    if (!data || !data->bolt.drawing || !data->bolt.seen) return;
+    if (pending_bolt_active && pending_bolt_proj_type != data->bolt.proj_type) {
+        abfp_flush_projectile_events();
+    }
+    if (!pending_bolt_active) {
+        pending_bolt_active = true;
+        pending_bolt_from = loc(data->bolt.ox, data->bolt.oy);
+        pending_bolt_proj_type = data->bolt.proj_type;
+    }
+    pending_bolt_to = loc(data->bolt.x, data->bolt.y);
+}
+
+static void abfp_missile_received(game_event_type type,
+    game_event_data *data, void *user)
+{
+    (void)type;
+    (void)user;
+    if (!data || !data->missile.seen) return;
+    if (!pending_missile_active) {
+        pending_missile_active = true;
+        pending_missile_from = player ? player->grid : loc(data->missile.x, data->missile.y);
+    }
+    pending_missile_to = loc(data->missile.x, data->missile.y);
+}
+
+static void abfp_explosion_received(game_event_type type,
+    game_event_data *data, void *user)
+{
+    (void)type;
+    (void)user;
+    if (!data || !data->explosion.drawing) return;
+    pending_explosion_active = true;
+    pending_explosion_center = data->explosion.centre;
+    pending_explosion_proj_type = data->explosion.proj_type;
+}
+
 bool abfp_upstream_install_handlers(void)
 {
     if (handlers_installed) return true;
     event_add_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
     event_add_handler(EVENT_MESSAGE, abfp_message_received, NULL);
+    event_add_handler(EVENT_BOLT, abfp_bolt_received, NULL);
+    event_add_handler(EVENT_MISSILE, abfp_missile_received, NULL);
+    event_add_handler(EVENT_EXPLOSION, abfp_explosion_received, NULL);
     handlers_installed = true;
     (void)abfp_upstream_refresh_snapshot();
     return true;
@@ -130,6 +230,9 @@ void abfp_upstream_remove_handlers(void)
     if (!handlers_installed) return;
     event_remove_handler(EVENT_PLAYERMOVED, abfp_player_moved, NULL);
     event_remove_handler(EVENT_MESSAGE, abfp_message_received, NULL);
+    event_remove_handler(EVENT_BOLT, abfp_bolt_received, NULL);
+    event_remove_handler(EVENT_MISSILE, abfp_missile_received, NULL);
+    event_remove_handler(EVENT_EXPLOSION, abfp_explosion_received, NULL);
     handlers_installed = false;
     snapshot_history_valid = false;
     previous_cell_count = 0;
@@ -137,11 +240,15 @@ void abfp_upstream_remove_handlers(void)
     pending_message_count = 0;
     snapshot_message_count = 0;
     snapshot_inventory_count = 0;
+    snapshot_spell_count = 0;
     memset(&snapshot_shop, 0, sizeof(snapshot_shop));
     previous_depth = 0;
     pending_move = false;
     pending_attack = false;
     pending_attack_target_id = 0;
+    pending_bolt_active = false;
+    pending_missile_active = false;
+    pending_explosion_active = false;
     pending_command = false;
     pending_command_type = ABFP_COMMAND_WAIT;
     observed_player_moved = false;
@@ -160,6 +267,65 @@ static struct object *abfp_resolve_inventory_object(int32_t idx)
 {
     if (idx < 0 || (uint32_t)idx >= snapshot_inventory_count) return NULL;
     return snapshot_inventory_ptrs[idx];
+}
+
+static int abfp_apply_aim_target(const abfp_command *cmd)
+{
+    if (cmd && (cmd->arg3 > 0 || cmd->arg4 > 0) && cave) {
+        struct loc tgrid = loc(cmd->arg3, cmd->arg4);
+        if (square_in_bounds(cave, tgrid)) {
+            struct monster *mon = square_monster(cave, tgrid);
+            if (mon && mon->hp > 0 && target_able(mon)) {
+                target_set_monster(mon);
+                return DIR_TARGET;
+            }
+            target_set_location(tgrid.y, tgrid.x);
+            return DIR_TARGET;
+        }
+    }
+    if (cmd && cmd->arg2 >= 1 && cmd->arg2 <= 9 && cmd->arg2 != 5) {
+        return cmd->arg2;
+    }
+    return DIR_N;
+}
+
+static struct object *abfp_find_book_for_spell(int32_t spell_index)
+{
+    const struct class_spell *spell;
+    int i;
+    if (!player || !player->upkeep || !player->upkeep->inven) return NULL;
+    spell = spell_by_index(player, spell_index);
+    if (!spell) return NULL;
+    for (i = 0; i < z_info->pack_size; ++i) {
+        struct object *obj = player->upkeep->inven[i];
+        const struct class_book *book;
+        if (!obj) continue;
+        book = player_object_to_book(player, obj);
+        if (book && spell->bidx >= 0 && spell->bidx < player->class->magic.num_books &&
+            book == &player->class->magic.books[spell->bidx]) {
+            return obj;
+        }
+    }
+    return NULL;
+}
+
+static struct object *abfp_find_default_ammo(void)
+{
+    int i;
+    if (!player || !player->upkeep || !player->state.ammo_tval) return NULL;
+    if (player->upkeep->quiver) {
+        for (i = 0; i < z_info->quiver_size; ++i) {
+            struct object *obj = player->upkeep->quiver[i];
+            if (obj && obj->tval == player->state.ammo_tval) return obj;
+        }
+    }
+    if (player->upkeep->inven) {
+        for (i = 0; i < z_info->pack_size; ++i) {
+            struct object *obj = player->upkeep->inven[i];
+            if (obj && obj->tval == player->state.ammo_tval) return obj;
+        }
+    }
+    return NULL;
 }
 
 static struct object *abfp_resolve_shop_object(int32_t idx)
@@ -352,8 +518,112 @@ bool abfp_upstream_queue_command_ex(const abfp_command *cmd)
             if (qty > obj->number) qty = obj->number;
             cmd_set_arg_number(cmdq_peek(), "quantity", qty);
         } else if (code == CMD_USE && obj_needs_aim(obj)) {
-            int aim_dir = (cmd->arg2 >= 1 && cmd->arg2 <= 9 && cmd->arg2 != 5) ? cmd->arg2 : DIR_N;
+            int aim_dir = abfp_apply_aim_target(cmd);
             cmd_set_arg_target(cmdq_peek(), "target", aim_dir);
+        }
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
+    if (command == ABFP_COMMAND_FIRE_ITEM) {
+        struct object *bow = equipped_item_by_slot_name(player, "shooting");
+        struct object *ammo = NULL;
+        int aim_dir;
+        if (!bow || !player->state.ammo_tval) {
+            return abfp_queue_noop_with_msg("You have no bow, sling, or crossbow equipped.", command);
+        }
+        if (cmd->arg1 >= 0) {
+            ammo = abfp_resolve_inventory_object(cmd->arg1);
+            if (!ammo || ammo->tval != player->state.ammo_tval) {
+                ammo = abfp_find_default_ammo();
+            }
+        } else {
+            ammo = abfp_find_default_ammo();
+        }
+        if (!ammo) {
+            return abfp_queue_noop_with_msg("You have no matching ammunition to fire.", command);
+        }
+        aim_dir = abfp_apply_aim_target(cmd);
+        if (cmdq_push(CMD_FIRE) != 0) return false;
+        cmd_set_arg_item(cmdq_peek(), "item", ammo);
+        cmd_set_arg_target(cmdq_peek(), "target", aim_dir);
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
+    if (command == ABFP_COMMAND_THROW_ITEM) {
+        struct object *obj = abfp_resolve_inventory_object(cmd->arg1);
+        int aim_dir;
+        if (!obj) {
+            return abfp_queue_noop_with_msg("No item in that slot to throw.", command);
+        }
+        if (!obj_can_throw(obj)) {
+            return abfp_queue_noop_with_msg("You cannot throw that item.", command);
+        }
+        aim_dir = abfp_apply_aim_target(cmd);
+        if (cmdq_push(CMD_THROW) != 0) return false;
+        cmd_set_arg_item(cmdq_peek(), "item", obj);
+        cmd_set_arg_target(cmdq_peek(), "target", aim_dir);
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
+    if (command == ABFP_COMMAND_CAST_SPELL) {
+        const struct class_spell *spell;
+        if (!player_can_cast(player, true)) {
+            return abfp_queue_noop_with_msg(NULL, command);
+        }
+        spell = spell_by_index(player, cmd->arg1);
+        if (!spell) {
+            return abfp_queue_noop_with_msg("Unknown spell.", command);
+        }
+        if (!spell_okay_to_cast(player, cmd->arg1)) {
+            return abfp_queue_noop_with_msg("You have not learned that spell yet.", command);
+        }
+        if (!abfp_find_book_for_spell(cmd->arg1)) {
+            return abfp_queue_noop_with_msg("You do not have the spellbook for that spell.", command);
+        }
+        /* Prevent do_cmd_cast() from calling interactive get_check() when out of mana. */
+        if (spell->smana > player->csp) {
+            return abfp_queue_noop_with_msg("You do not have enough mana to cast that spell.", command);
+        }
+        if (cmdq_push(CMD_CAST) != 0) return false;
+        cmd_set_arg_choice(cmdq_peek(), "spell", cmd->arg1);
+        if (spell_needs_aim(cmd->arg1)) {
+            int aim_dir = abfp_apply_aim_target(cmd);
+            cmd_set_arg_target(cmdq_peek(), "target", aim_dir);
+        }
+        pending_command = true;
+        pending_command_type = command;
+        return true;
+    }
+
+    if (command == ABFP_COMMAND_STUDY_SPELL) {
+        if (!player->upkeep || player->upkeep->new_spells <= 0) {
+            return abfp_queue_noop_with_msg("You cannot learn any new spells yet.", command);
+        }
+        if (!player_can_study(player, true)) {
+            return abfp_queue_noop_with_msg(NULL, command);
+        }
+        if (player_has(player, PF_CHOOSE_SPELLS)) {
+            if (!spell_okay_to_study(player, cmd->arg1) || !abfp_find_book_for_spell(cmd->arg1)) {
+                return abfp_queue_noop_with_msg("You cannot study that spell.", command);
+            }
+            if (cmdq_push(CMD_STUDY) != 0) return false;
+            cmd_set_arg_choice(cmdq_peek(), "spell", cmd->arg1);
+        } else {
+            struct object *book_obj = abfp_find_book_for_spell(cmd->arg1);
+            if (!book_obj && cmd->arg2 >= 0) {
+                book_obj = abfp_resolve_inventory_object(cmd->arg2);
+            }
+            if (!book_obj || !player_object_to_book(player, book_obj)) {
+                return abfp_queue_noop_with_msg("You have no book to study from.", command);
+            }
+            if (cmdq_push(CMD_STUDY) != 0) return false;
+            cmd_set_arg_item(cmdq_peek(), "item", book_obj);
         }
         pending_command = true;
         pending_command_type = command;
@@ -403,7 +673,7 @@ bool abfp_upstream_queue_command_ex(const abfp_command *cmd)
 
 bool abfp_upstream_queue_command(abfp_command_type command)
 {
-    abfp_command full = { command, 0, 1 };
+    abfp_command full = { command, 0, 1, 0, 0, {0} };
     return abfp_upstream_queue_command_ex(&full);
 }
 
@@ -542,12 +812,87 @@ static void abfp_refresh_inventory_and_shop(void)
             if (tval_is_scroll(obj)) dst->flags |= ABFP_ITEM_FLAG_SCROLL;
             if (tval_is_edible(obj)) dst->flags |= ABFP_ITEM_FLAG_FOOD;
             if (obj_can_refill(obj)) dst->flags |= ABFP_ITEM_FLAG_FUEL;
+            if (obj_can_fire(obj)) dst->flags |= ABFP_ITEM_FLAG_AMMO;
+            if (obj_can_throw(obj)) dst->flags |= ABFP_ITEM_FLAG_THROWABLE;
             if (store && (store->feat == FEAT_HOME || store_will_buy_tester(obj))) {
                 dst->flags |= ABFP_ITEM_FLAG_SELLABLE;
                 dst->sell_price = (store->feat == FEAT_HOME) ? 0 : price_item(store, obj, true, 1);
             }
             object_desc(dst->name, sizeof(dst->name), obj, ODESC_PREFIX | ODESC_FULL, player);
             ++snapshot_inventory_count;
+        }
+    }
+
+    /* 2b. Quiver ammunition */
+    if (player->upkeep && player->upkeep->quiver) {
+        for (i = 0; i < z_info->quiver_size && snapshot_inventory_count < ABFP_MAX_INVENTORY_ITEMS; ++i) {
+            struct object *obj = player->upkeep->quiver[i];
+            abfp_inventory_item *dst;
+            if (!obj) continue;
+            dst = &snapshot_inventory[snapshot_inventory_count];
+            snapshot_inventory_ptrs[snapshot_inventory_count] = obj;
+            memset(dst, 0, sizeof(*dst));
+            dst->index = (int32_t)snapshot_inventory_count;
+            dst->label = gear_to_label(player, obj);
+            dst->equipped = 0;
+            dst->quantity = obj->number;
+            dst->category_id = obj->tval;
+            dst->variant_id = obj->sval;
+            dst->flags |= ABFP_ITEM_FLAG_QUIVER;
+            if (obj_can_fire(obj)) dst->flags |= ABFP_ITEM_FLAG_AMMO;
+            if (obj_can_throw(obj)) dst->flags |= ABFP_ITEM_FLAG_THROWABLE;
+            if (store && (store->feat == FEAT_HOME || store_will_buy_tester(obj))) {
+                dst->flags |= ABFP_ITEM_FLAG_SELLABLE;
+                dst->sell_price = (store->feat == FEAT_HOME) ? 0 : price_item(store, obj, true, 1);
+            }
+            strncpy(dst->slot_name, "quiver", sizeof(dst->slot_name) - 1);
+            object_desc(dst->name, sizeof(dst->name), obj, ODESC_PREFIX | ODESC_FULL, player);
+            ++snapshot_inventory_count;
+        }
+    }
+
+    /* 2c. Spells available from carried spellbooks */
+    snapshot_spell_count = 0;
+    if (player->class && player->class->magic.total_spells > 0 && player->spell_flags) {
+        uint32_t inv_idx;
+        for (inv_idx = 0; inv_idx < snapshot_inventory_count && snapshot_spell_count < ABFP_MAX_SPELLS; ++inv_idx) {
+            struct object *obj = snapshot_inventory_ptrs[inv_idx];
+            const struct class_book *book;
+            int s;
+            if (!obj || snapshot_inventory[inv_idx].equipped) continue;
+            book = player_object_to_book(player, obj);
+            if (!book) continue;
+            for (s = 0; s < book->num_spells && snapshot_spell_count < ABFP_MAX_SPELLS; ++s) {
+                const struct class_spell *sp = &book->spells[s];
+                uint32_t k;
+                bool dup = false;
+                abfp_spell_entry *dst;
+                if (sp->slevel >= 99) continue;
+                for (k = 0; k < snapshot_spell_count; ++k) {
+                    if (snapshot_spells[k].index == sp->sidx) { dup = true; break; }
+                }
+                if (dup) continue;
+                dst = &snapshot_spells[snapshot_spell_count++];
+                memset(dst, 0, sizeof(*dst));
+                dst->index = sp->sidx;
+                dst->book_index = (int32_t)inv_idx;
+                dst->level = sp->slevel;
+                dst->mana = sp->smana;
+                dst->fail = (int32_t)spell_chance(sp->sidx);
+                if (player->spell_flags[sp->sidx] & PY_SPELL_LEARNED)
+                    dst->flags |= ABFP_SPELL_FLAG_LEARNED;
+                if (spell_okay_to_cast(player, sp->sidx) && sp->smana <= player->csp &&
+                    player_can_cast(player, false))
+                    dst->flags |= ABFP_SPELL_FLAG_CAN_CAST;
+                if (player->upkeep && player->upkeep->new_spells > 0 &&
+                    spell_okay_to_study(player, sp->sidx) && player_can_study(player, false))
+                    dst->flags |= ABFP_SPELL_FLAG_CAN_STUDY;
+                if (spell_needs_aim(sp->sidx))
+                    dst->flags |= ABFP_SPELL_FLAG_NEEDS_AIM;
+                if (sp->name)
+                    strncpy(dst->name, sp->name, sizeof(dst->name) - 1);
+                get_spell_info(sp->sidx, dst->info, sizeof(dst->info));
+            }
         }
     }
 
@@ -661,6 +1006,16 @@ bool abfp_upstream_refresh_snapshot(void)
     next.player.speed = player->state.speed - 110;
     next.player.food_pct = (PY_FOOD_FULL > 0) ?
         (int32_t)((player->timed[TMD_FOOD] * 100) / PY_FOOD_FULL) : 100;
+    next.player.new_spells = (player->upkeep) ? player->upkeep->new_spells : 0;
+    next.player.can_choose_spells = player_has(player, PF_CHOOSE_SPELLS) ? 1 : 0;
+    next.player.has_launcher = (equipped_item_by_slot_name(player, "shooting") != NULL &&
+        player->state.ammo_tval != 0) ? 1 : 0;
+    if (player->full_name[0])
+        strncpy(next.player.name, player->full_name, sizeof(next.player.name) - 1);
+    if (player->race && player->race->name)
+        strncpy(next.player.race_name, player->race->name, sizeof(next.player.race_name) - 1);
+    if (player->class && player->class->name)
+        strncpy(next.player.class_name, player->class->name, sizeof(next.player.class_name) - 1);
     next.cells = snapshot_cells;
     next.cell_count = ABFP_SNAPSHOT_CELLS;
     next.entities = snapshot_entities;
@@ -670,6 +1025,9 @@ bool abfp_upstream_refresh_snapshot(void)
     next.inventory = snapshot_inventory;
     next.inventory_count = snapshot_inventory_count;
     next.shop = snapshot_shop.active ? &snapshot_shop : NULL;
+    next.spells = snapshot_spells;
+    next.spell_count = snapshot_spell_count;
+    next.birth = NULL;
 
     if (snapshot_history_valid && next.dungeon_depth == previous_depth) {
         uint32_t i, j;
@@ -824,6 +1182,7 @@ void abfp_upstream_sync_after_game_loop(void)
             event.turn = (uint64_t)turn;
             abfp_bridge_emit(&event);
         }
+        abfp_flush_projectile_events();
         if (pending_message_count == 0) {
             snapshot_message_count = 0;
         }
@@ -833,6 +1192,9 @@ void abfp_upstream_sync_after_game_loop(void)
     pending_move = false;
     pending_attack = false;
     pending_attack_target_id = 0;
+    pending_bolt_active = false;
+    pending_missile_active = false;
+    pending_explosion_active = false;
     pending_command = false;
     pending_command_type = ABFP_COMMAND_WAIT;
     observed_player_moved = false;

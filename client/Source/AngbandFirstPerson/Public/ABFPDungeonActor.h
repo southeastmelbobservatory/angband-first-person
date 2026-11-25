@@ -14,9 +14,27 @@ class UDirectionalLightComponent;
 class UPointLightComponent;
 class UPostProcessComponent;
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
 class UStaticMesh;
+class UStaticMeshComponent;
 class UABFPVisualCatalog;
 struct FABFPMeshVariant;
+
+USTRUCT()
+struct FABFPActiveProjectile
+{
+    GENERATED_BODY()
+
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
+    UPROPERTY(Transient) TObjectPtr<UPointLightComponent> Light = nullptr;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> Material = nullptr;
+    FVector StartPos = FVector::ZeroVector;
+    FVector EndPos = FVector::ZeroVector;
+    FVector BaseScale = FVector(0.25f);
+    float Elapsed = 0.0f;
+    float Duration = 0.24f;
+    bool bIsExplosion = false;
+};
 
 USTRUCT()
 struct FABFPMeshPoolEntry
@@ -71,6 +89,8 @@ private:
     void UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
         const TMap<FIntPoint, const FABFPCell*>& CellMap);
     void EnsureRoomLightPool(int32 DesiredCount);
+    void SpawnProjectileEffect(const FABFPEvent& Event);
+    void TickActiveProjectiles(float DeltaSeconds);
 
     UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Floors;
@@ -137,6 +157,8 @@ private:
 
     UPROPERTY(Transient) TObjectPtr<UABFPVisualCatalog> VisualCatalog;
     UPROPERTY(Transient) TMap<int64, TObjectPtr<AActor>> SpawnedEntities;
+    UPROPERTY(Transient) TArray<FABFPActiveProjectile> ActiveProjectiles;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInterface> BaseShapeMat;
 
     int32 LastDepth = INDEX_NONE;
     int32 ConfiguredVisualDepthCategory = INDEX_NONE;

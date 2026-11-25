@@ -36,13 +36,29 @@ typedef enum abfp_command_type {
     ABFP_COMMAND_DROP_ITEM,
     ABFP_COMMAND_REFILL_ITEM,
     ABFP_COMMAND_SHOP_BUY,
-    ABFP_COMMAND_SHOP_SELL
+    ABFP_COMMAND_SHOP_SELL,
+    ABFP_COMMAND_FIRE_ITEM,
+    ABFP_COMMAND_THROW_ITEM,
+    ABFP_COMMAND_CAST_SPELL,
+    ABFP_COMMAND_STUDY_SPELL,
+    ABFP_COMMAND_NEW_CHAR,
+    ABFP_COMMAND_BIRTH_RACE,
+    ABFP_COMMAND_BIRTH_CLASS,
+    ABFP_COMMAND_BIRTH_BUY_STAT,
+    ABFP_COMMAND_BIRTH_SELL_STAT,
+    ABFP_COMMAND_BIRTH_ROLL,
+    ABFP_COMMAND_BIRTH_RESET_STATS,
+    ABFP_COMMAND_BIRTH_NAME,
+    ABFP_COMMAND_BIRTH_ACCEPT
 } abfp_command_type;
 
 typedef struct abfp_command {
     abfp_command_type type;
     int32_t arg1;
     int32_t arg2;
+    int32_t arg3;
+    int32_t arg4;
+    char text[48];
 } abfp_command;
 
 #ifdef __cplusplus

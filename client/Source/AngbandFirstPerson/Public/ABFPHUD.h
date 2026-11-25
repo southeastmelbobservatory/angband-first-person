@@ -27,5 +27,7 @@ private:
     void DrawTargetAndPrompt(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
     void DrawControlsHelp(const AABFPFirstPersonPawn* Pawn);
     void DrawActiveMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
+    void DrawSpellbookMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
+    void DrawCharacterCreationMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
     void DrawStatusOverlay(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot);
 };

@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "abfp_transport.h"
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -13,7 +14,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define ABFP_QUEUE_CAPACITY 64
-#define ABFP_LINE_CAPACITY 96
+#define ABFP_LINE_CAPACITY 128
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t send_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
@@ -47,19 +48,36 @@ bool abfp_transport_parse_command_ex(const char *line, abfp_command *out)
         {"ALTER_NORTH_WEST", ABFP_COMMAND_ALTER_NORTH_WEST},
         {"ALTER_NORTH_EAST", ABFP_COMMAND_ALTER_NORTH_EAST},
         {"ALTER_SOUTH_WEST", ABFP_COMMAND_ALTER_SOUTH_WEST},
-        {"ALTER_SOUTH_EAST", ABFP_COMMAND_ALTER_SOUTH_EAST}
+        {"ALTER_SOUTH_EAST", ABFP_COMMAND_ALTER_SOUTH_EAST},
+        {"NEW_CHAR", ABFP_COMMAND_NEW_CHAR},
+        {"BIRTH_ROLL", ABFP_COMMAND_BIRTH_ROLL},
+        {"BIRTH_RESET", ABFP_COMMAND_BIRTH_RESET_STATS},
+        {"BIRTH_ACCEPT", ABFP_COMMAND_BIRTH_ACCEPT}
     };
-    static const struct { const char *prefix; abfp_command_type command; } param_names[] = {
-        {"USE ", ABFP_COMMAND_USE_ITEM},
-        {"QUAFF ", ABFP_COMMAND_QUAFF_ITEM},
-        {"READ ", ABFP_COMMAND_READ_ITEM},
-        {"EAT ", ABFP_COMMAND_EAT_ITEM},
-        {"WIELD ", ABFP_COMMAND_WIELD_ITEM},
-        {"TAKEOFF ", ABFP_COMMAND_TAKEOFF_ITEM},
-        {"DROP ", ABFP_COMMAND_DROP_ITEM},
-        {"REFILL ", ABFP_COMMAND_REFILL_ITEM},
-        {"BUY ", ABFP_COMMAND_SHOP_BUY},
-        {"SELL ", ABFP_COMMAND_SHOP_SELL}
+    static const struct { const char *prefix; abfp_command_type command; bool allow_neg_first; } param_names[] = {
+        {"USE ", ABFP_COMMAND_USE_ITEM, false},
+        {"QUAFF ", ABFP_COMMAND_QUAFF_ITEM, false},
+        {"READ ", ABFP_COMMAND_READ_ITEM, false},
+        {"EAT ", ABFP_COMMAND_EAT_ITEM, false},
+        {"WIELD ", ABFP_COMMAND_WIELD_ITEM, false},
+        {"TAKEOFF ", ABFP_COMMAND_TAKEOFF_ITEM, false},
+        {"DROP ", ABFP_COMMAND_DROP_ITEM, false},
+        {"REFILL ", ABFP_COMMAND_REFILL_ITEM, false},
+        {"BUY ", ABFP_COMMAND_SHOP_BUY, false},
+        {"SELL ", ABFP_COMMAND_SHOP_SELL, false},
+        {"FIRE ", ABFP_COMMAND_FIRE_ITEM, true},
+        {"THROW ", ABFP_COMMAND_THROW_ITEM, false},
+        {"CAST ", ABFP_COMMAND_CAST_SPELL, false},
+        {"STUDY ", ABFP_COMMAND_STUDY_SPELL, false},
+        {"BIRTH_RACE ", ABFP_COMMAND_BIRTH_RACE, false},
+        {"BIRTH_CLASS ", ABFP_COMMAND_BIRTH_CLASS, false},
+        {"BIRTH_BUY ", ABFP_COMMAND_BIRTH_BUY_STAT, false},
+        {"BIRTH_SELL ", ABFP_COMMAND_BIRTH_SELL_STAT, false},
+        {"BIRTH_RESET ", ABFP_COMMAND_BIRTH_RESET_STATS, false}
+    };
+    static const struct { const char *prefix; abfp_command_type command; } text_names[] = {
+        {"BIRTH_NAME ", ABFP_COMMAND_BIRTH_NAME},
+        {"BIRTH_ACCEPT ", ABFP_COMMAND_BIRTH_ACCEPT}
     };
     size_t i, length;
     if (!line || !out) return false;
@@ -67,31 +85,62 @@ bool abfp_transport_parse_command_ex(const char *line, abfp_command *out)
     for (i = 0; i < sizeof(simple_names) / sizeof(simple_names[0]); ++i) {
         if (strlen(simple_names[i].name) == length &&
             memcmp(line, simple_names[i].name, length) == 0) {
+            memset(out, 0, sizeof(*out));
             out->type = simple_names[i].command;
-            out->arg1 = 0;
+            out->arg1 = (simple_names[i].command == ABFP_COMMAND_BIRTH_RESET_STATS) ? 1 : 0;
             out->arg2 = 1;
             return true;
+        }
+    }
+    for (i = 0; i < sizeof(text_names) / sizeof(text_names[0]); ++i) {
+        size_t plen = strlen(text_names[i].prefix);
+        if (length > plen && memcmp(line, text_names[i].prefix, plen) == 0) {
+            size_t j, out_len = 0;
+            memset(out, 0, sizeof(*out));
+            out->type = text_names[i].command;
+            for (j = plen; j < length && out_len + 1 < sizeof(out->text) && out_len < 31; ++j) {
+                unsigned char ch = (unsigned char)line[j];
+                if (isalnum(ch) || ch == ' ' || ch == '-' || ch == '_' || ch == '\'') {
+                    out->text[out_len++] = (char)ch;
+                }
+            }
+            out->text[out_len] = '\0';
+            return out_len > 0 || text_names[i].command == ABFP_COMMAND_BIRTH_ACCEPT;
         }
     }
     for (i = 0; i < sizeof(param_names) / sizeof(param_names[0]); ++i) {
         size_t plen = strlen(param_names[i].prefix);
         if (length > plen && memcmp(line, param_names[i].prefix, plen) == 0) {
             char buf[ABFP_LINE_CAPACITY];
-            char *end1 = NULL, *end2 = NULL;
-            long v1 = 0, v2 = 1;
+            char *p = buf, *end = NULL;
+            long vals[4] = { 0, 1, 0, 0 };
+            int nvals = 0;
+            long min_first = param_names[i].allow_neg_first ? -1 : 0;
             if (length - plen >= sizeof(buf)) return false;
             memcpy(buf, line + plen, length - plen);
             buf[length - plen] = '\0';
-            v1 = strtol(buf, &end1, 10);
-            if (end1 == buf || v1 < 0 || v1 > 1000) return false;
-            while (*end1 == ' ') ++end1;
-            if (*end1 != '\0') {
-                v2 = strtol(end1, &end2, 10);
-                if (end2 == end1 || *end2 != '\0' || v2 < 0 || v2 > 999) return false;
+            while (*p && nvals < 4) {
+                long v;
+                while (*p == ' ') ++p;
+                if (!*p) break;
+                v = strtol(p, &end, 10);
+                if (end == p) return false;
+                if (nvals == 0) {
+                    if (v < min_first || v > 1000) return false;
+                } else {
+                    if (v < 0 || v > 999) return false;
+                }
+                vals[nvals++] = v;
+                p = end;
             }
+            while (*p == ' ') ++p;
+            if (nvals < 1 || *p != '\0') return false;
+            memset(out, 0, sizeof(*out));
             out->type = param_names[i].command;
-            out->arg1 = (int32_t)v1;
-            out->arg2 = (int32_t)v2;
+            out->arg1 = (int32_t)vals[0];
+            out->arg2 = (int32_t)vals[1];
+            out->arg3 = (int32_t)vals[2];
+            out->arg4 = (int32_t)vals[3];
             return true;
         }
     }
@@ -214,6 +263,15 @@ bool abfp_transport_start(uint16_t port)
     worker_started = true;
     return true;
 }
+bool abfp_transport_has_client(void)
+{
+    bool connected;
+    pthread_mutex_lock(&mutex);
+    connected = running && active_fd >= 0;
+    pthread_mutex_unlock(&mutex);
+    return connected;
+}
+
 bool abfp_transport_wait_for_client(void)
 {
     pthread_mutex_lock(&mutex);
@@ -341,12 +399,15 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
         (snapshot->entity_count && !snapshot->entities) ||
         (snapshot->message_count && !snapshot->messages) ||
         (snapshot->inventory_count && !snapshot->inventory) ||
+        (snapshot->spell_count && !snapshot->spells) ||
         (event_count && !events) || event_count > 4096) return false;
-    capacity = 1024 + (size_t)snapshot->cell_count * 96 +
+    capacity = 2048 + (size_t)snapshot->cell_count * 96 +
         (size_t)snapshot->entity_count * 512 +
         (size_t)snapshot->message_count * (ABFP_MAX_MESSAGE_LENGTH * 6 + 32) +
         (size_t)snapshot->inventory_count * 512 +
+        (size_t)snapshot->spell_count * 256 +
         (snapshot->shop && snapshot->shop->active ? (1024 + (size_t)snapshot->shop->item_count * 512) : 64) +
+        (snapshot->birth && snapshot->birth->active ? 6144 : 64) +
         event_count * 192;
     buffer = (char *)malloc(capacity);
     if (!buffer) return false;
@@ -356,7 +417,7 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
     if (!append_json(&cursor, &remaining,
         "{\"type\":\"state\",\"turn\":%" PRIu64
         ",\"depth\":%d,\"initial\":%s,\"player\":[%d,%d]"
-        ",\"player_stats\":[%d,%d,%d,%d,%d,%d,%u,%d,%d,%d,%d,%d],\"cells\":[",
+        ",\"player_stats\":[%d,%d,%d,%d,%d,%d,%u,%d,%d,%d,%d,%d],\"player_meta\":[%d,%u,%u,",
         snapshot->turn, snapshot->dungeon_depth,
         initial_state ? "true" : "false", snapshot->player_x, snapshot->player_y,
         snapshot->player.hitpoints, snapshot->player.max_hitpoints,
@@ -365,7 +426,16 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
         (unsigned)snapshot->player.is_dead,
         snapshot->player.exp, snapshot->player.max_exp,
         snapshot->player.armor_class, snapshot->player.speed,
-        snapshot->player.food_pct)) goto done;
+        snapshot->player.food_pct,
+        snapshot->player.new_spells,
+        (unsigned)snapshot->player.can_choose_spells,
+        (unsigned)snapshot->player.has_launcher) ||
+        !append_json_string(&cursor, &remaining, snapshot->player.name, sizeof(snapshot->player.name)) ||
+        !append_json(&cursor, &remaining, ",") ||
+        !append_json_string(&cursor, &remaining, snapshot->player.race_name, sizeof(snapshot->player.race_name)) ||
+        !append_json(&cursor, &remaining, ",") ||
+        !append_json_string(&cursor, &remaining, snapshot->player.class_name, sizeof(snapshot->player.class_name)) ||
+        !append_json(&cursor, &remaining, "],\"cells\":[")) goto done;
 
     for (i = 0; i < snapshot->cell_count; ++i) {
         const abfp_cell *cell = &snapshot->cells[i];
@@ -440,9 +510,66 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
                 !append_json_string(&cursor, &remaining, si->name, sizeof(si->name)) ||
                 !append_json(&cursor, &remaining, "]")) goto done;
         }
+        if (!append_json(&cursor, &remaining, "]}") ) goto done;
+    } else {
+        if (!append_json(&cursor, &remaining, "],\"shop\":null")) goto done;
+    }
+
+    if (!append_json(&cursor, &remaining, ",\"spells\":[")) goto done;
+    for (i = 0; i < snapshot->spell_count; ++i) {
+        const abfp_spell_entry *sp = &snapshot->spells[i];
+        if (!append_json(&cursor, &remaining, "%s[%d,%d,%d,%d,%d,%u,",
+                i ? "," : "", sp->index, sp->book_index, sp->level,
+                sp->mana, sp->fail, (unsigned)sp->flags) ||
+            !append_json_string(&cursor, &remaining, sp->name, sizeof(sp->name)) ||
+            !append_json(&cursor, &remaining, ",") ||
+            !append_json_string(&cursor, &remaining, sp->info, sizeof(sp->info)) ||
+            !append_json(&cursor, &remaining, "]")) goto done;
+    }
+
+    if (snapshot->birth && snapshot->birth->active) {
+        const abfp_birth_state *b = snapshot->birth;
+        size_t s;
+        if (!append_json(&cursor, &remaining,
+                "],\"birth\":{\"rolled\":%s,\"race\":%d,\"class\":%d,\"points_left\":%d,\"hp\":%d,\"gold\":%d,\"name\":",
+                b->rolled ? "true" : "false", b->race_index, b->class_index,
+                b->points_left, b->hitpoints, b->gold) ||
+            !append_json_string(&cursor, &remaining, b->name, sizeof(b->name)) ||
+            !append_json(&cursor, &remaining, ",\"stats_base\":[")) goto done;
+        for (s = 0; s < ABFP_NUM_STATS; ++s)
+            if (!append_json(&cursor, &remaining, "%s%d", s ? "," : "", b->stats_base[s])) goto done;
+        if (!append_json(&cursor, &remaining, "],\"stats_total\":[")) goto done;
+        for (s = 0; s < ABFP_NUM_STATS; ++s)
+            if (!append_json(&cursor, &remaining, "%s%d", s ? "," : "", b->stats_total[s])) goto done;
+        if (!append_json(&cursor, &remaining, "],\"points_spent\":[")) goto done;
+        for (s = 0; s < ABFP_NUM_STATS; ++s)
+            if (!append_json(&cursor, &remaining, "%s%d", s ? "," : "", b->points_spent[s])) goto done;
+        if (!append_json(&cursor, &remaining, "],\"points_inc\":[")) goto done;
+        for (s = 0; s < ABFP_NUM_STATS; ++s)
+            if (!append_json(&cursor, &remaining, "%s%d", s ? "," : "", b->points_inc[s])) goto done;
+        if (!append_json(&cursor, &remaining, "],\"races\":[")) goto done;
+        for (i = 0; i < b->race_count; ++i) {
+            const abfp_birth_option *r = &b->races[i];
+            if (!append_json(&cursor, &remaining, "%s[%d,", i ? "," : "", r->index) ||
+                !append_json_string(&cursor, &remaining, r->name, sizeof(r->name)) ||
+                !append_json(&cursor, &remaining, ",[%d,%d,%d,%d,%d],%d,%d,%u]",
+                    r->stat_adj[0], r->stat_adj[1], r->stat_adj[2],
+                    r->stat_adj[3], r->stat_adj[4],
+                    r->hit_die, r->exp_factor, (unsigned)r->has_magic)) goto done;
+        }
+        if (!append_json(&cursor, &remaining, "],\"classes\":[")) goto done;
+        for (i = 0; i < b->class_count; ++i) {
+            const abfp_birth_option *c = &b->classes[i];
+            if (!append_json(&cursor, &remaining, "%s[%d,", i ? "," : "", c->index) ||
+                !append_json_string(&cursor, &remaining, c->name, sizeof(c->name)) ||
+                !append_json(&cursor, &remaining, ",[%d,%d,%d,%d,%d],%d,%d,%u]",
+                    c->stat_adj[0], c->stat_adj[1], c->stat_adj[2],
+                    c->stat_adj[3], c->stat_adj[4],
+                    c->hit_die, c->exp_factor, (unsigned)c->has_magic)) goto done;
+        }
         if (!append_json(&cursor, &remaining, "]}}\n")) goto done;
     } else {
-        if (!append_json(&cursor, &remaining, "],\"shop\":null}\n")) goto done;
+        if (!append_json(&cursor, &remaining, "],\"birth\":null}\n")) goto done;
     }
 
     pthread_mutex_lock(&send_mutex);

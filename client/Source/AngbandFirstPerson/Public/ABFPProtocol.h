@@ -5,13 +5,24 @@
 
 namespace ABFPItemFlags
 {
-    constexpr int32 Usable   = 0x01;
-    constexpr int32 Wearable = 0x02;
-    constexpr int32 Potion   = 0x04;
-    constexpr int32 Scroll   = 0x08;
-    constexpr int32 Food     = 0x10;
-    constexpr int32 Fuel     = 0x20;
-    constexpr int32 Sellable = 0x40;
+    constexpr int32 Usable    = 0x001;
+    constexpr int32 Wearable  = 0x002;
+    constexpr int32 Potion    = 0x004;
+    constexpr int32 Scroll    = 0x008;
+    constexpr int32 Food      = 0x010;
+    constexpr int32 Fuel      = 0x020;
+    constexpr int32 Sellable  = 0x040;
+    constexpr int32 Ammo      = 0x080;
+    constexpr int32 Quiver    = 0x100;
+    constexpr int32 Throwable = 0x200;
+}
+
+namespace ABFPSpellFlags
+{
+    constexpr int32 Learned  = 0x01;
+    constexpr int32 CanCast  = 0x02;
+    constexpr int32 CanStudy = 0x04;
+    constexpr int32 NeedsAim = 0x08;
 }
 
 UENUM(BlueprintType)
@@ -21,7 +32,9 @@ enum class EABFPMenuMode : uint8
     Inventory = 1,
     Equipment = 2,
     ShopBuy = 3,
-    ShopSell = 4
+    ShopSell = 4,
+    Spellbook = 5,
+    CharacterCreation = 6
 };
 
 UENUM(BlueprintType)
@@ -162,6 +175,55 @@ struct FABFPShopState
 };
 
 USTRUCT(BlueprintType)
+struct FABFPSpellEntry
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Index = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 BookIndex = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Level = 1;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Mana = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 FailPct = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Flags = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Info;
+};
+
+USTRUCT(BlueprintType)
+struct FABFPBirthOption
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Index = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> StatAdj;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 HitDie = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ExpFactor = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bHasMagic = false;
+};
+
+USTRUCT(BlueprintType)
+struct FABFPBirthState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bActive = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bRolled = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RaceIndex = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ClassIndex = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PointsLeft = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 HitPoints = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 Gold = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> StatsBase;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> StatsTotal;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> PointsSpent;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> PointsInc;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPBirthOption> Races;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPBirthOption> Classes;
+};
+
+USTRUCT(BlueprintType)
 struct FABFPSnapshot
 {
     GENERATED_BODY()
@@ -183,10 +245,18 @@ struct FABFPSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerArmorClass = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerSpeed = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerFoodPct = 100;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 PlayerNewSpells = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bCanChooseSpells = true;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bHasLauncher = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString PlayerName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString PlayerRaceName;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString PlayerClassName;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPCell> Cells;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEntity> Entities;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPEvent> Events;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPMessage> Messages;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPInventoryItem> Inventory;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) FABFPShopState Shop;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPSpellEntry> Spells;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FABFPBirthState Birth;
 };

@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 bool abfp_host_install(uint16_t port);
+void abfp_host_rebind_hooks(void);
+bool abfp_host_run_birth(void);
+bool abfp_host_handle_game_end(void);
 bool abfp_host_publish_state(bool initial_state);
 void abfp_host_game_closed(void);
 void abfp_host_shutdown(void);

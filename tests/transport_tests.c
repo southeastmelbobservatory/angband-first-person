@@ -38,6 +38,35 @@ static void test_parse(void)
     assert(full_cmd.type == ABFP_COMMAND_SHOP_BUY && full_cmd.arg1 == 2 && full_cmd.arg2 == 5);
     assert(abfp_transport_parse_command_ex("SELL 0 1", &full_cmd));
     assert(full_cmd.type == ABFP_COMMAND_SHOP_SELL && full_cmd.arg1 == 0 && full_cmd.arg2 == 1);
+    assert(abfp_transport_parse_command_ex("FIRE -1 8 15 9\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_FIRE_ITEM && full_cmd.arg1 == -1 && full_cmd.arg2 == 8 &&
+        full_cmd.arg3 == 15 && full_cmd.arg4 == 9);
+    assert(abfp_transport_parse_command_ex("THROW 4 6 20 11", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_THROW_ITEM && full_cmd.arg1 == 4 && full_cmd.arg2 == 6 &&
+        full_cmd.arg3 == 20 && full_cmd.arg4 == 11);
+    assert(abfp_transport_parse_command_ex("CAST 0 2 10 14\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_CAST_SPELL && full_cmd.arg1 == 0 && full_cmd.arg2 == 2 &&
+        full_cmd.arg3 == 10 && full_cmd.arg4 == 14);
+    assert(abfp_transport_parse_command_ex("STUDY 2 5\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_STUDY_SPELL && full_cmd.arg1 == 2 && full_cmd.arg2 == 5);
+    assert(abfp_transport_parse_command_ex("NEW_CHAR\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_NEW_CHAR);
+    assert(abfp_transport_parse_command_ex("BIRTH_RACE 3\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_RACE && full_cmd.arg1 == 3);
+    assert(abfp_transport_parse_command_ex("BIRTH_CLASS 1\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_CLASS && full_cmd.arg1 == 1);
+    assert(abfp_transport_parse_command_ex("BIRTH_BUY 0\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_BUY_STAT && full_cmd.arg1 == 0);
+    assert(abfp_transport_parse_command_ex("BIRTH_SELL 4\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_SELL_STAT && full_cmd.arg1 == 4);
+    assert(abfp_transport_parse_command_ex("BIRTH_ROLL\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_ROLL);
+    assert(abfp_transport_parse_command_ex("BIRTH_RESET\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_RESET_STATS && full_cmd.arg1 == 1);
+    assert(abfp_transport_parse_command_ex("BIRTH_NAME Thorin Oak\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_NAME && strcmp(full_cmd.text, "Thorin Oak") == 0);
+    assert(abfp_transport_parse_command_ex("BIRTH_ACCEPT Gandalf\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_BIRTH_ACCEPT && strcmp(full_cmd.text, "Gandalf") == 0);
     assert(!abfp_transport_parse_command_ex("BUY -1 1", &full_cmd));
     assert(!abfp_transport_parse_command("MOVE_UP", &command));
     assert(!abfp_transport_parse_command("", &command));

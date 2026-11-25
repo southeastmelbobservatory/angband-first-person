@@ -6,6 +6,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/SceneComponent.h"
@@ -178,6 +179,7 @@ AABFPDungeonActor::AABFPDungeonActor()
     if (BasicMaterial.Succeeded())
     {
         UMaterialInterface* BaseMat = BasicMaterial.Object;
+        BaseShapeMat = BaseMat;
         auto MakeColorMat = [this, BaseMat](const FLinearColor& Color) -> UMaterialInstanceDynamic*
         {
             UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(BaseMat, this);
@@ -605,10 +607,121 @@ void AABFPDungeonActor::UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
     }
 }
 
+void AABFPDungeonActor::SpawnProjectileEffect(const FABFPEvent& Event)
+{
+    if (!GetWorld() || !FallbackSphereMesh || !BaseShapeMat) return;
+    if (ActiveProjectiles.Num() >= 12) return;
+
+    const bool bIsExplosion = (Event.Value >= 1000);
+    const bool bIsPhysicalMissile = (Event.Value == 0);
+    const int32 ProjIdx = bIsExplosion ? (Event.Value - 1000) : (bIsPhysicalMissile ? -1 : (Event.Value - 1));
+
+    /* Map Angband list-elements.h indices to vivid elemental colors:
+       0=ACID, 1=ELEC, 2=FIRE, 3=COLD, 4=POIS, 5=LIGHT, 6=DARK, 7=SOUND, 8=SHARD,
+       9=NEXUS, 10=NETHER, 11=CHAOS, 12=DISEN, 13=WATER, 14=ICE, 19=PLASMA, 20=METEOR,
+       21=MISSILE, 22=MANA, 23=HOLY_ORB, 24=ARROW */
+    FLinearColor Color(0.55f, 0.72f, 1.0f);
+    if (bIsPhysicalMissile || ProjIdx == 24) Color = FLinearColor(1.0f, 0.84f, 0.45f);
+    else if (ProjIdx == 0 || ProjIdx == 4) Color = FLinearColor(0.22f, 0.95f, 0.30f);
+    else if (ProjIdx == 1) Color = FLinearColor(0.95f, 0.96f, 0.35f);
+    else if (ProjIdx == 2 || ProjIdx == 19 || ProjIdx == 20) Color = FLinearColor(1.0f, 0.36f, 0.08f);
+    else if (ProjIdx == 3 || ProjIdx == 13 || ProjIdx == 14) Color = FLinearColor(0.32f, 0.86f, 1.0f);
+    else if (ProjIdx == 5 || ProjIdx == 23) Color = FLinearColor(1.0f, 0.92f, 0.50f);
+    else if (ProjIdx == 6 || ProjIdx == 10) Color = FLinearColor(0.52f, 0.16f, 0.72f);
+    else if (ProjIdx == 21 || ProjIdx == 22) Color = FLinearColor(0.42f, 0.58f, 1.0f);
+
+    const FVector StartPos = GridToWorld(Event.FromX, Event.FromY) + FVector(0.0f, 0.0f, 145.0f);
+    const FVector EndPos = GridToWorld(Event.ToX, Event.ToY) + FVector(0.0f, 0.0f, 128.0f);
+
+    UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
+    MeshComp->SetupAttachment(SceneRoot);
+    MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    MeshComp->SetCastShadow(false);
+    MeshComp->SetStaticMesh(bIsPhysicalMissile && FallbackCubeMesh ? FallbackCubeMesh.Get() : FallbackSphereMesh.Get());
+
+    UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(BaseShapeMat.Get(), this);
+    if (Mat)
+    {
+        Mat->SetVectorParameterValue(TEXT("Color"), Color);
+        MeshComp->SetMaterial(0, Mat);
+    }
+
+    const FVector Delta = EndPos - StartPos;
+    const FRotator Orient = Delta.IsNearlyZero() ? FRotator::ZeroRotator : Delta.Rotation();
+    const FVector BaseScale = bIsExplosion
+        ? FVector(0.55f, 0.55f, 0.55f)
+        : (bIsPhysicalMissile ? FVector(0.75f, 0.07f, 0.07f) : FVector(0.32f, 0.24f, 0.24f));
+
+    MeshComp->SetWorldLocation(StartPos);
+    MeshComp->SetWorldRotation(Orient);
+    MeshComp->SetWorldScale3D(BaseScale);
+    MeshComp->RegisterComponent();
+
+    UPointLightComponent* LightComp = NewObject<UPointLightComponent>(this);
+    LightComp->SetupAttachment(SceneRoot);
+    LightComp->SetMobility(EComponentMobility::Movable);
+    LightComp->SetCastShadows(false);
+    LightComp->SetUseInverseSquaredFalloff(false);
+    LightComp->SetLightFalloffExponent(1.6f);
+    LightComp->SetLightColor(Color);
+    LightComp->SetIntensity(bIsExplosion ? 14.0f : (bIsPhysicalMissile ? 3.5f : 8.5f));
+    LightComp->SetAttenuationRadius(bIsExplosion ? 1200.0f : 650.0f);
+    LightComp->SetWorldLocation(StartPos);
+    LightComp->RegisterComponent();
+
+    FABFPActiveProjectile Proj;
+    Proj.Mesh = MeshComp;
+    Proj.Light = LightComp;
+    Proj.Material = Mat;
+    Proj.StartPos = StartPos;
+    Proj.EndPos = EndPos;
+    Proj.BaseScale = BaseScale;
+    Proj.Elapsed = 0.0f;
+    Proj.Duration = bIsExplosion ? 0.34f : FMath::Clamp(Delta.Size() / 4200.0f, 0.14f, 0.32f);
+    Proj.bIsExplosion = bIsExplosion;
+    ActiveProjectiles.Add(MoveTemp(Proj));
+}
+
+void AABFPDungeonActor::TickActiveProjectiles(float DeltaSeconds)
+{
+    for (int32 Idx = ActiveProjectiles.Num() - 1; Idx >= 0; --Idx)
+    {
+        FABFPActiveProjectile& Proj = ActiveProjectiles[Idx];
+        Proj.Elapsed += DeltaSeconds;
+        const float Alpha = FMath::Clamp(Proj.Elapsed / FMath::Max(0.01f, Proj.Duration), 0.0f, 1.0f);
+
+        if (Alpha >= 1.0f)
+        {
+            if (Proj.Mesh) Proj.Mesh->DestroyComponent();
+            if (Proj.Light) Proj.Light->DestroyComponent();
+            ActiveProjectiles.RemoveAtSwap(Idx);
+            continue;
+        }
+
+        if (Proj.bIsExplosion)
+        {
+            const float ScaleMult = FMath::Lerp(0.5f, 3.4f, FMath::Sin(Alpha * PI * 0.65f));
+            if (Proj.Mesh) Proj.Mesh->SetWorldScale3D(Proj.BaseScale * ScaleMult);
+            if (Proj.Light) Proj.Light->SetIntensity(14.0f * (1.0f - Alpha));
+        }
+        else
+        {
+            const FVector Pos = FMath::Lerp(Proj.StartPos, Proj.EndPos, Alpha);
+            if (Proj.Mesh) Proj.Mesh->SetWorldLocation(Pos);
+            if (Proj.Light)
+            {
+                Proj.Light->SetWorldLocation(Pos);
+                Proj.Light->SetIntensity(8.0f * (1.0f - Alpha * 0.5f));
+            }
+        }
+    }
+}
+
 void AABFPDungeonActor::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     FlickerElapsed += DeltaSeconds;
+    TickActiveProjectiles(DeltaSeconds);
 
     const float BaseIntensity = VisualCatalog ? FMath::Clamp(VisualCatalog->RoomTorchIntensity, 0.5f, 25.0f) : 5.5f;
     for (int32 Idx = 0; Idx < RoomLights.Num(); ++Idx)
@@ -625,6 +738,18 @@ void AABFPDungeonActor::Tick(float DeltaSeconds)
 
 void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 {
+    if (Snapshot.Birth.bActive && Snapshot.Cells.IsEmpty())
+    {
+        for (auto& Pair : SpawnedEntities)
+        {
+            if (IsValid(Pair.Value.Get())) Pair.Value->Destroy();
+        }
+        SpawnedEntities.Empty();
+        LastDepth = INDEX_NONE;
+        bHasBuiltTerrainOnce = false;
+        return;
+    }
+
     if (LastDepth != Snapshot.DungeonDepth)
     {
         const bool bChangedLevels = (LastDepth != INDEX_NONE);
@@ -1349,6 +1474,10 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 UGameplayStatics::PlaySoundAtLocation(this, VisualCatalog->PickupDefaultSound,
                     GridToWorld(Event.ToX, Event.ToY));
             }
+        }
+        else if (Event.Type == EABFPEventType::Spell)
+        {
+            SpawnProjectileEffect(Event);
         }
     }
 

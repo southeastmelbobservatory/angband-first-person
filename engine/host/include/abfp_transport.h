@@ -12,6 +12,7 @@ extern "C" {
 bool abfp_transport_parse_command(const char *line, abfp_command_type *out);
 bool abfp_transport_parse_command_ex(const char *line, abfp_command *out);
 bool abfp_transport_start(uint16_t port);
+bool abfp_transport_has_client(void);
 bool abfp_transport_wait_for_client(void);
 bool abfp_transport_wait_command(abfp_command_type *out);
 bool abfp_transport_wait_command_ex(abfp_command *out);

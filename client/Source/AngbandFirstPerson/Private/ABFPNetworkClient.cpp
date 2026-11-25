@@ -230,6 +230,20 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
         }
     }
 
+    const TArray<TSharedPtr<FJsonValue>>* PlayerMeta = nullptr;
+    if (Root->TryGetArrayField(TEXT("player_meta"), PlayerMeta) && PlayerMeta && PlayerMeta->Num() >= 3)
+    {
+        Snapshot.PlayerNewSpells = ReadInt((*PlayerMeta)[0]);
+        Snapshot.bCanChooseSpells = ReadInt((*PlayerMeta)[1]) != 0;
+        Snapshot.bHasLauncher = ReadInt((*PlayerMeta)[2]) != 0;
+        if (PlayerMeta->Num() >= 4 && (*PlayerMeta)[3].IsValid() && (*PlayerMeta)[3]->Type == EJson::String)
+            Snapshot.PlayerName = (*PlayerMeta)[3]->AsString();
+        if (PlayerMeta->Num() >= 5 && (*PlayerMeta)[4].IsValid() && (*PlayerMeta)[4]->Type == EJson::String)
+            Snapshot.PlayerRaceName = (*PlayerMeta)[4]->AsString();
+        if (PlayerMeta->Num() >= 6 && (*PlayerMeta)[5].IsValid() && (*PlayerMeta)[5]->Type == EJson::String)
+            Snapshot.PlayerClassName = (*PlayerMeta)[5]->AsString();
+    }
+
     const TArray<TSharedPtr<FJsonValue>>* Cells = nullptr;
     if (!Root->TryGetArrayField(TEXT("cells"), Cells) || !Cells) return false;
     Snapshot.Cells.Reserve(Cells->Num());
@@ -368,6 +382,85 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
                 Snapshot.Shop.Items.Add(MoveTemp(ShopItem));
             }
         }
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* SpellsArr = nullptr;
+    if (Root->TryGetArrayField(TEXT("spells"), SpellsArr) && SpellsArr)
+    {
+        Snapshot.Spells.Reserve(SpellsArr->Num());
+        for (const TSharedPtr<FJsonValue>& Value : *SpellsArr)
+        {
+            TArray<TSharedPtr<FJsonValue>> Row;
+            if (!ReadRow(Value, Row) || Row.Num() < 8) continue;
+            FABFPSpellEntry Spell;
+            Spell.Index = ReadInt(Row[0]);
+            Spell.BookIndex = ReadInt(Row[1]);
+            Spell.Level = ReadInt(Row[2]);
+            Spell.Mana = ReadInt(Row[3]);
+            Spell.FailPct = ReadInt(Row[4]);
+            Spell.Flags = ReadInt(Row[5]);
+            if (Row[6].IsValid() && Row[6]->Type == EJson::String)
+                Spell.Name = Row[6]->AsString();
+            if (Row[7].IsValid() && Row[7]->Type == EJson::String)
+                Spell.Info = Row[7]->AsString();
+            Snapshot.Spells.Add(MoveTemp(Spell));
+        }
+    }
+
+    const TSharedPtr<FJsonObject>* BirthObj = nullptr;
+    if (Root->TryGetObjectField(TEXT("birth"), BirthObj) && BirthObj && BirthObj->IsValid())
+    {
+        Snapshot.Birth.bActive = true;
+        (*BirthObj)->TryGetBoolField(TEXT("rolled"), Snapshot.Birth.bRolled);
+        double NumVal = 0.0;
+        if ((*BirthObj)->TryGetNumberField(TEXT("race"), NumVal)) Snapshot.Birth.RaceIndex = static_cast<int32>(NumVal);
+        if ((*BirthObj)->TryGetNumberField(TEXT("class"), NumVal)) Snapshot.Birth.ClassIndex = static_cast<int32>(NumVal);
+        if ((*BirthObj)->TryGetNumberField(TEXT("points_left"), NumVal)) Snapshot.Birth.PointsLeft = static_cast<int32>(NumVal);
+        if ((*BirthObj)->TryGetNumberField(TEXT("hp"), NumVal)) Snapshot.Birth.HitPoints = static_cast<int32>(NumVal);
+        if ((*BirthObj)->TryGetNumberField(TEXT("gold"), NumVal)) Snapshot.Birth.Gold = static_cast<int32>(NumVal);
+        (*BirthObj)->TryGetStringField(TEXT("name"), Snapshot.Birth.Name);
+
+        auto ParseIntArr = [&](const TCHAR* Field, TArray<int32>& Dest)
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+            if ((*BirthObj)->TryGetArrayField(Field, Arr) && Arr)
+            {
+                Dest.Reserve(Arr->Num());
+                for (const TSharedPtr<FJsonValue>& V : *Arr) Dest.Add(ReadInt(V));
+            }
+        };
+        ParseIntArr(TEXT("stats_base"), Snapshot.Birth.StatsBase);
+        ParseIntArr(TEXT("stats_total"), Snapshot.Birth.StatsTotal);
+        ParseIntArr(TEXT("points_spent"), Snapshot.Birth.PointsSpent);
+        ParseIntArr(TEXT("points_inc"), Snapshot.Birth.PointsInc);
+
+        auto ParseOptArr = [&](const TCHAR* Field, TArray<FABFPBirthOption>& Dest)
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+            if ((*BirthObj)->TryGetArrayField(Field, Arr) && Arr)
+            {
+                Dest.Reserve(Arr->Num());
+                for (const TSharedPtr<FJsonValue>& V : *Arr)
+                {
+                    TArray<TSharedPtr<FJsonValue>> Row;
+                    if (!ReadRow(V, Row) || Row.Num() < 6) continue;
+                    FABFPBirthOption Opt;
+                    Opt.Index = ReadInt(Row[0]);
+                    if (Row[1].IsValid() && Row[1]->Type == EJson::String) Opt.Name = Row[1]->AsString();
+                    TArray<TSharedPtr<FJsonValue>> Adjs;
+                    if (ReadRow(Row[2], Adjs))
+                    {
+                        for (const TSharedPtr<FJsonValue>& A : Adjs) Opt.StatAdj.Add(ReadInt(A));
+                    }
+                    Opt.HitDie = ReadInt(Row[3]);
+                    Opt.ExpFactor = ReadInt(Row[4]);
+                    Opt.bHasMagic = ReadInt(Row[5]) != 0;
+                    Dest.Add(MoveTemp(Opt));
+                }
+            }
+        };
+        ParseOptArr(TEXT("races"), Snapshot.Birth.Races);
+        ParseOptArr(TEXT("classes"), Snapshot.Birth.Classes);
     }
 
     OutSnapshot = MoveTemp(Snapshot);

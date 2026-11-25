@@ -125,7 +125,9 @@ def bootstrap_upstream_angband(repo_root: Path) -> Path:
         elif already_applied:
             print("[abfp-host] ABFP patch already applied.", flush=True)
         else:
-            raise RuntimeError("ABFP patch does not apply cleanly to engine/upstream/angband")
+            print("[abfp-host] Updating ABFP patch in engine/upstream/angband...", flush=True)
+            subprocess.run(["git", "-C", str(dest), "checkout", "--", "."], check=True)
+            subprocess.run(["git", "-C", str(dest), "apply", str(tmp_patch)], check=True)
     finally:
         tmp_patch.unlink(missing_ok=True)
 
@@ -134,6 +136,9 @@ def bootstrap_upstream_angband(repo_root: Path) -> Path:
 
 def sources_newer_than(repo_root: Path, binary: Path) -> bool:
     bin_mtime = binary.stat().st_mtime
+    patch_src = repo_root / "engine" / "upstream" / "patches" / "angband-4.2.6-abfp.patch"
+    if patch_src.is_file() and patch_src.stat().st_mtime > bin_mtime:
+        return True
     for folder in (repo_root / "engine" / "bridge", repo_root / "engine" / "host", repo_root / "protocol"):
         if not folder.exists():
             continue
@@ -220,7 +225,8 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--player", default="ABFPPlayer", help="Angband character/save name")
     parser.add_argument("--save-root", default="", help="Persistent save/user root directory")
-    parser.add_argument("--new-game", action="store_true", help="Force a brand-new random character")
+    parser.add_argument("--new-game", action="store_true", help="Start a brand-new character via in-client 3D character creation")
+    parser.add_argument("--auto-birth", action="store_true", help="Auto-roll a random character instead of opening in-client character creation")
     parser.add_argument("--rebuild", action="store_true", help="Force rebuilding the Angband host binary")
     parser.add_argument("--pid-file", default="", help="Optional PID file path")
     args = parser.parse_args()
@@ -280,6 +286,8 @@ def main() -> int:
             "LC_ALL": "C.UTF-8",
             "ABFP_BIND_ADDRESS": args.bind,
         })
+        if not args.auto_birth:
+            env["ABFP_CLIENT_BIRTH"] = "1"
         os.execve(str(binary), argv, env)
 
     fcntl.ioctl(master_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
@@ -369,8 +377,9 @@ def main() -> int:
             )
             return 1
 
+        mode_label = "character-creation" if initial_snapshot.get("birth") else "in-game"
         print(
-            f"[abfp-host] READY on {args.bind}:{args.port} | "
+            f"[abfp-host] READY on {args.bind}:{args.port} ({mode_label}) | "
             f"player={args.player} depth={initial_snapshot.get('depth')} "
             f"turn={initial_snapshot.get('turn')} pos={initial_snapshot.get('player')}",
             flush=True,

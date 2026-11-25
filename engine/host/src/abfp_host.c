@@ -1,21 +1,31 @@
 #include "angband.h"
 #include "cmd-core.h"
 #include "cave.h"
+#include "game-event.h"
+#include "init.h"
 #include "option.h"
 #include "obj-make.h"
 #include "obj-pile.h"
 #include "obj-util.h"
 #include "mon-make.h"
 #include "mon-util.h"
+#include "player-birth.h"
+#include "player-calcs.h"
 #include "trap.h"
 #include "ui-game.h"
 #include "abfp_frontend.h"
 #include "abfp_transport.h"
 #include "abfp_host.h"
 #include <stdlib.h>
+#include <string.h>
 
 static bool bridge_registered;
 static bool initial_state_sent;
+static bool new_char_requested;
+static bool birth_rolled_stats;
+static int birth_points_spent[ABFP_NUM_STATS];
+static int birth_points_inc[ABFP_NUM_STATS];
+static int birth_points_left;
 static bool test_floor_item_seeded;
 static bool test_down_stair_seeded;
 static bool test_monster_seeded;
@@ -275,8 +285,230 @@ static errr abfp_host_get_command(cmd_context context)
             test_monster_killed = true;
         }
 
+        if (command == ABFP_COMMAND_NEW_CHAR) {
+            new_char_requested = true;
+            if (player && player->upkeep) {
+                player->upkeep->playing = false;
+            }
+            (void)cmdq_push(CMD_NULL);
+            return 0;
+        }
+
         if (abfp_frontend_submit_command_ex(&cmd)) return 0;
     }
+}
+
+static void abfp_birth_points_handler(game_event_type type,
+    game_event_data *data, void *user)
+{
+    int s;
+    (void)type;
+    (void)user;
+    if (!data) return;
+    birth_points_left = data->birthpoints.remaining;
+    for (s = 0; s < ABFP_NUM_STATS && s < STAT_MAX; ++s) {
+        birth_points_spent[s] = data->birthpoints.points ? data->birthpoints.points[s] : 0;
+        birth_points_inc[s] = data->birthpoints.inc_points ? data->birthpoints.inc_points[s] : 0;
+    }
+}
+
+static bool abfp_host_publish_birth_state(void)
+{
+    abfp_snapshot snap;
+    abfp_birth_state b;
+    struct player_race *r;
+    struct player_class *c;
+    int i, s, n_races = 0, n_classes = 0;
+
+    memset(&snap, 0, sizeof(snap));
+    memset(&b, 0, sizeof(b));
+    b.active = 1;
+    b.rolled = birth_rolled_stats ? 1 : 0;
+    b.points_left = birth_points_left;
+    b.race_index = (player && player->race) ? (int32_t)player->race->ridx : 0;
+    b.class_index = (player && player->class) ? (int32_t)player->class->cidx : 0;
+
+    if (player) {
+        b.gold = player->au_birth;
+        b.hitpoints = player->mhp > 0 ? player->mhp :
+            (player->hitdie + (player->race ? player->race->r_mhp : 0) +
+             (player->class ? player->class->c_mhp : 0));
+        if (player->full_name[0]) {
+            strncpy(b.name, player->full_name, sizeof(b.name) - 1);
+        }
+        for (s = 0; s < ABFP_NUM_STATS && s < STAT_MAX; ++s) {
+            b.stats_base[s] = player->stat_cur[s];
+            b.stats_total[s] = player->state.stat_use[s];
+            b.points_spent[s] = birth_points_spent[s];
+            b.points_inc[s] = birth_points_inc[s];
+        }
+    }
+
+    for (r = races; r; r = r->next) ++n_races;
+    for (i = 0; i < n_races && b.race_count < ABFP_MAX_RACES; ++i) {
+        r = player_id2race((guid)i);
+        if (!r) continue;
+        abfp_birth_option *dst = &b.races[b.race_count++];
+        memset(dst, 0, sizeof(*dst));
+        dst->index = (int32_t)r->ridx;
+        if (r->name) strncpy(dst->name, r->name, sizeof(dst->name) - 1);
+        for (s = 0; s < ABFP_NUM_STATS && s < STAT_MAX; ++s) dst->stat_adj[s] = r->r_adj[s];
+        dst->hit_die = r->r_mhp;
+        dst->exp_factor = r->r_exp;
+        dst->has_magic = 0;
+    }
+
+    for (c = classes; c; c = c->next) ++n_classes;
+    for (i = 0; i < n_classes && b.class_count < ABFP_MAX_CLASSES; ++i) {
+        c = player_id2class((guid)i);
+        if (!c) continue;
+        abfp_birth_option *dst = &b.classes[b.class_count++];
+        memset(dst, 0, sizeof(*dst));
+        dst->index = (int32_t)c->cidx;
+        if (c->name) strncpy(dst->name, c->name, sizeof(dst->name) - 1);
+        for (s = 0; s < ABFP_NUM_STATS && s < STAT_MAX; ++s) dst->stat_adj[s] = c->c_adj[s];
+        dst->hit_die = c->c_mhp;
+        dst->exp_factor = c->c_exp;
+        dst->has_magic = (c->magic.total_spells > 0) ? 1 : 0;
+    }
+
+    snap.birth = &b;
+    return abfp_transport_publish_state(&snap, NULL, 0, true);
+}
+
+bool abfp_host_run_birth(void)
+{
+    const char *env_client_birth = getenv("ABFP_CLIENT_BIRTH");
+    bool use_client_birth = new_char_requested ||
+        (env_client_birth && env_client_birth[0] == '1');
+    abfp_command cmd;
+    int n_races = 0, n_classes = 0;
+    struct player_race *r;
+    struct player_class *c;
+
+    if (!use_client_birth) return false;
+
+    for (r = races; r; r = r->next) ++n_races;
+    for (c = classes; c; c = c->next) ++n_classes;
+
+    birth_rolled_stats = false;
+    memset(birth_points_spent, 0, sizeof(birth_points_spent));
+    memset(birth_points_inc, 0, sizeof(birth_points_inc));
+    birth_points_left = 20;
+
+    event_add_handler(EVENT_BIRTHPOINTS, abfp_birth_points_handler, NULL);
+
+    cmdq_push(CMD_BIRTH_INIT);
+    cmdq_execute(CTX_BIRTH);
+    cmdq_push(CMD_BIRTH_RESET);
+    cmdq_execute(CTX_BIRTH);
+    cmdq_push(CMD_CHOOSE_RACE);
+    cmd_set_arg_choice(cmdq_peek(), "choice", 0);
+    cmdq_execute(CTX_BIRTH);
+    cmdq_push(CMD_CHOOSE_CLASS);
+    cmd_set_arg_choice(cmdq_peek(), "choice", 0);
+    cmdq_execute(CTX_BIRTH);
+    cmdq_push(CMD_RESET_STATS);
+    cmd_set_arg_choice(cmdq_peek(), "choice", 1);
+    cmdq_execute(CTX_BIRTH);
+    cmdq_push(CMD_REFRESH_STATS);
+    cmdq_execute(CTX_BIRTH);
+
+    if (player && !player->full_name[0]) {
+        cmdq_push(CMD_NAME_CHOICE);
+        cmd_set_arg_string(cmdq_peek(), "name", "Hero");
+        cmdq_execute(CTX_BIRTH);
+    }
+
+    while (1) {
+        if (!abfp_transport_wait_for_client()) {
+            event_remove_handler(EVENT_BIRTHPOINTS, abfp_birth_points_handler, NULL);
+            return false;
+        }
+        (void)abfp_host_publish_birth_state();
+        if (!abfp_transport_wait_command_ex(&cmd)) {
+            continue;
+        }
+        if (cmd.type == ABFP_COMMAND_BIRTH_RACE && cmd.arg1 >= 0 && cmd.arg1 < n_races) {
+            birth_rolled_stats = false;
+            cmdq_push(CMD_CHOOSE_RACE);
+            cmd_set_arg_choice(cmdq_peek(), "choice", cmd.arg1);
+            cmdq_execute(CTX_BIRTH);
+            cmdq_push(CMD_REFRESH_STATS);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_CLASS && cmd.arg1 >= 0 && cmd.arg1 < n_classes) {
+            birth_rolled_stats = false;
+            cmdq_push(CMD_CHOOSE_CLASS);
+            cmd_set_arg_choice(cmdq_peek(), "choice", cmd.arg1);
+            cmdq_execute(CTX_BIRTH);
+            cmdq_push(CMD_REFRESH_STATS);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_BUY_STAT && cmd.arg1 >= 0 && cmd.arg1 < STAT_MAX) {
+            cmdq_push(CMD_BUY_STAT);
+            cmd_set_arg_choice(cmdq_peek(), "choice", cmd.arg1);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_SELL_STAT && cmd.arg1 >= 0 && cmd.arg1 < STAT_MAX) {
+            cmdq_push(CMD_SELL_STAT);
+            cmd_set_arg_choice(cmdq_peek(), "choice", cmd.arg1);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_ROLL) {
+            birth_rolled_stats = true;
+            cmdq_push(CMD_ROLL_STATS);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_RESET_STATS) {
+            birth_rolled_stats = false;
+            cmdq_push(CMD_RESET_STATS);
+            cmd_set_arg_choice(cmdq_peek(), "choice", cmd.arg1 ? 1 : 0);
+            cmdq_execute(CTX_BIRTH);
+            cmdq_push(CMD_REFRESH_STATS);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_NAME && cmd.text[0]) {
+            cmdq_push(CMD_NAME_CHOICE);
+            cmd_set_arg_string(cmdq_peek(), "name", cmd.text);
+            cmdq_execute(CTX_BIRTH);
+        } else if (cmd.type == ABFP_COMMAND_BIRTH_ACCEPT) {
+            if (cmd.text[0]) {
+                cmdq_push(CMD_NAME_CHOICE);
+                cmd_set_arg_string(cmdq_peek(), "name", cmd.text);
+                cmdq_execute(CTX_BIRTH);
+            }
+            if (player && player->full_name[0]) {
+                savefile_set_name(player->full_name, true, true);
+            }
+            cmdq_push(CMD_ACCEPT_CHARACTER);
+            cmdq_execute(CTX_BIRTH);
+            break;
+        }
+    }
+
+    event_remove_handler(EVENT_BIRTHPOINTS, abfp_birth_points_handler, NULL);
+    new_char_requested = false;
+    initial_state_sent = false;
+    return true;
+}
+
+bool abfp_host_handle_game_end(void)
+{
+    if (new_char_requested) {
+        return true;
+    }
+    if (player && player->is_dead &&
+        !getenv("ABFP_TEST_KILL_MONSTER") && !getenv("ABFP_TEST_MONSTER") &&
+        abfp_transport_has_client()) {
+        abfp_command cmd;
+        while (abfp_transport_wait_command_ex(&cmd)) {
+            if (cmd.type == ABFP_COMMAND_NEW_CHAR) {
+                new_char_requested = true;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void abfp_host_rebind_hooks(void)
+{
+    cmd_get_hook = abfp_host_get_command;
 }
 
 bool abfp_host_install(uint16_t port)

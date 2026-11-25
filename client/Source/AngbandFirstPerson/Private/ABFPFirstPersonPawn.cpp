@@ -9,6 +9,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
@@ -383,6 +384,12 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
     LanternElapsed += DeltaSeconds;
     PlayerDamageFlashSeconds = FMath::Max(0.0f, PlayerDamageFlashSeconds - DeltaSeconds);
     AttackSwingSeconds = FMath::Max(0.0f, AttackSwingSeconds - DeltaSeconds);
+    NewCharConfirmSeconds = FMath::Max(0.0f, NewCharConfirmSeconds - DeltaSeconds);
+
+    if (IsTypingCharacterName())
+    {
+        TickCharacterNameInput();
+    }
 
     /* Smoothly interpolate discrete 45-degree tank turns. */
     if (!FMath::IsNearlyEqual(CurrentControlYaw, TargetControlYaw, 0.1f))
@@ -454,52 +461,84 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
                         UGameplayStatics::PlaySound2D(this, LoadedVisualCatalog->PlayerHitSound);
                     }
                 }
-                else if (Event.Type == EABFPEventType::Attack && Event.SubjectId == 1)
+                else if ((Event.Type == EABFPEventType::Attack || Event.Type == EABFPEventType::Spell) &&
+                    Event.SubjectId == 1)
                 {
                     PlayPlayerAttackSwing();
                 }
             }
 
             const bool bFirstState = !bHaveAuthoritativeState;
+            const bool bExitedBirth = bWasInBirthMode && !AuthoritativeSnapshot.Birth.bActive;
             const bool bLevelChanged = bHaveAuthoritativeState &&
                 AuthoritativeSnapshot.DungeonDepth != CurrentSnapshot.DungeonDepth;
             AppendMessages(AuthoritativeSnapshot.Messages);
             CurrentSnapshot = MoveTemp(AuthoritativeSnapshot);
 
-            if (!CurrentSnapshot.Shop.bActive &&
-                (ActiveMenu == EABFPMenuMode::ShopBuy || ActiveMenu == EABFPMenuMode::ShopSell))
+            if (CurrentSnapshot.Birth.bActive)
             {
-                ActiveMenu = EABFPMenuMode::None;
-                SelectedMenuIndex = 0;
+                if (!bWasInBirthMode)
+                {
+                    ActiveMenu = EABFPMenuMode::CharacterCreation;
+                    BirthFocusColumn = 0;
+                    BirthSelectedStat = 0;
+                    BirthDraftName = CurrentSnapshot.Birth.Name.IsEmpty()
+                        ? TEXT("Hero") : CurrentSnapshot.Birth.Name;
+                    LockedTargetId = 0;
+                    LastCastSpellIndex = INDEX_NONE;
+                }
+                else if (BirthFocusColumn != 3 && !CurrentSnapshot.Birth.Name.IsEmpty() && BirthDraftName.IsEmpty())
+                {
+                    BirthDraftName = CurrentSnapshot.Birth.Name;
+                }
+                bWasInBirthMode = true;
             }
-            ClampSelectedMenuIndex();
+            else
+            {
+                if (bWasInBirthMode)
+                {
+                    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+                    {
+                        ActiveMenu = EABFPMenuMode::None;
+                        SelectedMenuIndex = 0;
+                    }
+                    bWasInBirthMode = false;
+                }
+                if (!CurrentSnapshot.Shop.bActive &&
+                    (ActiveMenu == EABFPMenuMode::ShopBuy || ActiveMenu == EABFPMenuMode::ShopSell))
+                {
+                    ActiveMenu = EABFPMenuMode::None;
+                    SelectedMenuIndex = 0;
+                }
+                ClampSelectedMenuIndex();
+            }
 
             if (Dungeon) Dungeon->ApplySnapshot(CurrentSnapshot);
 
-            const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
-            TargetPawnLocation = FVector(CurrentSnapshot.PlayerX * GridCellSize,
-                CurrentSnapshot.PlayerY * GridCellSize, 0.0f);
-            if (bFirstState || bLevelChanged)
+            if (!CurrentSnapshot.Birth.bActive)
             {
-                SetActorLocation(TargetPawnLocation);
-                bInterpolatingMove = false;
-            }
-            else if (FVector::DistSquared(GetActorLocation(), TargetPawnLocation) > 4.0f)
-            {
-                bInterpolatingMove = true;
-                if (LoadedVisualCatalog && LoadedVisualCatalog->FootstepSound)
+                const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
+                TargetPawnLocation = FVector(CurrentSnapshot.PlayerX * GridCellSize,
+                    CurrentSnapshot.PlayerY * GridCellSize, 0.0f);
+                if (bFirstState || bLevelChanged || bExitedBirth)
                 {
-                    UGameplayStatics::PlaySound2D(this, LoadedVisualCatalog->FootstepSound);
+                    SetActorLocation(TargetPawnLocation);
+                    bInterpolatingMove = false;
+                }
+                else if (FVector::DistSquared(GetActorLocation(), TargetPawnLocation) > 4.0f)
+                {
+                    bInterpolatingMove = true;
+                    if (LoadedVisualCatalog && LoadedVisualCatalog->FootstepSound)
+                    {
+                        UGameplayStatics::PlaySound2D(this, LoadedVisualCatalog->FootstepSound);
+                    }
                 }
             }
 
-            if (!CurrentSnapshot.bInitialState)
-            {
-                bAwaitingServerTurn = false;
-                AwaitingTurnSeconds = 0.0f;
-            }
+            bAwaitingServerTurn = false;
+            AwaitingTurnSeconds = 0.0f;
             bHaveAuthoritativeState = true;
-            UpdateEquippedViewModels(false);
+            UpdateEquippedViewModels(bExitedBirth);
         }
     }
 
@@ -611,8 +650,13 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction("MenuTakeOff", IE_Pressed, this, &AABFPFirstPersonPawn::MenuTakeOffSelected);
     PlayerInputComponent->BindAction("MenuDrop", IE_Pressed, this, &AABFPFirstPersonPawn::MenuDropSelected);
     PlayerInputComponent->BindAction("MenuRefill", IE_Pressed, this, &AABFPFirstPersonPawn::MenuRefillSelected);
+    PlayerInputComponent->BindAction("MenuThrow", IE_Pressed, this, &AABFPFirstPersonPawn::MenuThrowSelected);
     PlayerInputComponent->BindAction("MenuTab", IE_Pressed, this, &AABFPFirstPersonPawn::MenuTab);
     PlayerInputComponent->BindAction("MenuClose", IE_Pressed, this, &AABFPFirstPersonPawn::MenuClose);
+    PlayerInputComponent->BindAction("QuickFire", IE_Pressed, this, &AABFPFirstPersonPawn::QuickFire);
+    PlayerInputComponent->BindAction("ToggleSpells", IE_Pressed, this, &AABFPFirstPersonPawn::ToggleSpells);
+    PlayerInputComponent->BindAction("QuickCast", IE_Pressed, this, &AABFPFirstPersonPawn::QuickCast);
+    PlayerInputComponent->BindAction("NewCharacter", IE_Pressed, this, &AABFPFirstPersonPawn::NewCharacter);
 }
 
 FIntPoint AABFPFirstPersonPawn::GetFacingGridDelta() const
@@ -710,9 +754,284 @@ int32 AABFPFirstPersonPawn::GetActiveMenuItemCount() const
         return GetMenuInventoryIndices(true).Num();
     case EABFPMenuMode::ShopBuy:
         return CurrentSnapshot.Shop.Items.Num();
+    case EABFPMenuMode::Spellbook:
+        return CurrentSnapshot.Spells.Num();
     default:
         return 0;
     }
+}
+
+bool AABFPFirstPersonPawn::IsTypingCharacterName() const
+{
+    return ActiveMenu == EABFPMenuMode::CharacterCreation && BirthFocusColumn == 3;
+}
+
+void AABFPFirstPersonPawn::TickCharacterNameInput()
+{
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    const bool bShift = PC->IsInputKeyDown(EKeys::LeftShift) || PC->IsInputKeyDown(EKeys::RightShift);
+    if (PC->WasInputKeyJustPressed(EKeys::BackSpace))
+    {
+        if (!BirthDraftName.IsEmpty())
+        {
+            BirthDraftName.LeftChopInline(1);
+        }
+        return;
+    }
+
+    if (BirthDraftName.Len() >= 24) return;
+
+    auto TryAppend = [&](const FKey& Key, TCHAR LowerCh, TCHAR UpperCh)
+    {
+        if (PC->WasInputKeyJustPressed(Key))
+        {
+            const bool bAutoCap = BirthDraftName.IsEmpty() || BirthDraftName.EndsWith(TEXT(" ")) || BirthDraftName.EndsWith(TEXT("-"));
+            BirthDraftName.AppendChar((bShift || bAutoCap) ? UpperCh : LowerCh);
+        }
+    };
+
+    static const TPair<FKey, TCHAR> LetterKeys[] = {
+        {EKeys::A, TEXT('a')}, {EKeys::B, TEXT('b')}, {EKeys::C, TEXT('c')}, {EKeys::D, TEXT('d')},
+        {EKeys::E, TEXT('e')}, {EKeys::F, TEXT('f')}, {EKeys::G, TEXT('g')}, {EKeys::H, TEXT('h')},
+        {EKeys::I, TEXT('i')}, {EKeys::J, TEXT('j')}, {EKeys::K, TEXT('k')}, {EKeys::L, TEXT('l')},
+        {EKeys::M, TEXT('m')}, {EKeys::N, TEXT('n')}, {EKeys::O, TEXT('o')}, {EKeys::P, TEXT('p')},
+        {EKeys::Q, TEXT('q')}, {EKeys::R, TEXT('r')}, {EKeys::S, TEXT('s')}, {EKeys::T, TEXT('t')},
+        {EKeys::U, TEXT('u')}, {EKeys::V, TEXT('v')}, {EKeys::W, TEXT('w')}, {EKeys::X, TEXT('x')},
+        {EKeys::Y, TEXT('y')}, {EKeys::Z, TEXT('z')}
+    };
+    for (const auto& Pair : LetterKeys)
+    {
+        TryAppend(Pair.Key, Pair.Value, FChar::ToUpper(Pair.Value));
+    }
+
+    static const TPair<FKey, TCHAR> DigitKeys[] = {
+        {EKeys::Zero, TEXT('0')}, {EKeys::One, TEXT('1')}, {EKeys::Two, TEXT('2')}, {EKeys::Three, TEXT('3')},
+        {EKeys::Four, TEXT('4')}, {EKeys::Five, TEXT('5')}, {EKeys::Six, TEXT('6')}, {EKeys::Seven, TEXT('7')},
+        {EKeys::Eight, TEXT('8')}, {EKeys::Nine, TEXT('9')}
+    };
+    for (const auto& Pair : DigitKeys)
+    {
+        if (PC->WasInputKeyJustPressed(Pair.Key))
+        {
+            BirthDraftName.AppendChar(Pair.Value);
+        }
+    }
+
+    if (PC->WasInputKeyJustPressed(EKeys::SpaceBar) && !BirthDraftName.IsEmpty() && !BirthDraftName.EndsWith(TEXT(" ")))
+    {
+        BirthDraftName.AppendChar(TEXT(' '));
+    }
+    if (PC->WasInputKeyJustPressed(EKeys::Hyphen))
+    {
+        BirthDraftName.AppendChar(TEXT('-'));
+    }
+}
+
+const FABFPEntity* AABFPFirstPersonPawn::GetActiveRangedTarget(bool* OutIsManualLock) const
+{
+    if (OutIsManualLock) *OutIsManualLock = false;
+
+    if (LockedTargetId != 0)
+    {
+        for (const FABFPEntity& Entity : CurrentSnapshot.Entities)
+        {
+            if (Entity.Type == EABFPEntityType::Monster && Entity.Id == LockedTargetId && Entity.HitPoints > 0)
+            {
+                if (OutIsManualLock) *OutIsManualLock = true;
+                return &Entity;
+            }
+        }
+    }
+
+    const FVector Forward = FRotationMatrix(FRotator(0.0f, TargetControlYaw, 0.0f))
+        .TransformVector(FVector(1.0f, 0.0f, 0.0f));
+    const FVector2D Fwd2D(Forward.X, Forward.Y);
+    const FABFPEntity* Best = nullptr;
+    float BestScore = 1e9f;
+
+    for (const FABFPEntity& Entity : CurrentSnapshot.Entities)
+    {
+        if (Entity.Type != EABFPEntityType::Monster || Entity.HitPoints <= 0) continue;
+        const FVector2D Delta(static_cast<float>(Entity.X - CurrentSnapshot.PlayerX),
+            static_cast<float>(Entity.Y - CurrentSnapshot.PlayerY));
+        const float Dist = Delta.Size();
+        if (Dist < 0.5f || Dist > 10.5f) continue;
+        const float CosAngle = FVector2D::DotProduct(Delta / Dist, Fwd2D);
+        if (CosAngle < 0.72f) continue; /* ~44-degree half-cone directly ahead of camera */
+        /* Prefer monsters directly centered in view, then closest. */
+        const float Score = Dist + (1.0f - CosAngle) * 12.0f;
+        if (Score < BestScore)
+        {
+            BestScore = Score;
+            Best = &Entity;
+        }
+    }
+    return Best;
+}
+
+const FABFPSpellEntry* AABFPFirstPersonPawn::GetQuickCastSpell() const
+{
+    if (LastCastSpellIndex != INDEX_NONE)
+    {
+        for (const FABFPSpellEntry& Sp : CurrentSnapshot.Spells)
+        {
+            if (Sp.Index == LastCastSpellIndex && (Sp.Flags & ABFPSpellFlags::Learned) != 0)
+            {
+                return &Sp;
+            }
+        }
+    }
+    for (const FABFPSpellEntry& Sp : CurrentSnapshot.Spells)
+    {
+        if ((Sp.Flags & ABFPSpellFlags::CanCast) != 0)
+        {
+            return &Sp;
+        }
+    }
+    for (const FABFPSpellEntry& Sp : CurrentSnapshot.Spells)
+    {
+        if ((Sp.Flags & ABFPSpellFlags::Learned) != 0)
+        {
+            return &Sp;
+        }
+    }
+    return nullptr;
+}
+
+void AABFPFirstPersonPawn::CycleRangedTarget()
+{
+    TArray<const FABFPEntity*> Monsters;
+    for (const FABFPEntity& Entity : CurrentSnapshot.Entities)
+    {
+        if (Entity.Type == EABFPEntityType::Monster && Entity.HitPoints > 0)
+        {
+            Monsters.Add(&Entity);
+        }
+    }
+    if (Monsters.IsEmpty())
+    {
+        LockedTargetId = 0;
+        AddStatusMessage(TEXT("No visible monsters to target."));
+        return;
+    }
+
+    Monsters.Sort([this](const FABFPEntity& A, const FABFPEntity& B)
+    {
+        const int32 DA = FMath::Square(A.X - CurrentSnapshot.PlayerX) + FMath::Square(A.Y - CurrentSnapshot.PlayerY);
+        const int32 DB = FMath::Square(B.X - CurrentSnapshot.PlayerX) + FMath::Square(B.Y - CurrentSnapshot.PlayerY);
+        return DA != DB ? (DA < DB) : (A.Id < B.Id);
+    });
+
+    int32 CurIdx = INDEX_NONE;
+    for (int32 i = 0; i < Monsters.Num(); ++i)
+    {
+        if (Monsters[i]->Id == LockedTargetId)
+        {
+            CurIdx = i;
+            break;
+        }
+    }
+    if (CurIdx == Monsters.Num() - 1)
+    {
+        LockedTargetId = 0;
+        AddStatusMessage(TEXT("Target lock cleared (auto-aiming ahead)."));
+    }
+    else
+    {
+        const FABFPEntity* Next = Monsters[CurIdx + 1];
+        LockedTargetId = Next->Id;
+        AddStatusMessage(FString::Printf(TEXT("Target locked: %s."),
+            Next->Name.IsEmpty() ? TEXT("creature") : *Next->Name));
+    }
+}
+
+FString AABFPFirstPersonPawn::BuildAimSuffix() const
+{
+    const int32 Dir = GetFacingKeypadDirection();
+    if (const FABFPEntity* Target = GetActiveRangedTarget())
+    {
+        return FString::Printf(TEXT("%d %d %d"), Dir, Target->X, Target->Y);
+    }
+    return FString::Printf(TEXT("%d"), Dir);
+}
+
+void AABFPFirstPersonPawn::RecalcDemoBirthStats()
+{
+    FABFPBirthState& B = CurrentSnapshot.Birth;
+    if (B.StatsBase.Num() < 5) B.StatsBase.Init(10, 5);
+    if (B.StatsTotal.Num() < 5) B.StatsTotal.Init(10, 5);
+    if (B.PointsSpent.Num() < 5) B.PointsSpent.Init(0, 5);
+    if (B.PointsInc.Num() < 5) B.PointsInc.Init(1, 5);
+
+    static const int32 Costs[19] = { 0,0,0,0,0,0,0,0,0,0,0, 1,1,1,1,1,1,2,4 };
+    const FABFPBirthOption* RaceOpt = B.Races.IsValidIndex(B.RaceIndex) ? &B.Races[B.RaceIndex] : nullptr;
+    const FABFPBirthOption* ClassOpt = B.Classes.IsValidIndex(B.ClassIndex) ? &B.Classes[B.ClassIndex] : nullptr;
+    for (int32 s = 0; s < 5; ++s)
+    {
+        const int32 Base = FMath::Clamp(B.StatsBase[s], 8, 18);
+        const int32 Adj = (RaceOpt && RaceOpt->StatAdj.IsValidIndex(s) ? RaceOpt->StatAdj[s] : 0) +
+            (ClassOpt && ClassOpt->StatAdj.IsValidIndex(s) ? ClassOpt->StatAdj[s] : 0);
+        int32 Tot = Base + Adj;
+        if (Tot > 18) Tot = 18 + (Tot - 18) * 10;
+        B.StatsTotal[s] = FMath::Max(3, Tot);
+        B.PointsInc[s] = (!B.bRolled && Base < 18) ? Costs[Base + 1] : 0;
+    }
+    B.HitPoints = 10 + (RaceOpt ? RaceOpt->HitDie : 10) + (ClassOpt ? ClassOpt->HitDie : 6);
+    B.Gold = 200 + 50 * B.PointsLeft;
+}
+
+void AABFPFirstPersonPawn::OpenDemoCharacterCreation()
+{
+    FABFPBirthState& B = CurrentSnapshot.Birth;
+    B = FABFPBirthState();
+    B.bActive = true;
+    B.bRolled = false;
+    B.RaceIndex = 0;
+    B.ClassIndex = 0;
+    B.PointsLeft = 20;
+    B.Name = CurrentSnapshot.PlayerName.IsEmpty() ? TEXT("Hero") : CurrentSnapshot.PlayerName;
+    B.StatsBase = { 10, 10, 10, 10, 10 };
+    B.StatsTotal = { 10, 10, 10, 10, 10 };
+    B.PointsSpent = { 0, 0, 0, 0, 0 };
+    B.PointsInc = { 1, 1, 1, 1, 1 };
+
+    auto AddOpt = [](TArray<FABFPBirthOption>& Arr, int32 Idx, const TCHAR* Name,
+        int32 s0, int32 s1, int32 s2, int32 s3, int32 s4, int32 HD, int32 Exp, bool bMagic)
+    {
+        FABFPBirthOption O;
+        O.Index = Idx; O.Name = Name; O.StatAdj = { s0, s1, s2, s3, s4 };
+        O.HitDie = HD; O.ExpFactor = Exp; O.bHasMagic = bMagic;
+        Arr.Add(MoveTemp(O));
+    };
+    AddOpt(B.Races, 0, TEXT("Human"),      0,  0,  0,  0,  0, 10, 100, false);
+    AddOpt(B.Races, 1, TEXT("Half-Elf"),   0,  1,  0,  1, -1, 10, 110, false);
+    AddOpt(B.Races, 2, TEXT("Elf"),       -1,  2,  1,  1, -1,  9, 120, false);
+    AddOpt(B.Races, 3, TEXT("Hobbit"),    -2,  2,  1,  3,  2,  7, 110, false);
+    AddOpt(B.Races, 4, TEXT("Gnome"),     -1,  2,  0,  2,  1,  8, 125, false);
+    AddOpt(B.Races, 5, TEXT("Dwarf"),      2, -3,  2, -2,  2, 11, 120, false);
+    AddOpt(B.Races, 6, TEXT("Half-Orc"),   2, -1,  0,  0,  1, 10, 110, false);
+    AddOpt(B.Races, 7, TEXT("Half-Troll"), 4, -4, -2, -4,  3, 12, 120, false);
+    AddOpt(B.Races, 8, TEXT("Dunadan"),    1,  2,  2,  2,  3, 10, 140, false);
+    AddOpt(B.Races, 9, TEXT("High-Elf"),   1,  3, -1,  3,  1, 10, 145, false);
+    AddOpt(B.Races,10, TEXT("Kobold"),    -1, -1,  0,  2,  2,  8, 115, false);
+
+    AddOpt(B.Classes, 0, TEXT("Warrior"),     3, -2, -2,  2,  2, 9, 100, false);
+    AddOpt(B.Classes, 1, TEXT("Mage"),       -3,  3,  0,  0, -2, 0, 130, true);
+    AddOpt(B.Classes, 2, TEXT("Druid"),      -2,  0,  3, -2,  0, 2, 120, true);
+    AddOpt(B.Classes, 3, TEXT("Priest"),     -1, -3,  3, -1,  1, 2, 120, true);
+    AddOpt(B.Classes, 4, TEXT("Necromancer"),-3,  3,  0,  0, -2, 0, 130, true);
+    AddOpt(B.Classes, 5, TEXT("Paladin"),     1, -3,  1, -1,  2, 6, 135, true);
+    AddOpt(B.Classes, 6, TEXT("Rogue"),       0,  1, -3,  3, -1, 4, 125, true);
+    AddOpt(B.Classes, 7, TEXT("Ranger"),      0,  0,  2,  1,  1, 4, 130, true);
+    AddOpt(B.Classes, 8, TEXT("Blackguard"),  2,  0, -3,  0,  2, 8, 135, true);
+
+    RecalcDemoBirthStats();
+    BirthFocusColumn = 0;
+    BirthSelectedStat = 0;
+    BirthDraftName = B.Name;
+    ActiveMenu = EABFPMenuMode::CharacterCreation;
 }
 
 void AABFPFirstPersonPawn::ClampSelectedMenuIndex()
@@ -741,6 +1060,39 @@ void AABFPFirstPersonPawn::MoveMenuSelection(int32 Delta)
 
 void AABFPFirstPersonPawn::MoveForward()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        FABFPBirthState& B = CurrentSnapshot.Birth;
+        if (BirthFocusColumn == 0 && B.Races.Num() > 0)
+        {
+            const int32 Next = (B.RaceIndex - 1 + B.Races.Num()) % B.Races.Num();
+            if (bLiveMode) SendSimpleCommand(FString::Printf(TEXT("BIRTH_RACE %d"), Next));
+            else { B.RaceIndex = Next; RecalcDemoBirthStats(); }
+        }
+        else if (BirthFocusColumn == 1 && B.Classes.Num() > 0)
+        {
+            const int32 Next = (B.ClassIndex - 1 + B.Classes.Num()) % B.Classes.Num();
+            if (bLiveMode) SendSimpleCommand(FString::Printf(TEXT("BIRTH_CLASS %d"), Next));
+            else { B.ClassIndex = Next; RecalcDemoBirthStats(); }
+        }
+        else if (BirthFocusColumn == 2)
+        {
+            BirthSelectedStat = (BirthSelectedStat + 4) % 5;
+        }
+        else if (BirthFocusColumn == 3)
+        {
+            if (bLiveMode && !BirthDraftName.TrimStartAndEnd().IsEmpty())
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_NAME %s"), *BirthDraftName.TrimStartAndEnd()));
+            }
+            BirthFocusColumn = 2;
+        }
+        else if (BirthFocusColumn == 4)
+        {
+            BirthFocusColumn = 3;
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None)
     {
         MoveMenuSelection(-1);
@@ -751,6 +1103,31 @@ void AABFPFirstPersonPawn::MoveForward()
 
 void AABFPFirstPersonPawn::MoveBackward()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        FABFPBirthState& B = CurrentSnapshot.Birth;
+        if (BirthFocusColumn == 0 && B.Races.Num() > 0)
+        {
+            const int32 Next = (B.RaceIndex + 1) % B.Races.Num();
+            if (bLiveMode) SendSimpleCommand(FString::Printf(TEXT("BIRTH_RACE %d"), Next));
+            else { B.RaceIndex = Next; RecalcDemoBirthStats(); }
+        }
+        else if (BirthFocusColumn == 1 && B.Classes.Num() > 0)
+        {
+            const int32 Next = (B.ClassIndex + 1) % B.Classes.Num();
+            if (bLiveMode) SendSimpleCommand(FString::Printf(TEXT("BIRTH_CLASS %d"), Next));
+            else { B.ClassIndex = Next; RecalcDemoBirthStats(); }
+        }
+        else if (BirthFocusColumn == 2)
+        {
+            BirthSelectedStat = (BirthSelectedStat + 1) % 5;
+        }
+        else if (BirthFocusColumn == 3)
+        {
+            BirthFocusColumn = 4;
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None)
     {
         MoveMenuSelection(1);
@@ -761,6 +1138,35 @@ void AABFPFirstPersonPawn::MoveBackward()
 
 void AABFPFirstPersonPawn::TurnLeft()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (BirthFocusColumn == 2)
+        {
+            if (bLiveMode)
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_SELL %d"), BirthSelectedStat));
+            }
+            else if (!CurrentSnapshot.Birth.bRolled && CurrentSnapshot.Birth.StatsBase.IsValidIndex(BirthSelectedStat) &&
+                CurrentSnapshot.Birth.StatsBase[BirthSelectedStat] > 10)
+            {
+                static const int32 Costs[19] = { 0,0,0,0,0,0,0,0,0,0,0, 1,1,1,1,1,1,2,4 };
+                const int32 Cur = CurrentSnapshot.Birth.StatsBase[BirthSelectedStat];
+                CurrentSnapshot.Birth.StatsBase[BirthSelectedStat] = Cur - 1;
+                CurrentSnapshot.Birth.PointsLeft += Costs[Cur];
+                CurrentSnapshot.Birth.PointsSpent[BirthSelectedStat] -= Costs[Cur];
+                RecalcDemoBirthStats();
+            }
+        }
+        else
+        {
+            if (BirthFocusColumn == 3 && bLiveMode && !BirthDraftName.TrimStartAndEnd().IsEmpty())
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_NAME %s"), *BirthDraftName.TrimStartAndEnd()));
+            }
+            BirthFocusColumn = (BirthFocusColumn + 4) % 5;
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None)
     {
         MenuTab();
@@ -771,6 +1177,39 @@ void AABFPFirstPersonPawn::TurnLeft()
 
 void AABFPFirstPersonPawn::TurnRight()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (BirthFocusColumn == 2)
+        {
+            if (bLiveMode)
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_BUY %d"), BirthSelectedStat));
+            }
+            else if (!CurrentSnapshot.Birth.bRolled && CurrentSnapshot.Birth.StatsBase.IsValidIndex(BirthSelectedStat) &&
+                CurrentSnapshot.Birth.StatsBase[BirthSelectedStat] < 18)
+            {
+                static const int32 Costs[19] = { 0,0,0,0,0,0,0,0,0,0,0, 1,1,1,1,1,1,2,4 };
+                const int32 Cur = CurrentSnapshot.Birth.StatsBase[BirthSelectedStat];
+                const int32 Cost = Costs[Cur + 1];
+                if (Cost <= CurrentSnapshot.Birth.PointsLeft)
+                {
+                    CurrentSnapshot.Birth.StatsBase[BirthSelectedStat] = Cur + 1;
+                    CurrentSnapshot.Birth.PointsLeft -= Cost;
+                    CurrentSnapshot.Birth.PointsSpent[BirthSelectedStat] += Cost;
+                    RecalcDemoBirthStats();
+                }
+            }
+        }
+        else
+        {
+            if (BirthFocusColumn == 3 && bLiveMode && !BirthDraftName.TrimStartAndEnd().IsEmpty())
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_NAME %s"), *BirthDraftName.TrimStartAndEnd()));
+            }
+            BirthFocusColumn = (BirthFocusColumn + 1) % 5;
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None)
     {
         MenuTab();
@@ -781,16 +1220,19 @@ void AABFPFirstPersonPawn::TurnRight()
 
 void AABFPFirstPersonPawn::ToggleHelp()
 {
+    if (IsTypingCharacterName()) return;
     bShowHelpOverlay = !bShowHelpOverlay;
 }
 
 void AABFPFirstPersonPawn::ToggleMinimap()
 {
+    if (IsTypingCharacterName()) return;
     bExpandedMinimap = !bExpandedMinimap;
 }
 
 void AABFPFirstPersonPawn::ToggleInventory()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
     ActiveMenu = (ActiveMenu == EABFPMenuMode::Inventory) ? EABFPMenuMode::None : EABFPMenuMode::Inventory;
     SelectedMenuIndex = 0;
     ClampSelectedMenuIndex();
@@ -798,6 +1240,7 @@ void AABFPFirstPersonPawn::ToggleInventory()
 
 void AABFPFirstPersonPawn::ToggleEquipment()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
     ActiveMenu = (ActiveMenu == EABFPMenuMode::Equipment) ? EABFPMenuMode::None : EABFPMenuMode::Equipment;
     SelectedMenuIndex = 0;
     ClampSelectedMenuIndex();
@@ -805,6 +1248,7 @@ void AABFPFirstPersonPawn::ToggleEquipment()
 
 void AABFPFirstPersonPawn::ToggleShop()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
     if (ActiveMenu == EABFPMenuMode::ShopBuy || ActiveMenu == EABFPMenuMode::ShopSell)
     {
         ActiveMenu = EABFPMenuMode::None;
@@ -821,8 +1265,152 @@ void AABFPFirstPersonPawn::ToggleShop()
     ClampSelectedMenuIndex();
 }
 
+void AABFPFirstPersonPawn::ToggleSpells()
+{
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (ActiveMenu == EABFPMenuMode::Spellbook)
+    {
+        ActiveMenu = EABFPMenuMode::None;
+        SelectedMenuIndex = 0;
+        return;
+    }
+    ActiveMenu = EABFPMenuMode::Spellbook;
+    SelectedMenuIndex = 0;
+    ClampSelectedMenuIndex();
+}
+
+void AABFPFirstPersonPawn::QuickFire()
+{
+    if (ActiveMenu != EABFPMenuMode::None) return;
+    if (CurrentSnapshot.bPlayerDead) return;
+
+    if (!CurrentSnapshot.bHasLauncher)
+    {
+        AddStatusMessage(TEXT("Equip a bow, sling, or crossbow in [I] before firing."));
+        return;
+    }
+
+    if (bLiveMode)
+    {
+        SendSimpleCommand(FString::Printf(TEXT("FIRE -1 %s"), *BuildAimSuffix()));
+    }
+    else
+    {
+        PlayPlayerAttackSwing();
+        if (const FABFPEntity* Target = GetActiveRangedTarget())
+        {
+            AddStatusMessage(FString::Printf(TEXT("You fire an arrow at %s!"), *Target->Name));
+        }
+        else
+        {
+            AddStatusMessage(TEXT("You fire an arrow down the corridor."));
+        }
+        ++CurrentSnapshot.Turn;
+    }
+}
+
+void AABFPFirstPersonPawn::QuickCast()
+{
+    if (ActiveMenu == EABFPMenuMode::Spellbook)
+    {
+        MenuConfirm();
+        return;
+    }
+    if (ActiveMenu != EABFPMenuMode::None) return;
+    if (CurrentSnapshot.bPlayerDead) return;
+
+    const FABFPSpellEntry* Spell = GetQuickCastSpell();
+    if (!Spell)
+    {
+        if (CurrentSnapshot.Spells.Num() > 0)
+        {
+            ToggleSpells();
+            AddStatusMessage(TEXT("Select a spell in your Spellbook [S] and press [Enter] to study it first."));
+        }
+        else
+        {
+            AddStatusMessage(TEXT("You carry no spellbooks you can cast from."));
+        }
+        return;
+    }
+
+    LastCastSpellIndex = Spell->Index;
+    if (bLiveMode)
+    {
+        if ((Spell->Flags & ABFPSpellFlags::NeedsAim) != 0)
+        {
+            SendSimpleCommand(FString::Printf(TEXT("CAST %d %s"), Spell->Index, *BuildAimSuffix()));
+        }
+        else
+        {
+            SendSimpleCommand(FString::Printf(TEXT("CAST %d %d"), Spell->Index, GetFacingKeypadDirection()));
+        }
+    }
+    else
+    {
+        PlayPlayerAttackSwing();
+        CurrentSnapshot.PlayerMana = FMath::Max(0, CurrentSnapshot.PlayerMana - Spell->Mana);
+        AddStatusMessage(FString::Printf(TEXT("You cast %s!"), *Spell->Name));
+        ++CurrentSnapshot.Turn;
+    }
+}
+
+void AABFPFirstPersonPawn::NewCharacter()
+{
+    if (IsTypingCharacterName()) return;
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+
+    if (!CurrentSnapshot.bPlayerDead && NewCharConfirmSeconds <= 0.0f)
+    {
+        NewCharConfirmSeconds = 4.0f;
+        AddStatusMessage(TEXT("Press [N] again within 4s to save & create a brand-new character."));
+        return;
+    }
+
+    NewCharConfirmSeconds = 0.0f;
+    if (bLiveMode)
+    {
+        if (NetworkClient.SendCommand(TEXT("NEW_CHAR")))
+        {
+            bAwaitingServerTurn = true;
+            AwaitingTurnSeconds = 0.0f;
+            AddStatusMessage(TEXT("Opening Character Creation..."));
+        }
+    }
+    else
+    {
+        OpenDemoCharacterCreation();
+    }
+}
+
 void AABFPFirstPersonPawn::MenuClose()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (BirthFocusColumn == 3)
+        {
+            /* BackSpace erases characters via TickCharacterNameInput(); only Escape leaves the name box. */
+            if (APlayerController* PC = Cast<APlayerController>(GetController()))
+            {
+                if (PC->WasInputKeyJustPressed(EKeys::BackSpace))
+                {
+                    return;
+                }
+            }
+            if (bLiveMode && !BirthDraftName.TrimStartAndEnd().IsEmpty())
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_NAME %s"), *BirthDraftName.TrimStartAndEnd()));
+            }
+            BirthFocusColumn = 4;
+            return;
+        }
+        if (!bLiveMode)
+        {
+            CurrentSnapshot.Birth.bActive = false;
+            ActiveMenu = EABFPMenuMode::None;
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None)
     {
         ActiveMenu = EABFPMenuMode::None;
@@ -832,6 +1420,20 @@ void AABFPFirstPersonPawn::MenuClose()
 
 void AABFPFirstPersonPawn::MenuTab()
 {
+    if (ActiveMenu == EABFPMenuMode::None)
+    {
+        CycleRangedTarget();
+        return;
+    }
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (BirthFocusColumn == 3 && bLiveMode && !BirthDraftName.TrimStartAndEnd().IsEmpty())
+        {
+            SendSimpleCommand(FString::Printf(TEXT("BIRTH_NAME %s"), *BirthDraftName.TrimStartAndEnd()));
+        }
+        BirthFocusColumn = (BirthFocusColumn + 1) % 5;
+        return;
+    }
     if (ActiveMenu == EABFPMenuMode::Inventory)
     {
         ActiveMenu = EABFPMenuMode::Equipment;
@@ -864,13 +1466,119 @@ void AABFPFirstPersonPawn::SendSimpleCommand(const FString& Command)
 
 void AABFPFirstPersonPawn::MenuConfirm()
 {
-    if (ActiveMenu == EABFPMenuMode::None) return;
+    if (ActiveMenu == EABFPMenuMode::None)
+    {
+        if (CurrentSnapshot.bPlayerDead)
+        {
+            NewCharacter();
+        }
+        return;
+    }
+
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (BirthFocusColumn < 4)
+        {
+            if (BirthFocusColumn == 3 && bLiveMode && !BirthDraftName.TrimStartAndEnd().IsEmpty())
+            {
+                SendSimpleCommand(FString::Printf(TEXT("BIRTH_NAME %s"), *BirthDraftName.TrimStartAndEnd()));
+            }
+            ++BirthFocusColumn;
+            return;
+        }
+        FString FinalName = BirthDraftName.TrimStartAndEnd();
+        if (FinalName.IsEmpty()) FinalName = TEXT("Hero");
+        if (bLiveMode)
+        {
+            SendSimpleCommand(FString::Printf(TEXT("BIRTH_ACCEPT %s"), *FinalName));
+        }
+        else
+        {
+            FABFPBirthState& B = CurrentSnapshot.Birth;
+            CurrentSnapshot.PlayerName = FinalName;
+            if (B.Races.IsValidIndex(B.RaceIndex)) CurrentSnapshot.PlayerRaceName = B.Races[B.RaceIndex].Name;
+            if (B.Classes.IsValidIndex(B.ClassIndex)) CurrentSnapshot.PlayerClassName = B.Classes[B.ClassIndex].Name;
+            CurrentSnapshot.PlayerHitPoints = B.HitPoints;
+            CurrentSnapshot.PlayerMaxHitPoints = B.HitPoints;
+            CurrentSnapshot.PlayerGold = B.Gold;
+            B.bActive = false;
+            ActiveMenu = EABFPMenuMode::None;
+            AddStatusMessage(FString::Printf(TEXT("Welcome, %s the %s %s!"),
+                *CurrentSnapshot.PlayerName, *CurrentSnapshot.PlayerRaceName, *CurrentSnapshot.PlayerClassName));
+        }
+        return;
+    }
+
+    if (ActiveMenu == EABFPMenuMode::Spellbook)
+    {
+        if (!CurrentSnapshot.Spells.IsValidIndex(SelectedMenuIndex)) return;
+        FABFPSpellEntry& Spell = CurrentSnapshot.Spells[SelectedMenuIndex];
+        if ((Spell.Flags & ABFPSpellFlags::Learned) != 0)
+        {
+            LastCastSpellIndex = Spell.Index;
+            ActiveMenu = EABFPMenuMode::None;
+            SelectedMenuIndex = 0;
+            if (bLiveMode)
+            {
+                if ((Spell.Flags & ABFPSpellFlags::NeedsAim) != 0)
+                {
+                    SendSimpleCommand(FString::Printf(TEXT("CAST %d %s"), Spell.Index, *BuildAimSuffix()));
+                }
+                else
+                {
+                    SendSimpleCommand(FString::Printf(TEXT("CAST %d %d"), Spell.Index, GetFacingKeypadDirection()));
+                }
+            }
+            else
+            {
+                PlayPlayerAttackSwing();
+                CurrentSnapshot.PlayerMana = FMath::Max(0, CurrentSnapshot.PlayerMana - Spell.Mana);
+                AddStatusMessage(FString::Printf(TEXT("You cast %s!"), *Spell.Name));
+                ++CurrentSnapshot.Turn;
+            }
+        }
+        else if ((Spell.Flags & ABFPSpellFlags::CanStudy) != 0)
+        {
+            if (bLiveMode)
+            {
+                SendSimpleCommand(FString::Printf(TEXT("STUDY %d %d"), Spell.Index, Spell.BookIndex));
+            }
+            else
+            {
+                Spell.Flags |= (ABFPSpellFlags::Learned | ABFPSpellFlags::CanCast);
+                Spell.Flags &= ~ABFPSpellFlags::CanStudy;
+                CurrentSnapshot.PlayerNewSpells = FMath::Max(0, CurrentSnapshot.PlayerNewSpells - 1);
+                AddStatusMessage(FString::Printf(TEXT("You have learned the spell of %s."), *Spell.Name));
+            }
+        }
+        else
+        {
+            AddStatusMessage(FString::Printf(TEXT("Cannot study %s yet (requires Lv %d and an open study slot)."),
+                *Spell.Name, Spell.Level));
+        }
+        return;
+    }
 
     if (ActiveMenu == EABFPMenuMode::Inventory)
     {
         const TArray<int32> Pack = GetMenuInventoryIndices(false);
         if (!Pack.IsValidIndex(SelectedMenuIndex)) return;
         const FABFPInventoryItem& Item = CurrentSnapshot.Inventory[Pack[SelectedMenuIndex]];
+        if ((Item.Flags & ABFPItemFlags::Ammo) != 0 && CurrentSnapshot.bHasLauncher)
+        {
+            ActiveMenu = EABFPMenuMode::None;
+            SelectedMenuIndex = 0;
+            if (bLiveMode)
+            {
+                SendSimpleCommand(FString::Printf(TEXT("FIRE %d %s"), Item.Index, *BuildAimSuffix()));
+            }
+            else
+            {
+                PlayPlayerAttackSwing();
+                AddStatusMessage(FString::Printf(TEXT("You fire %s!"), *Item.Name));
+            }
+            return;
+        }
         if ((Item.Flags & (ABFPItemFlags::Potion | ABFPItemFlags::Scroll |
             ABFPItemFlags::Food | ABFPItemFlags::Usable | ABFPItemFlags::Fuel)) != 0)
         {
@@ -939,6 +1647,11 @@ void AABFPFirstPersonPawn::MenuConfirm()
 
 void AABFPFirstPersonPawn::MenuUseSelected()
 {
+    if (ActiveMenu == EABFPMenuMode::Spellbook)
+    {
+        MenuConfirm();
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::Inventory) return;
     const TArray<int32> Pack = GetMenuInventoryIndices(false);
     if (!Pack.IsValidIndex(SelectedMenuIndex)) return;
@@ -964,7 +1677,9 @@ void AABFPFirstPersonPawn::MenuUseSelected()
         }
         else if ((Item.Flags & ABFPItemFlags::Usable) != 0)
         {
-            SendSimpleCommand(FString::Printf(TEXT("USE %d %d"), Item.Index, GetFacingKeypadDirection()));
+            ActiveMenu = EABFPMenuMode::None;
+            SelectedMenuIndex = 0;
+            SendSimpleCommand(FString::Printf(TEXT("USE %d %s"), Item.Index, *BuildAimSuffix()));
         }
         else
         {
@@ -1055,6 +1770,26 @@ void AABFPFirstPersonPawn::MenuRefillSelected()
     }
 }
 
+void AABFPFirstPersonPawn::MenuThrowSelected()
+{
+    if (ActiveMenu != EABFPMenuMode::Inventory) return;
+    const TArray<int32> Pack = GetMenuInventoryIndices(false);
+    if (!Pack.IsValidIndex(SelectedMenuIndex)) return;
+    const FABFPInventoryItem& Item = CurrentSnapshot.Inventory[Pack[SelectedMenuIndex]];
+    ActiveMenu = EABFPMenuMode::None;
+    SelectedMenuIndex = 0;
+    if (bLiveMode)
+    {
+        SendSimpleCommand(FString::Printf(TEXT("THROW %d %s"), Item.Index, *BuildAimSuffix()));
+    }
+    else
+    {
+        PlayPlayerAttackSwing();
+        AddStatusMessage(FString::Printf(TEXT("You throw %s!"), *Item.Name));
+        ++CurrentSnapshot.Turn;
+    }
+}
+
 void AABFPFirstPersonPawn::QuickQuaff()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
@@ -1091,6 +1826,23 @@ void AABFPFirstPersonPawn::QuickQuaff()
 
 void AABFPFirstPersonPawn::QuickEat()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (IsTypingCharacterName()) return;
+        if (bLiveMode)
+        {
+            SendSimpleCommand(TEXT("BIRTH_RESET 1"));
+        }
+        else
+        {
+            CurrentSnapshot.Birth.bRolled = false;
+            CurrentSnapshot.Birth.PointsLeft = 20;
+            CurrentSnapshot.Birth.StatsBase = { 10, 10, 10, 10, 10 };
+            CurrentSnapshot.Birth.PointsSpent = { 0, 0, 0, 0, 0 };
+            RecalcDemoBirthStats();
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None) return;
 
     for (const FABFPInventoryItem& Item : CurrentSnapshot.Inventory)
@@ -1112,6 +1864,26 @@ void AABFPFirstPersonPawn::QuickEat()
 
 void AABFPFirstPersonPawn::RestTurn()
 {
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        if (IsTypingCharacterName()) return;
+        if (bLiveMode)
+        {
+            SendSimpleCommand(TEXT("BIRTH_ROLL"));
+        }
+        else
+        {
+            CurrentSnapshot.Birth.bRolled = true;
+            CurrentSnapshot.Birth.PointsLeft = 0;
+            for (int32 s = 0; s < 5; ++s)
+            {
+                CurrentSnapshot.Birth.StatsBase[s] = FMath::RandRange(10, 17);
+                CurrentSnapshot.Birth.PointsSpent[s] = 0;
+            }
+            RecalcDemoBirthStats();
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None) return;
 
     if (bLiveMode)
@@ -1127,6 +1899,13 @@ void AABFPFirstPersonPawn::RestTurn()
 
 void AABFPFirstPersonPawn::InteractForward()
 {
+    if (IsTypingCharacterName()) return;
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation)
+    {
+        BirthFocusColumn = 4;
+        MenuConfirm();
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::None)
     {
         MenuConfirm();
@@ -1263,6 +2042,12 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     CurrentSnapshot.PlayerArmorClass = 14;
     CurrentSnapshot.PlayerSpeed = 0;
     CurrentSnapshot.PlayerFoodPct = 92;
+    CurrentSnapshot.PlayerNewSpells = 1;
+    CurrentSnapshot.bCanChooseSpells = true;
+    CurrentSnapshot.bHasLauncher = true;
+    CurrentSnapshot.PlayerName = TEXT("Hero");
+    CurrentSnapshot.PlayerRaceName = TEXT("High-Elf");
+    CurrentSnapshot.PlayerClassName = TEXT("Ranger");
 
     for (int32 Y = 0; Y < 15; ++Y)
     {
@@ -1313,12 +2098,25 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     };
 
     AddDemoItem(0, TEXT("a"), true, ABFPItemFlags::Wearable, 1, 9, 0, TEXT("wielding"), TEXT("a Long Sword (2d5) (+0,+0)"));
-    AddDemoItem(1, TEXT("b"), true, ABFPItemFlags::Wearable, 1, 16, 0, TEXT("wearing"), TEXT("Soft Leather Armour [8,+0]"));
-    AddDemoItem(2, TEXT("c"), true, ABFPItemFlags::Wearable, 1, 19, 0, TEXT("light"), TEXT("a Brass Lantern (with 6200 turns)"));
+    AddDemoItem(1, TEXT("b"), true, ABFPItemFlags::Wearable, 1, 5, 0, TEXT("shooting"), TEXT("a Short Bow (x2) (+0,+0)"));
+    AddDemoItem(2, TEXT("c"), true, ABFPItemFlags::Wearable, 1, 16, 0, TEXT("wearing"), TEXT("Soft Leather Armour [8,+0]"));
+    AddDemoItem(3, TEXT("d"), true, ABFPItemFlags::Wearable, 1, 19, 0, TEXT("light"), TEXT("a Brass Lantern (with 6200 turns)"));
     AddDemoItem(10, TEXT("a"), false, ABFPItemFlags::Usable | ABFPItemFlags::Potion | ABFPItemFlags::Sellable, 2, 26, 15, TEXT(""), TEXT("2 Potions of Cure Light Wounds"));
     AddDemoItem(11, TEXT("b"), false, ABFPItemFlags::Usable | ABFPItemFlags::Scroll | ABFPItemFlags::Sellable, 3, 25, 20, TEXT(""), TEXT("3 Scrolls of Phase Door"));
     AddDemoItem(12, TEXT("c"), false, ABFPItemFlags::Usable | ABFPItemFlags::Food | ABFPItemFlags::Sellable, 4, 28, 3, TEXT(""), TEXT("4 Rations of Food"));
-    AddDemoItem(13, TEXT("d"), false, ABFPItemFlags::Fuel | ABFPItemFlags::Sellable, 1, 27, 10, TEXT(""), TEXT("a Flask of Oil"));
+    AddDemoItem(13, TEXT("d"), false, ABFPItemFlags::Fuel | ABFPItemFlags::Throwable | ABFPItemFlags::Sellable, 1, 27, 10, TEXT(""), TEXT("a Flask of Oil"));
+    AddDemoItem(14, TEXT("f0"), false, ABFPItemFlags::Ammo | ABFPItemFlags::Quiver | ABFPItemFlags::Throwable, 25, 3, 1, TEXT("quiver"), TEXT("25 Arrows (1d4) (+0,+0)"));
+
+    auto AddDemoSpell = [this](int32 Idx, int32 Lv, int32 Mana, int32 Fail, int32 Flags, const TCHAR* Name, const TCHAR* Info)
+    {
+        FABFPSpellEntry Sp;
+        Sp.Index = Idx; Sp.BookIndex = 10; Sp.Level = Lv; Sp.Mana = Mana; Sp.FailPct = Fail;
+        Sp.Flags = Flags; Sp.Name = Name; Sp.Info = Info;
+        CurrentSnapshot.Spells.Add(MoveTemp(Sp));
+    };
+    AddDemoSpell(0, 1, 1, 12, ABFPSpellFlags::Learned | ABFPSpellFlags::CanCast | ABFPSpellFlags::NeedsAim, TEXT("Magic Missile"), TEXT("dam 3d4"));
+    AddDemoSpell(1, 1, 2, 18, ABFPSpellFlags::Learned | ABFPSpellFlags::CanCast, TEXT("Phase Door"), TEXT("range 10"));
+    AddDemoSpell(2, 1, 2, 20, ABFPSpellFlags::CanStudy, TEXT("Cure Light Wounds"), TEXT("heal 15%"));
 
     FABFPEntity Goblin;
     Goblin.Id = 0x1000000000000001ull;

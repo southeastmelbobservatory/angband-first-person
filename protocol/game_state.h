@@ -21,17 +21,30 @@ typedef enum abfp_terrain_type {
 } abfp_terrain_type;
 
 #define ABFP_MAX_MESSAGE_LENGTH 160
-#define ABFP_MAX_INVENTORY_ITEMS 48
+#define ABFP_MAX_INVENTORY_ITEMS 64
 #define ABFP_MAX_SHOP_ITEMS 24
+#define ABFP_MAX_SPELLS 64
+#define ABFP_MAX_RACES 16
+#define ABFP_MAX_CLASSES 16
+#define ABFP_NUM_STATS 5
 
 /* Item capability bitflags exported on abfp_inventory_item.flags */
-#define ABFP_ITEM_FLAG_USABLE    0x01u
-#define ABFP_ITEM_FLAG_WEARABLE  0x02u
-#define ABFP_ITEM_FLAG_POTION    0x04u
-#define ABFP_ITEM_FLAG_SCROLL    0x08u
-#define ABFP_ITEM_FLAG_FOOD      0x10u
-#define ABFP_ITEM_FLAG_FUEL      0x20u
-#define ABFP_ITEM_FLAG_SELLABLE  0x40u
+#define ABFP_ITEM_FLAG_USABLE     0x001u
+#define ABFP_ITEM_FLAG_WEARABLE   0x002u
+#define ABFP_ITEM_FLAG_POTION     0x004u
+#define ABFP_ITEM_FLAG_SCROLL     0x008u
+#define ABFP_ITEM_FLAG_FOOD       0x010u
+#define ABFP_ITEM_FLAG_FUEL       0x020u
+#define ABFP_ITEM_FLAG_SELLABLE   0x040u
+#define ABFP_ITEM_FLAG_AMMO       0x080u
+#define ABFP_ITEM_FLAG_QUIVER     0x100u
+#define ABFP_ITEM_FLAG_THROWABLE  0x200u
+
+/* Spell capability bitflags exported on abfp_spell_entry.flags */
+#define ABFP_SPELL_FLAG_LEARNED   0x01u
+#define ABFP_SPELL_FLAG_CAN_CAST  0x02u
+#define ABFP_SPELL_FLAG_CAN_STUDY 0x04u
+#define ABFP_SPELL_FLAG_NEEDS_AIM 0x08u
 
 typedef struct abfp_message {
     int32_t type;
@@ -69,7 +82,7 @@ typedef struct abfp_inventory_item {
     int32_t index;
     char label;
     uint8_t equipped;
-    uint8_t flags;
+    uint32_t flags;
     int32_t quantity;
     int32_t category_id;
     int32_t variant_id;
@@ -77,6 +90,45 @@ typedef struct abfp_inventory_item {
     char slot_name[24];
     char name[96];
 } abfp_inventory_item;
+
+typedef struct abfp_spell_entry {
+    int32_t index;
+    int32_t book_index;
+    int32_t level;
+    int32_t mana;
+    int32_t fail;
+    uint32_t flags;
+    char name[48];
+    char info[48];
+} abfp_spell_entry;
+
+typedef struct abfp_birth_option {
+    int32_t index;
+    char name[32];
+    int32_t stat_adj[ABFP_NUM_STATS];
+    int32_t hit_die;
+    int32_t exp_factor;
+    uint8_t has_magic;
+} abfp_birth_option;
+
+typedef struct abfp_birth_state {
+    uint8_t active;
+    uint8_t rolled;
+    int32_t race_index;
+    int32_t class_index;
+    int32_t points_left;
+    int32_t stats_base[ABFP_NUM_STATS];
+    int32_t stats_total[ABFP_NUM_STATS];
+    int32_t points_spent[ABFP_NUM_STATS];
+    int32_t points_inc[ABFP_NUM_STATS];
+    int32_t hitpoints;
+    int32_t gold;
+    char name[48];
+    abfp_birth_option races[ABFP_MAX_RACES];
+    uint32_t race_count;
+    abfp_birth_option classes[ABFP_MAX_CLASSES];
+    uint32_t class_count;
+} abfp_birth_state;
 
 typedef struct abfp_shop_item {
     int32_t index;
@@ -106,6 +158,12 @@ typedef struct abfp_player_state {
     int32_t armor_class;
     int32_t speed;
     int32_t food_pct;
+    int32_t new_spells;
+    uint8_t can_choose_spells;
+    uint8_t has_launcher;
+    char name[48];
+    char race_name[32];
+    char class_name[32];
 } abfp_player_state;
 
 typedef struct abfp_snapshot {
@@ -122,6 +180,9 @@ typedef struct abfp_snapshot {
     const abfp_inventory_item* inventory;
     uint32_t inventory_count;
     const abfp_shop_state* shop;
+    const abfp_spell_entry* spells;
+    uint32_t spell_count;
+    const abfp_birth_state* birth;
 } abfp_snapshot;
 
 #ifdef __cplusplus

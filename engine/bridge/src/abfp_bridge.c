@@ -53,7 +53,7 @@ bool abfp_bridge_submit_command_ex(const abfp_command *command)
 
 bool abfp_bridge_submit_command(abfp_command_type command)
 {
-    abfp_command full = { command, 0, 1 };
+    abfp_command full = { command, 0, 1, 0, 0, {0} };
     return abfp_bridge_submit_command_ex(&full);
 }
 

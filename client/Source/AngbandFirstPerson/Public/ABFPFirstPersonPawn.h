@@ -52,6 +52,24 @@ public:
     int32 GetSelectedMenuIndex() const { return SelectedMenuIndex; }
 
     UFUNCTION(BlueprintPure, Category="Angband|State")
+    int32 GetBirthFocusColumn() const { return BirthFocusColumn; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    int32 GetBirthSelectedStat() const { return BirthSelectedStat; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    const FString& GetBirthDraftName() const { return BirthDraftName; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    int32 GetLastCastSpellIndex() const { return LastCastSpellIndex; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    int64 GetLockedTargetId() const { return LockedTargetId; }
+
+    const FABFPEntity* GetActiveRangedTarget(bool* OutIsManualLock = nullptr) const;
+    const FABFPSpellEntry* GetQuickCastSpell() const;
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
     FIntPoint GetFacingGridDelta() const;
 
     UFUNCTION(BlueprintPure, Category="Angband|State")
@@ -136,6 +154,10 @@ private:
     void ToggleInventory();
     void ToggleEquipment();
     void ToggleShop();
+    void ToggleSpells();
+    void QuickFire();
+    void QuickCast();
+    void NewCharacter();
     void QuickQuaff();
     void QuickEat();
     void RestTurn();
@@ -145,9 +167,16 @@ private:
     void MenuTakeOffSelected();
     void MenuDropSelected();
     void MenuRefillSelected();
+    void MenuThrowSelected();
     void MenuTab();
     void MenuClose();
 
+    void CycleRangedTarget();
+    FString BuildAimSuffix() const;
+    bool IsTypingCharacterName() const;
+    void TickCharacterNameInput();
+    void OpenDemoCharacterCreation();
+    void RecalcDemoBirthStats();
     void MoveMenuSelection(int32 Delta);
     int32 GetActiveMenuItemCount() const;
     void ClampSelectedMenuIndex();
@@ -187,6 +216,13 @@ private:
     int32 SelectedMenuIndex = 0;
     float ReconnectRetrySeconds = 0.0f;
     float PlayerDamageFlashSeconds = 0.0f;
+    float NewCharConfirmSeconds = 0.0f;
+    int64 LockedTargetId = 0;
+    int32 LastCastSpellIndex = INDEX_NONE;
+    int32 BirthFocusColumn = 0;
+    int32 BirthSelectedStat = 0;
+    FString BirthDraftName;
+    bool bWasInBirthMode = false;
     FString LastEquippedWeaponKey;
     FString LastEquippedLightKey;
     FLinearColor ActiveLightColor = FLinearColor(1.0f, 0.80f, 0.56f);
