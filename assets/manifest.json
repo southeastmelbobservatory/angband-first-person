@@ -289,6 +289,11 @@
         1.0,
         1.0
       ],
+      "rotation_offset": [
+        0,
+        -90,
+        0
+      ],
       "license": "CC0-1.0",
       "location_offset": [
         0,
@@ -307,6 +312,11 @@
         1.0,
         1.0,
         1.0
+      ],
+      "rotation_offset": [
+        0,
+        -90,
+        0
       ],
       "license": "CC0-1.0",
       "location_offset": [
@@ -357,6 +367,11 @@
         1.1,
         1.1
       ],
+      "rotation_offset": [
+        0,
+        -90,
+        0
+      ],
       "license": "CC0-1.0"
     },
     {
@@ -371,8 +386,13 @@
         0.68
       ],
       "location_offset": [
-        -56,
+        -72,
         0,
+        0
+      ],
+      "rotation_offset": [
+        0,
+        -90,
         0
       ],
       "license": "CC0-1.0"
@@ -389,8 +409,13 @@
         0.68
       ],
       "location_offset": [
-        -56,
+        -72,
         0,
+        0
+      ],
+      "rotation_offset": [
+        0,
+        -90,
         0
       ],
       "license": "CC0-1.0"
@@ -2304,14 +2329,42 @@
       "license": "CC0-1.0"
     },
     {
+      "id": "abfp_scroll",
+      "source": "procedural",
+      "dest": "items/abfp_scroll.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Scroll",
+      "name_contains": "scroll",
+      "keywords": [
+        "scroll"
+      ],
+      "scale": [
+        1.35,
+        1.35,
+        1.35
+      ],
+      "location_offset": [
+        0,
+        0,
+        14
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        0.55,
+        0.78,
+        1.0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
       "id": "kk_spellbook",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/spellbook_closed.fbx",
       "dest": "items/spellbook_closed.fbx",
       "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Scroll_Book",
-      "name_contains": "scroll",
+      "entry_name": "Book",
+      "name_contains": "book",
       "keywords": [
-        "scroll",
         "book",
         "tome",
         "manual",

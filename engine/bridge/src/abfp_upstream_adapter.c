@@ -247,7 +247,38 @@ bool abfp_upstream_queue_command_ex(const abfp_command *cmd)
     }
 
     if (command == ABFP_COMMAND_AUTOPICKUP) {
-        if (cmdq_push(CMD_AUTOPICKUP) != 0) return false;
+        struct object *floor_obj = square_object(cave, player->grid);
+        if (floor_obj) {
+            struct object *pick = NULL;
+            struct object *cur;
+            for (cur = floor_obj; cur; cur = cur->next) {
+                if (!tval_is_money(cur) && inven_carry_num(player, cur) > 0) {
+                    pick = cur;
+                    break;
+                }
+            }
+            if (!pick) {
+                /* Pick up gold if present, otherwise report full pack cleanly. */
+                bool has_money = false;
+                for (cur = floor_obj; cur; cur = cur->next) {
+                    if (tval_is_money(cur)) {
+                        has_money = true;
+                        break;
+                    }
+                }
+                if (!has_money) {
+                    return abfp_queue_noop_with_msg(
+                        "Your pack is too full to pick that up.", command);
+                }
+                if (cmdq_push(CMD_AUTOPICKUP) != 0) return false;
+            } else {
+                /* Explicit manual pickup of the top carriable floor item without opening a text UI menu. */
+                if (cmdq_push(CMD_PICKUP) != 0) return false;
+                cmd_set_arg_item(cmdq_peek(), "item", pick);
+            }
+        } else {
+            if (cmdq_push(CMD_AUTOPICKUP) != 0) return false;
+        }
         pending_command = true;
         pending_command_type = command;
         return true;
@@ -430,8 +461,15 @@ static void abfp_append_objects(struct object *obj, int x, int y,
         const struct object *known = obj->known;
         abfp_entity_state *entity = &snapshot_entities[(*entity_count)++];
         memset(entity, 0, sizeof(*entity));
-        if (known && known->kind && known->kind->name)
-            strncpy(entity->name, known->kind->name, sizeof(entity->name) - 1);
+        /* Use Angband's own spoiler-free description so unidentified scrolls/potions/rings
+         * display their flavor/title (e.g. '6 Scrolls titled "sactium pulum"') rather than
+         * leaking raw kind->name ('Phase Door'). */
+        if (known) {
+            object_desc(entity->name, sizeof(entity->name), obj,
+                ODESC_PREFIX | ODESC_FULL, player);
+        } else {
+            strncpy(entity->name, "an unknown item", sizeof(entity->name) - 1);
+        }
 
         entity->id = ABFP_OBJECT_ID_BASE | (uint64_t)obj->oidx;
         entity->x = x;

@@ -106,6 +106,48 @@ class ArchMeshBuilder:
         if all_f or "-x" in faces:
             self.add_quad((x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (x0, y1, z0), u0, v0, u1, v1)
 
+    def add_tri(self, p0, p1, p2, uv0, uv1, uv2):
+        ax, ay, az = p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]
+        bx, by, bz = p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]
+        nx = ay * bz - az * by
+        ny = az * bx - ax * bz
+        nz = ax * by - ay * bx
+        ln = math.sqrt(nx * nx + ny * ny + nz * nz)
+        if ln < 1e-8:
+            return
+        n = (nx / ln, ny / ln, nz / ln)
+        base = len(self.pos)
+        self.pos.extend([p0, p1, p2])
+        self.nor.extend([n, n, n])
+        self.uv.extend([uv0, uv1, uv2])
+        self.idx.extend([base, base + 1, base + 2])
+
+    def add_cylinder_x(self, x0, x1, cy, cz, radius, segs=16, uv_side=(0.02, 0.02, 0.48, 0.48), uv_cap=(0.52, 0.02, 0.98, 0.48)):
+        """Add a closed horizontal cylinder along X centered at (cy, cz) with zero degenerate triangles."""
+        u0, v0, u1, v1 = uv_side
+        cu0, cv0, cu1, cv1 = uv_cap
+        ring0 = []
+        ring1 = []
+        for s in range(segs):
+            a = 2.0 * math.pi * s / segs
+            py = cy + math.cos(a) * radius
+            pz = cz + math.sin(a) * radius
+            ring0.append((x0, py, pz))
+            ring1.append((x1, py, pz))
+        for s in range(segs):
+            ns = (s + 1) % segs
+            su0 = u0 + (u1 - u0) * (s / segs)
+            su1 = u0 + (u1 - u0) * ((s + 1) / segs)
+            self.add_quad(ring0[s], ring1[s], ring1[ns], ring0[ns], su0, v0, su1, v1)
+        c0 = (x0, cy, cz)
+        c1 = (x1, cy, cz)
+        cu_m = 0.5 * (cu0 + cu1)
+        cv_m = 0.5 * (cv0 + cv1)
+        for s in range(segs):
+            ns = (s + 1) % segs
+            self.add_tri(c0, ring0[ns], ring0[s], (cu_m, cv_m), (cu1, cv0), (cu1, cv1))
+            self.add_tri(c1, ring1[s], ring1[ns], (cu_m, cv_m), (cu1, cv0), (cu1, cv1))
+
     def write_glb(self, out_path: Path, png_bytes: bytes, roughness=0.84, metallic=0.05):
         pmin = [min(p[k] for p in self.pos) for k in range(3)]
         pmax = [max(p[k] for p in self.pos) for k in range(3)]
@@ -378,13 +420,83 @@ def generate_stairs_up(out_path: Path, png_bytes: bytes):
     mb.write_glb(out_path, png_bytes, roughness=0.84, metallic=0.06)
 
 
+def _scroll_atlas_rgb(u: float, v: float):
+    """4-quadrant scroll texture atlas:
+    - Top-Left  (u<0.5, v<0.5): Aged warm parchment with faint arcane rune script bands
+    - Top-Right (u>=0.5, v<0.5): Coiled parchment spiral ends
+    - Bot-Left  (u<0.5, v>=0.5): Dark walnut wooden scroll dowel & gilded tips
+    - Bot-Right (u>=0.5, v>=0.5): Deep crimson ribbon & stamped wax seal
+    """
+    if u < 0.5 and v < 0.5:
+        lu, lv = u * 2.0, v * 2.0
+        n = _fbm(lu * 10.0, lv * 10.0)
+        edge = min(lv, 1.0 - lv)
+        scorch = max(0.0, (0.14 - edge) / 0.14) * 42.0
+        # Subtle horizontal inked glyph lines
+        line_wave = math.sin(lv * math.pi * 14.0)
+        ink = 0.0
+        if 0.18 < lv < 0.82 and line_wave > 0.72 and _hash2(math.floor(lu * 24.0), math.floor(lv * 14.0)) > 0.45:
+            ink = 48.0
+        r = 224 + (n - 0.5) * 26 - scorch - ink * 1.1
+        g = 202 + (n - 0.5) * 24 - scorch * 1.15 - ink * 1.2
+        b = 156 + (n - 0.5) * 20 - scorch * 1.3 - ink * 1.25
+        return (r, g, b)
+
+    if u >= 0.5 and v < 0.5:
+        lu, lv = (u - 0.5) * 2.0, v * 2.0
+        n = _fbm(lu * 12.0, lv * 12.0)
+        rings = 0.5 + 0.5 * math.sin(lu * 28.0)
+        return (175 + rings * 36 + (n - 0.5) * 18, 152 + rings * 32 + (n - 0.5) * 16, 110 + rings * 22)
+
+    if u < 0.5 and v >= 0.5:
+        lu, lv = u * 2.0, (v - 0.5) * 2.0
+        n = _fbm(lu * 14.0, lv * 6.0)
+        if lv > 0.72:
+            return (195 + (n - 0.5) * 20, 156 + (n - 0.5) * 16, 68 + (n - 0.5) * 12)
+        return (72 + (n - 0.5) * 22, 46 + (n - 0.5) * 16, 28 + (n - 0.5) * 12)
+
+    lu, lv = (u - 0.5) * 2.0, (v - 0.5) * 2.0
+    n = _fbm(lu * 12.0, lv * 12.0)
+    return (168 + (n - 0.5) * 28, 26 + (n - 0.5) * 14, 24 + (n - 0.5) * 12)
+
+
+def generate_scroll_item(out_path: Path):
+    """Rolled medieval arcane parchment scroll (~0.48m long) with wooden dowels & crimson wax seal."""
+    mb = ArchMeshBuilder()
+    uv_parch = (0.02, 0.02, 0.48, 0.48)
+    uv_spiral = (0.52, 0.02, 0.98, 0.48)
+    uv_wood = (0.02, 0.52, 0.48, 0.80)
+    uv_gold = (0.02, 0.88, 0.48, 0.98)
+    uv_wax = (0.52, 0.52, 0.98, 0.98)
+
+    # Main rolled parchment body (slightly tilted on ground, resting cleanly above Y=0)
+    mb.add_cylinder_x(-0.21, 0.21, 0.095, 0.0, 0.082, segs=18, uv_side=uv_parch, uv_cap=uv_spiral)
+    # Slight unfurled parchment flap lip along front
+    mb.add_box(-0.19, 0.015, 0.055, 0.19, 0.036, 0.145, uv_parch)
+    # Wooden inner roller dowel & gilded end knobs
+    mb.add_cylinder_x(-0.26, -0.21, 0.095, 0.0, 0.032, segs=12, uv_side=uv_wood, uv_cap=uv_wood)
+    mb.add_cylinder_x(0.21, 0.26, 0.095, 0.0, 0.032, segs=12, uv_side=uv_wood, uv_cap=uv_wood)
+    mb.add_cylinder_x(-0.285, -0.255, 0.095, 0.0, 0.044, segs=12, uv_side=uv_gold, uv_cap=uv_gold)
+    mb.add_cylinder_x(0.255, 0.285, 0.095, 0.0, 0.044, segs=12, uv_side=uv_gold, uv_cap=uv_gold)
+    # Crimson silk ribbon band wrapped around center + stamped wax seal on top
+    mb.add_cylinder_x(-0.032, 0.032, 0.095, 0.0, 0.092, segs=18, uv_side=uv_wax, uv_cap=uv_wax)
+    mb.add_box(-0.044, 0.175, -0.044, 0.044, 0.205, 0.044, uv_wax)
+
+    png_bytes = make_png(256, 256, _scroll_atlas_rgb)
+    mb.write_glb(out_path, png_bytes, roughness=0.72, metallic=0.06)
+
+
 def generate_all(raw_root: Path) -> int:
     terrain_dir = raw_root / "terrain"
     terrain_dir.mkdir(parents=True, exist_ok=True)
     atlas_png = make_png(256, 256, _stair_atlas_rgb)
     generate_stairs_down(terrain_dir / "abfp_stairs_down.glb", atlas_png)
     generate_stairs_up(terrain_dir / "abfp_stairs_up.glb", atlas_png)
-    return 2
+
+    items_dir = raw_root / "items"
+    items_dir.mkdir(parents=True, exist_ok=True)
+    generate_scroll_item(items_dir / "abfp_scroll.glb")
+    return 3
 
 
 if __name__ == "__main__":

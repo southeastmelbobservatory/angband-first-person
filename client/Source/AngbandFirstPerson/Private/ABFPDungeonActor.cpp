@@ -750,6 +750,59 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     const float CellScaleXY = CellSize / 100.0f;
     const float WallScaleZ = WallHeight / 100.0f;
 
+    auto IsOpenPassableAt = [&CellMap](int32 NX, int32 NY) -> bool
+    {
+        const FABFPCell* const* Found = CellMap.Find(FIntPoint(NX, NY));
+        if (!Found || !*Found) return false;
+        const EABFPTerrain T = (*Found)->Terrain;
+        return T != EABFPTerrain::Unknown && T != EABFPTerrain::Wall && T != EABFPTerrain::Vein;
+    };
+
+    auto EmitFloorAndCeiling = [&](const FABFPCell& TargetCell, const FVector& TargetTile, uint32 TargetHash, bool bSkipFloor)
+    {
+        if (!bSkipFloor)
+        {
+            const TArray<FABFPMeshPoolEntry>& FloorPool =
+                TargetCell.bVisible ? CustomFloorPools : CustomRememberedFloorPools;
+            if (FloorPool.Num() > 0)
+            {
+                const FABFPMeshPoolEntry& Pick = FloorPool[static_cast<int32>(TargetHash % static_cast<uint32>(FloorPool.Num()))];
+                if (Pick.Component)
+                {
+                    const FRotator RandYaw(0.0f, static_cast<float>((TargetHash >> 8) & 3u) * 90.0f, 0.0f);
+                    Pick.Component->AddInstance(ComposePoolTransform(TargetTile, RandYaw, Pick));
+                }
+            }
+            else
+            {
+                UInstancedStaticMeshComponent* FloorLayer = TargetCell.bVisible ? Floors : RememberedFloors;
+                FloorLayer->AddInstance(FTransform(FRotator::ZeroRotator,
+                    TargetTile - FVector(0.0f, 0.0f, 6.0f),
+                    FVector(CellScaleXY, CellScaleXY, 0.12f)));
+            }
+        }
+
+        if (bShouldBuildCeilings)
+        {
+            if (CustomCeilingPools.Num() > 0)
+            {
+                const FABFPMeshPoolEntry& Pick = CustomCeilingPools[static_cast<int32>((TargetHash >> 4) % static_cast<uint32>(CustomCeilingPools.Num()))];
+                if (Pick.Component)
+                {
+                    Pick.Component->AddInstance(ComposePoolTransform(
+                        TargetTile + FVector(0.0f, 0.0f, WallHeight), FRotator::ZeroRotator, Pick));
+                }
+            }
+            else
+            {
+                UInstancedStaticMeshComponent* CeilingLayer = TargetCell.bVisible ? Ceilings : RememberedCeilings;
+                CeilingLayer->AddInstance(FTransform(FRotator::ZeroRotator,
+                    TargetTile + FVector(0.0f, 0.0f, WallHeight + 6.0f),
+                    FVector(CellScaleXY, CellScaleXY, 0.12f)));
+            }
+        }
+    };
+
     for (const FABFPCell& Cell : Snapshot.Cells)
     {
         if (Cell.Terrain == EABFPTerrain::Unknown) continue;
@@ -765,71 +818,102 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 (bIsVein && !Cell.bVisible && CustomRememberedVeinPools.Num() > 0) ? CustomRememberedVeinPools :
                 (Cell.bVisible ? CustomWallPools : CustomRememberedWallPools);
 
+            /* Detect checkerboard diagonal passages where two touching corner walls would seal a valid Angband
+               diagonal entry shut in 3D (e.g. room corner entry). Recess the pinching corner(s) cleanly and
+               back them with floor/ceiling slabs so the diagonal passage is clearly visible and walkable. */
+            const bool bOpenW = IsOpenPassableAt(Cell.X - 1, Cell.Y);
+            const bool bOpenE = IsOpenPassableAt(Cell.X + 1, Cell.Y);
+            const bool bOpenN = IsOpenPassableAt(Cell.X, Cell.Y - 1);
+            const bool bOpenS = IsOpenPassableAt(Cell.X, Cell.Y + 1);
+            const bool bPinchNW = bOpenW && bOpenN && IsWallAt(Cell.X - 1, Cell.Y - 1);
+            const bool bPinchNE = bOpenE && bOpenN && IsWallAt(Cell.X + 1, Cell.Y - 1);
+            const bool bPinchSW = bOpenW && bOpenS && IsWallAt(Cell.X - 1, Cell.Y + 1);
+            const bool bPinchSE = bOpenE && bOpenS && IsWallAt(Cell.X + 1, Cell.Y + 1);
+            const bool bAnyPinch = bPinchNW || bPinchNE || bPinchSW || bPinchSE;
+
+            UInstancedStaticMeshComponent* WallTargetComp = nullptr;
+            const FABFPMeshPoolEntry* WallPick = nullptr;
             if (Pool.Num() > 0)
             {
-                const FABFPMeshPoolEntry& Pick = Pool[static_cast<int32>(CellHash % static_cast<uint32>(Pool.Num()))];
-                if (Pick.Component)
-                {
-                    Pick.Component->AddInstance(ComposePoolTransform(Tile, FRotator::ZeroRotator, Pick));
-                }
+                WallPick = &Pool[static_cast<int32>(CellHash % static_cast<uint32>(Pool.Num()))];
+                WallTargetComp = WallPick->Component;
             }
             else
             {
-                UInstancedStaticMeshComponent* Layer = bIsVein
+                WallTargetComp = bIsVein
                     ? (Cell.bVisible ? Veins : RememberedVeins)
                     : (Cell.bVisible ? Walls : RememberedWalls);
-                Layer->AddInstance(FTransform(FRotator::ZeroRotator,
-                    Tile + FVector(0.0f, 0.0f, WallHeight * 0.5f),
-                    FVector(CellScaleXY, CellScaleXY, WallScaleZ)));
+            }
+
+            if (WallTargetComp)
+            {
+                if (!bAnyPinch)
+                {
+                    if (WallPick)
+                    {
+                        WallTargetComp->AddInstance(ComposePoolTransform(Tile, FRotator::ZeroRotator, *WallPick));
+                    }
+                    else
+                    {
+                        WallTargetComp->AddInstance(FTransform(FRotator::ZeroRotator,
+                            Tile + FVector(0.0f, 0.0f, WallHeight * 0.5f),
+                            FVector(CellScaleXY, CellScaleXY, WallScaleZ)));
+                    }
+                }
+                else
+                {
+                    /* Back the recessed corner with watertight floor & ceiling slabs. */
+                    EmitFloorAndCeiling(Cell, Tile, CellHash, false);
+
+                    const float Half = CellSize * 0.5f;
+                    const float Notch = CellSize * 0.2875f; /* 115 cm cut per side -> ~163 cm diagonal passage */
+                    const float X0N = bPinchNW ? (-Half + Notch) : -Half;
+                    const float X1N = bPinchNE ? (Half - Notch) : Half;
+                    const float X0S = bPinchSW ? (-Half + Notch) : -Half;
+                    const float X1S = bPinchSE ? (Half - Notch) : Half;
+
+                    struct FBand { float Y0, Y1, X0, X1; };
+                    FBand Bands[3] = {
+                        { -Half, -Half + Notch, X0N, X1N },
+                        { -Half + Notch, Half - Notch, -Half, Half },
+                        { Half - Notch, Half, X0S, X1S }
+                    };
+
+                    /* Merge adjacent bands with identical X span (single-corner pinch emits just 2 boxes). */
+                    TArray<FBand, TInlineAllocator<3>> Merged;
+                    for (int32 b = 0; b < 3; ++b)
+                    {
+                        if (Merged.Num() > 0 &&
+                            FMath::IsNearlyEqual(Merged.Last().X0, Bands[b].X0, 0.1f) &&
+                            FMath::IsNearlyEqual(Merged.Last().X1, Bands[b].X1, 0.1f))
+                        {
+                            Merged.Last().Y1 = Bands[b].Y1;
+                        }
+                        else
+                        {
+                            Merged.Add(Bands[b]);
+                        }
+                    }
+
+                    for (const FBand& B : Merged)
+                    {
+                        const float CX = 0.5f * (B.X0 + B.X1);
+                        const float CY = 0.5f * (B.Y0 + B.Y1);
+                        const float SX = (B.X1 - B.X0) / 100.0f;
+                        const float SY = (B.Y1 - B.Y0) / 100.0f;
+                        WallTargetComp->AddInstance(FTransform(FRotator::ZeroRotator,
+                            Tile + FVector(CX, CY, WallHeight * 0.5f),
+                            FVector(SX, SY, WallScaleZ)));
+                    }
+                }
             }
             continue;
         }
 
-        /* Floor layer (all non-wall known cells; skip solid floor slab on sunken StairsDown when custom stairwell mesh provides its own collar). */
+        /* Floor & ceiling layers (skip solid floor slab on sunken StairsDown when custom stairwell mesh provides its own collar). */
         const bool bSkipFloorForSunkenStairs = (Cell.Terrain == EABFPTerrain::StairsDown) &&
             TerrainSet && TerrainSet->StairsDown.IsValid();
-        if (!bSkipFloorForSunkenStairs)
-        {
-            const TArray<FABFPMeshPoolEntry>& FloorPool =
-                Cell.bVisible ? CustomFloorPools : CustomRememberedFloorPools;
-            if (FloorPool.Num() > 0)
-            {
-                const FABFPMeshPoolEntry& Pick = FloorPool[static_cast<int32>(CellHash % static_cast<uint32>(FloorPool.Num()))];
-                if (Pick.Component)
-                {
-                    const FRotator RandYaw(0.0f, static_cast<float>((CellHash >> 8) & 3u) * 90.0f, 0.0f);
-                    Pick.Component->AddInstance(ComposePoolTransform(Tile, RandYaw, Pick));
-                }
-            }
-            else
-            {
-                UInstancedStaticMeshComponent* FloorLayer = Cell.bVisible ? Floors : RememberedFloors;
-                FloorLayer->AddInstance(FTransform(FRotator::ZeroRotator,
-                    Tile - FVector(0.0f, 0.0f, 6.0f),
-                    FVector(CellScaleXY, CellScaleXY, 0.12f)));
-            }
-        }
-
-        /* Ceiling layer (subterranean dungeon levels only; Town stays open sky). */
-        if (bShouldBuildCeilings)
-        {
-            if (CustomCeilingPools.Num() > 0)
-            {
-                const FABFPMeshPoolEntry& Pick = CustomCeilingPools[static_cast<int32>((CellHash >> 4) % static_cast<uint32>(CustomCeilingPools.Num()))];
-                if (Pick.Component)
-                {
-                    Pick.Component->AddInstance(ComposePoolTransform(
-                        Tile + FVector(0.0f, 0.0f, WallHeight), FRotator::ZeroRotator, Pick));
-                }
-            }
-            else
-            {
-                UInstancedStaticMeshComponent* CeilingLayer = Cell.bVisible ? Ceilings : RememberedCeilings;
-                CeilingLayer->AddInstance(FTransform(FRotator::ZeroRotator,
-                    Tile + FVector(0.0f, 0.0f, WallHeight + 6.0f),
-                    FVector(CellScaleXY, CellScaleXY, 0.12f)));
-            }
-        }
+        EmitFloorAndCeiling(Cell, Tile, CellHash, bSkipFloorForSunkenStairs);
 
         /* Neighbor-aware door orientation for closed, open, and broken doors. */
         if (Cell.Terrain == EABFPTerrain::Door ||

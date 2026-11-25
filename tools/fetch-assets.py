@@ -167,6 +167,8 @@ def main() -> int:
 
     if include_cat("items"):
         for entry in manifest.get("item_meshes", []):
+            if entry.get("source") == "procedural" or not entry.get("url"):
+                continue
             tasks.append((entry["url"], raw_root / entry["dest"]))
         for entry in manifest.get("support_textures", []):
             tasks.append((entry["url"], raw_root / entry["dest"]))
