@@ -189,7 +189,22 @@ def build_pbr_material(mat_name: str, tex_dir: Path, unreal_tex_folder: str, unr
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, -240)
         node.texture = diff_tex
         connect_uv_to_sampler(mel, uv_node, node)
-        connect_rgb_to_property(mel, node, unreal.MaterialProperty.MP_BASE_COLOR, f"{mat_name}.BaseColor")
+        wired_tint = False
+        try:
+            tint_param = mel.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -420, -440)
+            tint_param.set_editor_property("parameter_name", "Tint")
+            tint_param.set_editor_property("default_value", unreal.LinearColor(1.0, 1.0, 1.0, 1.0))
+            mul_node = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -180, -260)
+            if (
+                mel.connect_material_expressions(node, "", mul_node, "A")
+                and mel.connect_material_expressions(tint_param, "", mul_node, "B")
+                and mel.connect_material_property(mul_node, "", unreal.MaterialProperty.MP_BASE_COLOR)
+            ):
+                wired_tint = True
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Tint node fallback on {mat_name}: {exc}")
+        if not wired_tint:
+            connect_rgb_to_property(mel, node, unreal.MaterialProperty.MP_BASE_COLOR, f"{mat_name}.BaseColor")
 
     if nor_tex:
         node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, 40)
@@ -245,6 +260,8 @@ def build_kaykit_dungeon_material(raw_root: Path, unreal_mat_folder: str):
     palette_png = terrain_dir / "kaykit_dungeon_palette.png"
     if not palette_png.is_file() and terrain_dir.exists():
         for glb in sorted(terrain_dir.glob("*.glb")):
+            if glb.name.startswith("abfp_"):
+                continue
             if extract_glb_embedded_png(glb, palette_png):
                 unreal.log(f"[ABFP] Extracted KayKit dungeon palette PNG from {glb.name}")
                 break
@@ -292,7 +309,8 @@ def build_kaykit_dungeon_material(raw_root: Path, unreal_mat_folder: str):
 
 
 def build_remembered_material(unreal_mat_folder: str):
-    """Build a dark cool-stone ISM-safe Material for explored fog-of-war cells."""
+    """Build an unlit pitch-black ISM-safe Material for subterranean fog-of-war darkness shrouds
+    (zero specular glare from the player's lantern)."""
     if not unreal.EditorAssetLibrary.does_directory_exist(unreal_mat_folder):
         unreal.EditorAssetLibrary.make_directory(unreal_mat_folder)
 
@@ -312,14 +330,22 @@ def build_remembered_material(unreal_mat_folder: str):
     mel = unreal.MaterialEditingLibrary
     mel.delete_all_material_expressions(mat)
     mat.set_editor_property("used_with_instanced_static_meshes", True)
+    try:
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    except Exception:
+        base_col = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -240)
+        base_col.set_editor_property("constant", unreal.LinearColor(0.0, 0.0, 0.0, 1.0))
+        mel.connect_material_property(base_col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        spec_zero = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -360, 80)
+        spec_zero.set_editor_property("r", 0.0)
+        mel.connect_material_property(spec_zero, "", unreal.MaterialProperty.MP_SPECULAR)
+        rough_one = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -360, 180)
+        rough_one.set_editor_property("r", 1.0)
+        mel.connect_material_property(rough_one, "", unreal.MaterialProperty.MP_ROUGHNESS)
 
     col = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -100)
-    col.set_editor_property("constant", unreal.LinearColor(0.14, 0.15, 0.18, 1.0))
-    mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
-
-    rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 100)
-    rough.set_editor_property("r", 0.92)
-    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    col.set_editor_property("constant", unreal.LinearColor(0.002, 0.0025, 0.004, 1.0))
+    mel.connect_material_property(col, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
@@ -868,6 +894,7 @@ def main():
 
     # 5. Import Poly Haven Hero Props (Lantern, Sword, Boulder, Goblets)
     item_entries = []
+    default_item_entry = None
     for entry in manifest.get("polyhaven_models", []):
         model_dir = raw_root / entry["dest_dir"]
         gltf_file = next(model_dir.glob("*.gltf"), None)
@@ -880,24 +907,24 @@ def main():
             if entry["id"] == "Lantern_01" and hero_mesh:
                 catalog.set_editor_property(
                     "first_person_lantern",
-                    make_mesh_variant(hero_mesh, scale=(0.95, 0.95, 0.95), loc=(0.0, 0.0, 0.0), rot=(0.0, 180.0, 0.0)),
+                    make_mesh_variant(hero_mesh, scale=(0.76, 0.76, 0.76), loc=(0.0, 2.0, -7.0), rot=(0.0, 180.0, 0.0)),
                 )
             elif entry["id"] == "antique_estoc" and hero_mesh:
                 catalog.set_editor_property(
                     "first_person_weapon",
                     make_mesh_variant(hero_mesh, scale=(0.65, 0.65, 0.65), loc=(0.0, 0.0, -6.0), rot=(-25.0, 12.0, 38.0)),
                 )
-            if "catalog_item" in entry:
+            if "catalog_item" in entry and hero_mesh:
                 ci = entry["catalog_item"]
-                mesh = hero_mesh
-                if mesh:
+                kws = ci.get("keywords") or ([ci["name_contains"]] if ci.get("name_contains") else [])
+                rot = ci.get("rotation_offset", [0, 0, 0])
+                for kw in kws:
                     item = unreal.ABFPItemVisualEntry()
-                    item.set_editor_property("entry_name", ci["entry_name"])
-                    item.set_editor_property("name_contains", ci["name_contains"])
-                    item.set_editor_property("static_mesh", mesh)
+                    item.set_editor_property("entry_name", f"{ci['entry_name']}_{kw}")
+                    item.set_editor_property("name_contains", kw)
+                    item.set_editor_property("static_mesh", hero_mesh)
                     item.set_editor_property("scale", unreal.Vector(*ci.get("scale", [1, 1, 1])))
                     item.set_editor_property("location_offset", unreal.Vector(*ci.get("location_offset", [0, 0, 8])))
-                    rot = ci.get("rotation_offset", [0, 0, 0])
                     item.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
                     item.set_editor_property("float_and_spin", bool(ci.get("float_and_spin", False)))
                     item.set_editor_property("emit_subtle_light", bool(ci.get("emit_light", False)))
@@ -905,6 +932,16 @@ def main():
                         lc = ci["light_color"]
                         item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
                     item_entries.append(item)
+                if entry["id"] == "brass_goblets" and default_item_entry is None:
+                    di = unreal.ABFPItemVisualEntry()
+                    di.set_editor_property("entry_name", "Default_Loot")
+                    di.set_editor_property("static_mesh", hero_mesh)
+                    di.set_editor_property("scale", unreal.Vector(1.4, 1.4, 1.4))
+                    di.set_editor_property("location_offset", unreal.Vector(0.0, 0.0, 4.0))
+                    di.set_editor_property("float_and_spin", False)
+                    di.set_editor_property("emit_subtle_light", True)
+                    di.set_editor_property("accent_light_color", unreal.LinearColor(1.0, 0.80, 0.35, 1.0))
+                    default_item_entry = di
         except Exception as exc:
             unreal.log_warning(f"[ABFP] Failed importing Poly Haven prop {entry['id']}: {exc}")
 
@@ -920,22 +957,28 @@ def main():
             mesh = find_asset_in_paths_or_folder(paths, dest_sub, unreal.StaticMesh)
             if not mesh:
                 continue
-            item = unreal.ABFPItemVisualEntry()
-            item.set_editor_property("entry_name", entry["entry_name"])
-            item.set_editor_property("name_contains", entry["name_contains"])
-            item.set_editor_property("static_mesh", mesh)
-            item.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
-            item.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 8])))
-            item.set_editor_property("float_and_spin", bool(entry.get("float_and_spin", False)))
-            item.set_editor_property("emit_subtle_light", bool(entry.get("emit_light", False)))
-            if "light_color" in entry:
-                lc = entry["light_color"]
-                item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
-            item_entries.append(item)
+            kws = entry.get("keywords") or ([entry["name_contains"]] if entry.get("name_contains") else [])
+            rot = entry.get("rotation_offset", [0, 0, 0])
+            for kw in kws:
+                item = unreal.ABFPItemVisualEntry()
+                item.set_editor_property("entry_name", f"{entry['entry_name']}_{kw}")
+                item.set_editor_property("name_contains", kw)
+                item.set_editor_property("static_mesh", mesh)
+                item.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
+                item.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 8])))
+                item.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
+                item.set_editor_property("float_and_spin", bool(entry.get("float_and_spin", False)))
+                item.set_editor_property("emit_subtle_light", bool(entry.get("emit_light", False)))
+                if "light_color" in entry:
+                    lc = entry["light_color"]
+                    item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
+                item_entries.append(item)
         except Exception as exc:
             unreal.log_warning(f"[ABFP] Failed importing item {entry['id']}: {exc}")
 
     catalog.set_editor_property("items", item_entries)
+    if default_item_entry:
+        catalog.set_editor_property("default_item", default_item_entry)
 
     # 7. Import Creatures (Procedural Angband GLBs + Unified KayKit GLBs + Skeletal/Static + Audio)
     gen_path = repo_root / "tools" / "generate-angband-creatures.py"

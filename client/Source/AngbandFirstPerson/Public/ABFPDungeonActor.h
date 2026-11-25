@@ -59,7 +59,8 @@ private:
         const TArray<FABFPMeshVariant>& Variants,
         UMaterialInterface* OverrideMat,
         bool bCastShadow,
-        const FString& Prefix);
+        const FString& Prefix,
+        const FLinearColor* DynamicTint = nullptr);
     void ConfigureSingleLayer(
         UInstancedStaticMeshComponent* Component,
         const FABFPMeshVariant& Variant,
@@ -91,6 +92,11 @@ private:
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Traps;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> WallTorches;
     UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TorchFlames;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> DarknessShroud;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> DarknessBridgeFloors;
+    UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> DarknessBridgeCeilings;
+
+    UPROPERTY(Transient) TArray<TObjectPtr<UMaterialInterface>> DynamicPoolMaterials;
 
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomFloorPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomRememberedFloorPools;
@@ -98,6 +104,7 @@ private:
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomWallPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomRememberedWallPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomVeinPools;
+    UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomRememberedVeinPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomPillarPools;
     UPROPERTY(Transient) TArray<FABFPMeshPoolEntry> CustomWallDecorPools;
 
@@ -126,6 +133,7 @@ private:
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackShopMat;
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackTrapMat;
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> FallbackTorchMat;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInterface> DarknessShroudMat;
 
     UPROPERTY(Transient) TObjectPtr<UABFPVisualCatalog> VisualCatalog;
     UPROPERTY(Transient) TMap<int64, TObjectPtr<AActor>> SpawnedEntities;

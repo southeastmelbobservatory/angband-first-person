@@ -87,6 +87,9 @@ AABFPDungeonActor::AABFPDungeonActor()
     Traps = MakeLayer(TEXT("TrapInstances"), false);
     WallTorches = MakeLayer(TEXT("WallTorchInstances"), false);
     TorchFlames = MakeLayer(TEXT("TorchFlameInstances"), false);
+    DarknessShroud = MakeLayer(TEXT("DarknessShroudInstances"), false);
+    DarknessBridgeFloors = MakeLayer(TEXT("DarknessBridgeFloorInstances"), false);
+    DarknessBridgeCeilings = MakeLayer(TEXT("DarknessBridgeCeilingInstances"), false);
 
     DungeonFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("DungeonFog"));
     DungeonFog->SetupAttachment(SceneRoot);
@@ -163,6 +166,9 @@ AABFPDungeonActor::AABFPDungeonActor()
         Shops->SetStaticMesh(FallbackCubeMesh);
         Traps->SetStaticMesh(FallbackCubeMesh);
         WallTorches->SetStaticMesh(FallbackCubeMesh);
+        DarknessShroud->SetStaticMesh(FallbackCubeMesh);
+        DarknessBridgeFloors->SetStaticMesh(FallbackCubeMesh);
+        DarknessBridgeCeilings->SetStaticMesh(FallbackCubeMesh);
     }
 
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
@@ -192,6 +198,7 @@ AABFPDungeonActor::AABFPDungeonActor()
         FallbackTrapMat = MakeColorMat(FLinearColor(0.62f, 0.12f, 0.08f));
         FallbackTorchMat = MakeColorMat(FLinearColor(0.85f, 0.48f, 0.12f));
         FallbackFlameMat = MakeColorMat(FLinearColor(1.0f, 0.72f, 0.18f));
+        DarknessShroudMat = MakeColorMat(FLinearColor(0.002f, 0.0025f, 0.004f));
 
         Floors->SetMaterial(0, FallbackFloorMat);
         RememberedFloors->SetMaterial(0, FallbackMemoryFloorMat);
@@ -212,6 +219,9 @@ AABFPDungeonActor::AABFPDungeonActor()
         Traps->SetMaterial(0, FallbackTrapMat);
         WallTorches->SetMaterial(0, FallbackTorchMat);
         TorchFlames->SetMaterial(0, FallbackFlameMat);
+        DarknessShroud->SetMaterial(0, DarknessShroudMat);
+        DarknessBridgeFloors->SetMaterial(0, FallbackMemoryFloorMat);
+        DarknessBridgeCeilings->SetMaterial(0, DarknessShroudMat);
     }
 }
 
@@ -266,7 +276,8 @@ void AABFPDungeonActor::ConfigureMeshPool(
     const TArray<FABFPMeshVariant>& Variants,
     UMaterialInterface* OverrideMat,
     bool bCastShadow,
-    const FString& Prefix)
+    const FString& Prefix,
+    const FLinearColor* DynamicTint)
 {
     for (FABFPMeshPoolEntry& Existing : Pool)
     {
@@ -291,7 +302,21 @@ void AABFPDungeonActor::ConfigureMeshPool(
         Comp->SetStaticMesh(Variant.Mesh);
         Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Comp->SetCastShadow(bCastShadow);
-        UMaterialInterface* ChosenMat = OverrideMat ? OverrideMat : Variant.MaterialOverride.Get();
+        UMaterialInterface* ChosenMat = nullptr;
+        if (DynamicTint && Variant.MaterialOverride)
+        {
+            UMaterialInstanceDynamic* DimMat = UMaterialInstanceDynamic::Create(Variant.MaterialOverride.Get(), this);
+            if (DimMat)
+            {
+                DimMat->SetVectorParameterValue(TEXT("Tint"), *DynamicTint);
+                DynamicPoolMaterials.Add(DimMat);
+                ChosenMat = DimMat;
+            }
+        }
+        if (!ChosenMat)
+        {
+            ChosenMat = OverrideMat ? OverrideMat : Variant.MaterialOverride.Get();
+        }
         if (ChosenMat)
         {
             const int32 NumMats = FMath::Max(1, Comp->GetNumMaterials());
@@ -362,16 +387,19 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
         {
             AmbientSky->SetIntensity(1.35f);
             AmbientSky->SetLightColor(FLinearColor(0.88f, 0.88f, 0.96f));
+            AmbientSky->SetLowerHemisphereColor(FLinearColor(0.22f, 0.20f, 0.18f));
         }
         else if (DepthCategory == 1)
         {
-            AmbientSky->SetIntensity(0.95f);
-            AmbientSky->SetLightColor(FLinearColor(0.76f, 0.82f, 0.94f));
+            AmbientSky->SetIntensity(0.24f);
+            AmbientSky->SetLightColor(FLinearColor(0.55f, 0.62f, 0.78f));
+            AmbientSky->SetLowerHemisphereColor(FLinearColor(0.012f, 0.014f, 0.018f));
         }
         else
         {
-            AmbientSky->SetIntensity(0.78f);
-            AmbientSky->SetLightColor(FLinearColor(0.92f, 0.68f, 0.56f));
+            AmbientSky->SetIntensity(0.18f);
+            AmbientSky->SetLightColor(FLinearColor(0.75f, 0.45f, 0.36f));
+            AmbientSky->SetLowerHemisphereColor(FLinearColor(0.015f, 0.008f, 0.008f));
         }
         AmbientSky->RecaptureSky();
     }
@@ -380,32 +408,44 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
         if (DepthCategory == 0)
         {
             DungeonFog->SetFogDensity(0.0014f);
+            DungeonFog->StartDistance = 450.0f;
             DungeonFog->SetFogInscatteringColor(FLinearColor(0.28f, 0.26f, 0.24f));
         }
         else if (DepthCategory == 1)
         {
-            DungeonFog->SetFogDensity(0.0032f);
-            DungeonFog->SetFogInscatteringColor(FLinearColor(0.07f, 0.085f, 0.11f));
+            DungeonFog->SetFogDensity(0.0046f);
+            DungeonFog->StartDistance = 280.0f;
+            DungeonFog->SetFogInscatteringColor(FLinearColor(0.002f, 0.0025f, 0.004f));
         }
         else
         {
-            DungeonFog->SetFogDensity(0.0040f);
-            DungeonFog->SetFogInscatteringColor(FLinearColor(0.11f, 0.055f, 0.045f));
+            DungeonFog->SetFogDensity(0.0052f);
+            DungeonFog->StartDistance = 260.0f;
+            DungeonFog->SetFogInscatteringColor(FLinearColor(0.004f, 0.002f, 0.0025f));
         }
+    }
+    if (AtmospherePostProcess)
+    {
+        AtmospherePostProcess->Settings.AutoExposureMinBrightness = (DepthCategory == 0) ? 0.45f : 0.80f;
     }
 
     if (!VisualCatalog) return;
 
+    DynamicPoolMaterials.Empty();
     const FABFPTerrainVisualSet& TerrainSet = VisualCatalog->GetTerrainSetForDepth(DungeonDepth);
     UMaterialInterface* RememberedMat = TerrainSet.RememberedMaterialOverride ?
         TerrainSet.RememberedMaterialOverride.Get() : FallbackMemoryWallMat.Get();
+    const FLinearColor RememberedTint = (DepthCategory == 0)
+        ? FLinearColor(0.42f, 0.44f, 0.50f, 1.0f)
+        : FLinearColor(0.26f, 0.28f, 0.34f, 1.0f);
 
     ConfigureMeshPool(CustomFloorPools, TerrainSet.FloorVariants, nullptr, false, TEXT("CustomFloor"));
-    ConfigureMeshPool(CustomRememberedFloorPools, TerrainSet.FloorVariants, RememberedMat, false, TEXT("CustomMemFloor"));
+    ConfigureMeshPool(CustomRememberedFloorPools, TerrainSet.FloorVariants, RememberedMat, false, TEXT("CustomMemFloor"), &RememberedTint);
     ConfigureMeshPool(CustomCeilingPools, TerrainSet.CeilingVariants, nullptr, false, TEXT("CustomCeiling"));
     ConfigureMeshPool(CustomWallPools, TerrainSet.WallVariants, nullptr, true, TEXT("CustomWall"));
-    ConfigureMeshPool(CustomRememberedWallPools, TerrainSet.WallVariants, RememberedMat, false, TEXT("CustomMemWall"));
+    ConfigureMeshPool(CustomRememberedWallPools, TerrainSet.WallVariants, RememberedMat, false, TEXT("CustomMemWall"), &RememberedTint);
     ConfigureMeshPool(CustomVeinPools, TerrainSet.VeinWallVariants, nullptr, true, TEXT("CustomVein"));
+    ConfigureMeshPool(CustomRememberedVeinPools, TerrainSet.VeinWallVariants, RememberedMat, false, TEXT("CustomMemVein"), &RememberedTint);
     ConfigureMeshPool(CustomPillarPools, TerrainSet.WallPillarVariants, nullptr, true, TEXT("CustomPillar"));
     ConfigureMeshPool(CustomWallDecorPools, TerrainSet.WallDecorVariants, nullptr, false, TEXT("CustomWallDecor"));
 
@@ -436,6 +476,23 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
         UMaterialInterface* FlameMat = VisualCatalog->TorchFlameMaterial ?
             VisualCatalog->TorchFlameMaterial.Get() : FallbackFlameMat.Get();
         if (FlameMat) TorchFlames->SetMaterial(0, FlameMat);
+    }
+    if (DarknessShroud && DarknessBridgeCeilings && DarknessBridgeFloors)
+    {
+        UMaterialInterface* VoidMat = TerrainSet.RememberedMaterialOverride ?
+            TerrainSet.RememberedMaterialOverride.Get() : DarknessShroudMat.Get();
+        if (VoidMat)
+        {
+            DarknessShroud->SetMaterial(0, VoidMat);
+            DarknessBridgeCeilings->SetMaterial(0, VoidMat);
+        }
+        UMaterialInterface* BridgeFloorMat = (CustomRememberedFloorPools.Num() > 0 && CustomRememberedFloorPools[0].Component)
+            ? CustomRememberedFloorPools[0].Component->GetMaterial(0)
+            : FallbackMemoryFloorMat.Get();
+        if (BridgeFloorMat)
+        {
+            DarknessBridgeFloors->SetMaterial(0, BridgeFloorMat);
+        }
     }
 }
 
@@ -599,6 +656,9 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     Traps->ClearInstances();
     WallTorches->ClearInstances();
     if (TorchFlames) TorchFlames->ClearInstances();
+    if (DarknessShroud) DarknessShroud->ClearInstances();
+    if (DarknessBridgeFloors) DarknessBridgeFloors->ClearInstances();
+    if (DarknessBridgeCeilings) DarknessBridgeCeilings->ClearInstances();
 
     auto ClearPool = [](TArray<FABFPMeshPoolEntry>& Pool)
     {
@@ -613,6 +673,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     ClearPool(CustomWallPools);
     ClearPool(CustomRememberedWallPools);
     ClearPool(CustomVeinPools);
+    ClearPool(CustomRememberedVeinPools);
     ClearPool(CustomPillarPools);
     ClearPool(CustomWallDecorPools);
 
@@ -701,6 +762,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             const bool bIsVein = (Cell.Terrain == EABFPTerrain::Vein);
             const TArray<FABFPMeshPoolEntry>& Pool =
                 (bIsVein && Cell.bVisible && CustomVeinPools.Num() > 0) ? CustomVeinPools :
+                (bIsVein && !Cell.bVisible && CustomRememberedVeinPools.Num() > 0) ? CustomRememberedVeinPools :
                 (Cell.bVisible ? CustomWallPools : CustomRememberedWallPools);
 
             if (Pool.Num() > 0)
@@ -944,7 +1006,8 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             if (bS && bE) PlaceCornerPillar(Half, Half);
         }
 
-        /* Non-blocking decorative medieval wall props (banners, barrels, crates, shelves) along room edges. */
+        /* Non-blocking decorative medieval wall props (banners, barrels, candles) along open room perimeters only
+           (never in 1-tile-wide corridors or 90-degree corners where props would block walkways or clip into walls). */
         const uint32 DecorMod = (Snapshot.DungeonDepth == 0) ? 11u : 7u;
         if (Cell.bVisible && Cell.Terrain == EABFPTerrain::Floor && CustomWallDecorPools.Num() > 0 &&
             (CellHash % DecorMod) == 0u)
@@ -953,21 +1016,105 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 FIntPoint(0, -1), FIntPoint(1, 0), FIntPoint(0, 1), FIntPoint(-1, 0)
             };
             static const float DecorYaw[4] = { 90.0f, 180.0f, -90.0f, 0.0f };
+            auto IsSolidStoneWallAt = [&CellMap](int32 NX, int32 NY) -> bool
+            {
+                const FABFPCell* const* Found = CellMap.Find(FIntPoint(NX, NY));
+                return Found && *Found && ((*Found)->Terrain == EABFPTerrain::Wall || (*Found)->Terrain == EABFPTerrain::Vein);
+            };
+            auto IsPlainFloorAt = [&CellMap](int32 NX, int32 NY) -> bool
+            {
+                const FABFPCell* const* Found = CellMap.Find(FIntPoint(NX, NY));
+                return Found && *Found && (*Found)->Terrain == EABFPTerrain::Floor;
+            };
             for (int32 DirIdx = 0; DirIdx < 4; ++DirIdx)
             {
                 const int32 CheckIdx = static_cast<int32>(((CellHash >> 6) + static_cast<uint32>(DirIdx)) & 3u);
                 const FIntPoint Dir = DecorDirs[CheckIdx];
-                if (IsWallAt(Cell.X + Dir.X, Cell.Y + Dir.Y))
+                const FIntPoint Perp(-Dir.Y, Dir.X);
+                if (IsSolidStoneWallAt(Cell.X + Dir.X, Cell.Y + Dir.Y) &&
+                    IsPlainFloorAt(Cell.X - Dir.X, Cell.Y - Dir.Y) &&
+                    IsPlainFloorAt(Cell.X + Perp.X, Cell.Y + Perp.Y) &&
+                    IsPlainFloorAt(Cell.X - Perp.X, Cell.Y - Perp.Y))
                 {
                     const FABFPMeshPoolEntry& Pick = CustomWallDecorPools[
                         static_cast<int32>((CellHash >> 12) % static_cast<uint32>(CustomWallDecorPools.Num()))];
                     if (Pick.Component)
                     {
-                        const FVector EdgePos = Tile + FVector(Dir.X * CellSize * 0.36f, Dir.Y * CellSize * 0.36f, 0.0f);
+                        const FVector EdgePos = Tile + FVector(Dir.X * CellSize * 0.35f, Dir.Y * CellSize * 0.35f, 0.0f);
                         const FRotator EdgeRot(0.0f, DecorYaw[CheckIdx], 0.0f);
                         Pick.Component->AddInstance(ComposePoolTransform(EdgePos, EdgeRot, Pick));
                     }
                     break;
+                }
+            }
+        }
+    }
+
+    /* Subterranean fog-of-war darkness shroud (Depth > 0):
+       Seal unexplored Unknown tiles bordering known walkable tiles with pitch-black dungeon darkness
+       so unlit corridors never leak into an empty skybox horizon; if an Unknown tile sits directly
+       between two known walkable tiles (Angband LOS crossing an unlit corridor into a lit room),
+       place a dark shadowed floor+ceiling bridge instead of an opaque wall so sightlines stay clear. */
+    if (Snapshot.DungeonDepth > 0 && DarknessShroud && DarknessBridgeFloors && DarknessBridgeCeilings)
+    {
+        auto HasKnownWalkableAlong = [&CellMap](int32 StartX, int32 StartY, int32 StepX, int32 StepY) -> bool
+        {
+            for (int32 Dist = 1; Dist <= 6; ++Dist)
+            {
+                const int32 CX = StartX + StepX * Dist;
+                const int32 CY = StartY + StepY * Dist;
+                const FABFPCell* const* Found = CellMap.Find(FIntPoint(CX, CY));
+                if (Found && *Found)
+                {
+                    const EABFPTerrain T = (*Found)->Terrain;
+                    if (T == EABFPTerrain::Wall || T == EABFPTerrain::Vein) return false;
+                    if (T != EABFPTerrain::Unknown) return true;
+                }
+            }
+            return false;
+        };
+
+        TSet<FIntPoint> VisitedUnknown;
+        for (const FABFPCell& Cell : Snapshot.Cells)
+        {
+            if (Cell.Terrain == EABFPTerrain::Unknown ||
+                Cell.Terrain == EABFPTerrain::Wall ||
+                Cell.Terrain == EABFPTerrain::Vein)
+            {
+                continue;
+            }
+            for (int32 DY = -1; DY <= 1; ++DY)
+            {
+                for (int32 DX = -1; DX <= 1; ++DX)
+                {
+                    if (DX == 0 && DY == 0) continue;
+                    const FIntPoint NeighborPt(Cell.X + DX, Cell.Y + DY);
+                    if (VisitedUnknown.Contains(NeighborPt)) continue;
+                    const FABFPCell* const* Found = CellMap.Find(NeighborPt);
+                    if (Found && *Found && (*Found)->Terrain != EABFPTerrain::Unknown) continue;
+                    VisitedUnknown.Add(NeighborPt);
+
+                    const FVector NeighborTile = GridToWorld(NeighborPt.X, NeighborPt.Y);
+                    const bool bCorridorBridgeNS = HasKnownWalkableAlong(NeighborPt.X, NeighborPt.Y, 0, -1) &&
+                        HasKnownWalkableAlong(NeighborPt.X, NeighborPt.Y, 0, 1);
+                    const bool bCorridorBridgeEW = HasKnownWalkableAlong(NeighborPt.X, NeighborPt.Y, -1, 0) &&
+                        HasKnownWalkableAlong(NeighborPt.X, NeighborPt.Y, 1, 0);
+
+                    if (bCorridorBridgeNS || bCorridorBridgeEW)
+                    {
+                        DarknessBridgeFloors->AddInstance(FTransform(FRotator::ZeroRotator,
+                            NeighborTile - FVector(0.0f, 0.0f, 6.0f),
+                            FVector(CellScaleXY, CellScaleXY, 0.12f)));
+                        DarknessBridgeCeilings->AddInstance(FTransform(FRotator::ZeroRotator,
+                            NeighborTile + FVector(0.0f, 0.0f, WallHeight + 6.0f),
+                            FVector(CellScaleXY, CellScaleXY, 0.12f)));
+                    }
+                    else
+                    {
+                        DarknessShroud->AddInstance(FTransform(FRotator::ZeroRotator,
+                            NeighborTile + FVector(0.0f, 0.0f, WallHeight * 0.5f),
+                            FVector(CellScaleXY, CellScaleXY, (WallHeight + 24.0f) / 100.0f)));
+                    }
                 }
             }
         }
