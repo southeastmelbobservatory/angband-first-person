@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
+#include "UObject/ConstructorHelpers.h"
 
 AABFPFirstPersonPawn::AABFPFirstPersonPawn()
 {
@@ -56,38 +57,266 @@ AABFPFirstPersonPawn::AABFPFirstPersonPawn()
     HeldLanternMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     HeldLanternMesh->SetCastShadow(false);
     HeldLanternMesh->SetVisibility(false);
+
+    HeldTorchFlameMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeldTorchFlameMesh"));
+    HeldTorchFlameMesh->SetupAttachment(HeldLanternMesh);
+    HeldTorchFlameMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    HeldTorchFlameMesh->SetCastShadow(false);
+    HeldTorchFlameMesh->SetRelativeLocation(FVector(0.0f, 0.0f, 44.5f));
+    HeldTorchFlameMesh->SetRelativeScale3D(FVector(0.095f, 0.095f, 0.155f));
+    HeldTorchFlameMesh->SetVisibility(false);
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> TorchFlameSphere(
+        TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    if (TorchFlameSphere.Succeeded())
+    {
+        HeldTorchFlameMesh->SetStaticMesh(TorchFlameSphere.Object);
+    }
+}
+
+void AABFPFirstPersonPawn::ApplyViewModelVariant(UStaticMeshComponent* MeshComp, const FABFPMeshVariant& Variant)
+{
+    if (!MeshComp) return;
+    if (!Variant.IsValid())
+    {
+        MeshComp->SetVisibility(false);
+        return;
+    }
+    MeshComp->EmptyOverrideMaterials();
+    MeshComp->SetStaticMesh(Variant.Mesh);
+    if (Variant.MaterialOverride)
+    {
+        MeshComp->SetMaterial(0, Variant.MaterialOverride);
+    }
+    MeshComp->SetRelativeLocation(Variant.LocationOffset);
+    MeshComp->SetRelativeRotation(Variant.RotationOffset);
+    MeshComp->SetRelativeScale3D(Variant.Scale);
+    MeshComp->SetVisibility(true);
 }
 
 void AABFPFirstPersonPawn::ConfigureFirstPersonViewModels()
 {
     if (!LoadedVisualCatalog) return;
 
-    if (HeldLanternMesh && LoadedVisualCatalog->FirstPersonLantern.IsValid())
+    if (HeldTorchFlameMesh && LoadedVisualCatalog->TorchFlameMaterial)
     {
-        const FABFPMeshVariant& Variant = LoadedVisualCatalog->FirstPersonLantern;
-        HeldLanternMesh->SetStaticMesh(Variant.Mesh);
-        if (Variant.MaterialOverride)
-        {
-            HeldLanternMesh->SetMaterial(0, Variant.MaterialOverride);
-        }
-        HeldLanternMesh->SetRelativeLocation(Variant.LocationOffset);
-        HeldLanternMesh->SetRelativeRotation(Variant.RotationOffset);
-        HeldLanternMesh->SetRelativeScale3D(Variant.Scale);
-        HeldLanternMesh->SetVisibility(true);
+        HeldTorchFlameMesh->SetMaterial(0, LoadedVisualCatalog->TorchFlameMaterial);
     }
 
-    if (HeldWeaponMesh && LoadedVisualCatalog->FirstPersonWeapon.IsValid())
+    UpdateEquippedViewModels(true);
+}
+
+void AABFPFirstPersonPawn::UpdateEquippedViewModels(bool bForceRefresh)
+{
+    if (!LoadedVisualCatalog) return;
+
+    /* Before the first authoritative snapshot (or demo inventory) arrives, show default showcase gear. */
+    if (!bHaveAuthoritativeState && CurrentSnapshot.Inventory.IsEmpty())
     {
-        const FABFPMeshVariant& Variant = LoadedVisualCatalog->FirstPersonWeapon;
-        HeldWeaponMesh->SetStaticMesh(Variant.Mesh);
-        if (Variant.MaterialOverride)
+        if (bForceRefresh || LastEquippedLightKey != TEXT("SHOWCASE"))
         {
-            HeldWeaponMesh->SetMaterial(0, Variant.MaterialOverride);
+            LastEquippedLightKey = TEXT("SHOWCASE");
+            ApplyViewModelVariant(HeldLanternMesh, LoadedVisualCatalog->FirstPersonLantern);
+            if (HeldTorchFlameMesh) HeldTorchFlameMesh->SetVisibility(false);
+            bHoldingLitTorch = false;
+            ActiveLightColor = FLinearColor(1.0f, 0.80f, 0.56f);
+            ActiveLightIntensity = 7.5f;
+            ActiveLightRadius = 2600.0f;
+            ActiveLightFlickerAmp = 0.035f;
         }
-        HeldWeaponMesh->SetRelativeLocation(Variant.LocationOffset);
-        HeldWeaponMesh->SetRelativeRotation(Variant.RotationOffset);
-        HeldWeaponMesh->SetRelativeScale3D(Variant.Scale);
-        HeldWeaponMesh->SetVisibility(true);
+        if (bForceRefresh || LastEquippedWeaponKey != TEXT("SHOWCASE"))
+        {
+            LastEquippedWeaponKey = TEXT("SHOWCASE");
+            ApplyViewModelVariant(HeldWeaponMesh, LoadedVisualCatalog->FirstPersonWeapon);
+        }
+        return;
+    }
+
+    const FABFPInventoryItem* EquippedWeapon = nullptr;
+    const FABFPInventoryItem* EquippedLight = nullptr;
+
+    for (const FABFPInventoryItem& Item : CurrentSnapshot.Inventory)
+    {
+        if (!Item.bEquipped) continue;
+        const FString SlotLower = Item.SlotName.ToLower();
+        if (!EquippedWeapon &&
+            (Item.CategoryId == 6 || Item.CategoryId == 7 || Item.CategoryId == 8 || Item.CategoryId == 9 ||
+             SlotLower.Contains(TEXT("wield"))))
+        {
+            EquippedWeapon = &Item;
+        }
+        else if (!EquippedLight &&
+            (Item.CategoryId == 19 || SlotLower.Contains(TEXT("light"))))
+        {
+            EquippedLight = &Item;
+        }
+    }
+
+    /* 1. Right-hand melee weapon viewmodel */
+    FString WeaponKey = TEXT("NONE");
+    const FABFPMeshVariant* WeaponVariant = nullptr;
+    if (EquippedWeapon)
+    {
+        const FString Lower = EquippedWeapon->Name.ToLower();
+        auto PickOrFallback = [this](const FABFPMeshVariant& Preferred) -> const FABFPMeshVariant*
+        {
+            return Preferred.IsValid() ? &Preferred : &LoadedVisualCatalog->FirstPersonWeapon;
+        };
+
+        if (EquippedWeapon->CategoryId == 6 ||
+            Lower.Contains(TEXT("pick")) || Lower.Contains(TEXT("shovel")) || Lower.Contains(TEXT("mattock")))
+        {
+            WeaponKey = TEXT("PICKAXE");
+            WeaponVariant = PickOrFallback(LoadedVisualCatalog->FirstPersonPickaxe);
+        }
+        else if (Lower.Contains(TEXT("quarterstaff")) || Lower.Contains(TEXT("staff")))
+        {
+            WeaponKey = TEXT("STAFF");
+            WeaponVariant = PickOrFallback(LoadedVisualCatalog->FirstPersonStaff);
+        }
+        else if (Lower.Contains(TEXT("axe")) || Lower.Contains(TEXT("hatchet")) || Lower.Contains(TEXT("lochaber")))
+        {
+            WeaponKey = TEXT("AXE");
+            WeaponVariant = PickOrFallback(LoadedVisualCatalog->FirstPersonAxe);
+        }
+        else if (EquippedWeapon->CategoryId == 7 ||
+            Lower.Contains(TEXT("mace")) || Lower.Contains(TEXT("hammer")) || Lower.Contains(TEXT("flail")) ||
+            Lower.Contains(TEXT("morningstar")) || Lower.Contains(TEXT("morning star")) ||
+            Lower.Contains(TEXT("club")) || Lower.Contains(TEXT("whip")) || Lower.Contains(TEXT("maul")) ||
+            Lower.Contains(TEXT("lucerne")) || Lower.Contains(TEXT("moondust")))
+        {
+            WeaponKey = TEXT("MACE");
+            WeaponVariant = PickOrFallback(LoadedVisualCatalog->FirstPersonMace);
+        }
+        else if (EquippedWeapon->CategoryId == 8 ||
+            Lower.Contains(TEXT("spear")) || Lower.Contains(TEXT("pike")) || Lower.Contains(TEXT("halberd")) ||
+            Lower.Contains(TEXT("trident")) || Lower.Contains(TEXT("lance")) || Lower.Contains(TEXT("glaive")) ||
+            Lower.Contains(TEXT("scythe")) || Lower.Contains(TEXT("fauchard")) ||
+            Lower.Contains(TEXT("gisarme")) || Lower.Contains(TEXT("ranseur")))
+        {
+            WeaponKey = TEXT("SPEAR");
+            WeaponVariant = PickOrFallback(LoadedVisualCatalog->FirstPersonSpear);
+        }
+        else if (Lower.Contains(TEXT("dagger")) || Lower.Contains(TEXT("knife")) || Lower.Contains(TEXT("dirk")) ||
+            Lower.Contains(TEXT("gauche")) || Lower.Contains(TEXT("stiletto")) || Lower.Contains(TEXT("scalpel")) ||
+            Lower.Contains(TEXT("baselard")) || Lower.Contains(TEXT("tanto")))
+        {
+            WeaponKey = TEXT("DAGGER");
+            WeaponVariant = PickOrFallback(LoadedVisualCatalog->FirstPersonDagger);
+        }
+        else
+        {
+            WeaponKey = TEXT("SWORD");
+            WeaponVariant = &LoadedVisualCatalog->FirstPersonWeapon;
+        }
+    }
+
+    if (bForceRefresh || WeaponKey != LastEquippedWeaponKey)
+    {
+        LastEquippedWeaponKey = WeaponKey;
+        if (WeaponVariant && WeaponVariant->IsValid())
+        {
+            ApplyViewModelVariant(HeldWeaponMesh, *WeaponVariant);
+        }
+        else if (HeldWeaponMesh)
+        {
+            HeldWeaponMesh->SetVisibility(false);
+        }
+    }
+
+    /* 2. Left-hand light source viewmodel & dynamic illumination */
+    FString LightKey = TEXT("NONE");
+    if (EquippedLight)
+    {
+        const FString Lower = EquippedLight->Name.ToLower();
+        const bool bOutOfFuel = Lower.Contains(TEXT("(0 turns")) ||
+            Lower.Contains(TEXT("0 turns of light")) || Lower.Contains(TEXT("(empty)"));
+
+        if (Lower.Contains(TEXT("phial")) || Lower.Contains(TEXT("arkenstone")) ||
+            Lower.Contains(TEXT("palantir")) || Lower.Contains(TEXT("elendil")) ||
+            Lower.Contains(TEXT("galadriel")) || Lower.Contains(TEXT("thrain")) ||
+            Lower.Contains(TEXT("star of")))
+        {
+            LightKey = TEXT("ARTIFACT");
+        }
+        else if (Lower.Contains(TEXT("torch")))
+        {
+            LightKey = bOutOfFuel ? TEXT("TORCH_EMPTY") : TEXT("TORCH_LIT");
+        }
+        else
+        {
+            LightKey = bOutOfFuel ? TEXT("LANTERN_EMPTY") : TEXT("LANTERN_LIT");
+        }
+    }
+
+    if (bForceRefresh || LightKey != LastEquippedLightKey)
+    {
+        LastEquippedLightKey = LightKey;
+        if (LightKey == TEXT("NONE"))
+        {
+            if (HeldLanternMesh) HeldLanternMesh->SetVisibility(false);
+            if (HeldTorchFlameMesh) HeldTorchFlameMesh->SetVisibility(false);
+            bHoldingLitTorch = false;
+            ActiveLightColor = FLinearColor(0.55f, 0.62f, 0.78f);
+            ActiveLightIntensity = 0.55f;
+            ActiveLightRadius = 650.0f;
+            ActiveLightFlickerAmp = 0.0f;
+        }
+        else if (LightKey == TEXT("TORCH_LIT") || LightKey == TEXT("TORCH_EMPTY"))
+        {
+            const FABFPMeshVariant& Variant = LoadedVisualCatalog->FirstPersonTorch.IsValid()
+                ? LoadedVisualCatalog->FirstPersonTorch
+                : LoadedVisualCatalog->FirstPersonLantern;
+            ApplyViewModelVariant(HeldLanternMesh, Variant);
+            bHoldingLitTorch = (LightKey == TEXT("TORCH_LIT"));
+            if (HeldTorchFlameMesh) HeldTorchFlameMesh->SetVisibility(bHoldingLitTorch);
+            if (bHoldingLitTorch)
+            {
+                ActiveLightColor = FLinearColor(1.0f, 0.64f, 0.24f);
+                ActiveLightIntensity = 6.2f;
+                ActiveLightRadius = 2050.0f;
+                ActiveLightFlickerAmp = 0.075f;
+            }
+            else
+            {
+                ActiveLightColor = FLinearColor(0.55f, 0.62f, 0.78f);
+                ActiveLightIntensity = 0.55f;
+                ActiveLightRadius = 650.0f;
+                ActiveLightFlickerAmp = 0.0f;
+            }
+        }
+        else if (LightKey == TEXT("ARTIFACT"))
+        {
+            const FABFPMeshVariant& Variant = LoadedVisualCatalog->FirstPersonArtifactLight.IsValid()
+                ? LoadedVisualCatalog->FirstPersonArtifactLight
+                : LoadedVisualCatalog->FirstPersonLantern;
+            ApplyViewModelVariant(HeldLanternMesh, Variant);
+            if (HeldTorchFlameMesh) HeldTorchFlameMesh->SetVisibility(false);
+            bHoldingLitTorch = false;
+            ActiveLightColor = FLinearColor(0.76f, 0.90f, 1.0f);
+            ActiveLightIntensity = 9.2f;
+            ActiveLightRadius = 3300.0f;
+            ActiveLightFlickerAmp = 0.015f;
+        }
+        else
+        {
+            ApplyViewModelVariant(HeldLanternMesh, LoadedVisualCatalog->FirstPersonLantern);
+            if (HeldTorchFlameMesh) HeldTorchFlameMesh->SetVisibility(false);
+            bHoldingLitTorch = false;
+            if (LightKey == TEXT("LANTERN_LIT"))
+            {
+                ActiveLightColor = FLinearColor(1.0f, 0.80f, 0.56f);
+                ActiveLightIntensity = 7.8f;
+                ActiveLightRadius = 2650.0f;
+                ActiveLightFlickerAmp = 0.035f;
+            }
+            else
+            {
+                ActiveLightColor = FLinearColor(0.55f, 0.62f, 0.78f);
+                ActiveLightIntensity = 0.55f;
+                ActiveLightRadius = 650.0f;
+                ActiveLightFlickerAmp = 0.0f;
+            }
+        }
     }
 }
 
@@ -138,6 +367,7 @@ void AABFPFirstPersonPawn::BeginPlay()
     else
     {
         BuildDemoSnapshot();
+        UpdateEquippedViewModels(true);
         const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
         SetActorLocation(FVector(CurrentSnapshot.PlayerX * GridCellSize,
             CurrentSnapshot.PlayerY * GridCellSize, 0.0f));
@@ -269,18 +499,32 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
                 AwaitingTurnSeconds = 0.0f;
             }
             bHaveAuthoritativeState = true;
+            UpdateEquippedViewModels(false);
         }
     }
 
     if (Lantern)
     {
-        const float BaseLanternIntensity = (CurrentSnapshot.DungeonDepth == 0) ? 0.35f : 7.5f;
-        const float Flicker = 1.0f + FMath::Sin(LanternElapsed * 6.5f) * 0.035f +
-            FMath::Sin(LanternElapsed * 14.2f) * 0.02f;
+        const float BaseLanternIntensity = (CurrentSnapshot.DungeonDepth == 0) ? 0.35f : ActiveLightIntensity;
+        const float Flicker = 1.0f +
+            FMath::Sin(LanternElapsed * 7.2f) * ActiveLightFlickerAmp +
+            FMath::Sin(LanternElapsed * 15.8f) * (ActiveLightFlickerAmp * 0.55f);
         Lantern->SetIntensity(BaseLanternIntensity * Flicker);
+        Lantern->SetAttenuationRadius(ActiveLightRadius);
         Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
             FLinearColor(1.0f, 0.08f, 0.04f) :
-            FLinearColor(1.0f, 0.80f, 0.56f));
+            ActiveLightColor);
+    }
+
+    if (HeldTorchFlameMesh && bHoldingLitTorch)
+    {
+        const float FlamePulse = 1.0f + FMath::Sin(LanternElapsed * 17.0f) * 0.12f +
+            FMath::Sin(LanternElapsed * 29.0f) * 0.08f;
+        const float FlameStretch = 1.0f + FMath::Sin(LanternElapsed * 21.0f + 0.7f) * 0.16f;
+        HeldTorchFlameMesh->SetRelativeScale3D(FVector(
+            0.095f * FlamePulse,
+            0.095f * FlamePulse,
+            0.155f * FlameStretch));
     }
 
     if (ViewModelMount)
@@ -1053,7 +1297,7 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     }
 
     auto AddDemoItem = [this](int32 Idx, const TCHAR* Label, bool bEquip, int32 Flags,
-        int32 Qty, int32 SellPrice, const TCHAR* Slot, const TCHAR* Name)
+        int32 Qty, int32 CatId, int32 SellPrice, const TCHAR* Slot, const TCHAR* Name)
     {
         FABFPInventoryItem Item;
         Item.Index = Idx;
@@ -1061,19 +1305,20 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
         Item.bEquipped = bEquip;
         Item.Flags = Flags;
         Item.Quantity = Qty;
+        Item.CategoryId = CatId;
         Item.SellPrice = SellPrice;
         Item.SlotName = Slot;
         Item.Name = Name;
         CurrentSnapshot.Inventory.Add(MoveTemp(Item));
     };
 
-    AddDemoItem(0, TEXT("a"), true, ABFPItemFlags::Wearable, 1, 0, TEXT("wielding"), TEXT("a Long Sword (2d5) (+0,+0)"));
-    AddDemoItem(1, TEXT("b"), true, ABFPItemFlags::Wearable, 1, 0, TEXT("wearing"), TEXT("Soft Leather Armour [8,+0]"));
-    AddDemoItem(2, TEXT("c"), true, ABFPItemFlags::Wearable, 1, 0, TEXT("light"), TEXT("a Brass Lantern (with 6200 turns)"));
-    AddDemoItem(10, TEXT("a"), false, ABFPItemFlags::Usable | ABFPItemFlags::Potion | ABFPItemFlags::Sellable, 2, 15, TEXT(""), TEXT("2 Potions of Cure Light Wounds"));
-    AddDemoItem(11, TEXT("b"), false, ABFPItemFlags::Usable | ABFPItemFlags::Scroll | ABFPItemFlags::Sellable, 3, 20, TEXT(""), TEXT("3 Scrolls of Phase Door"));
-    AddDemoItem(12, TEXT("c"), false, ABFPItemFlags::Usable | ABFPItemFlags::Food | ABFPItemFlags::Sellable, 4, 3, TEXT(""), TEXT("4 Rations of Food"));
-    AddDemoItem(13, TEXT("d"), false, ABFPItemFlags::Fuel | ABFPItemFlags::Sellable, 1, 10, TEXT(""), TEXT("a Flask of Oil"));
+    AddDemoItem(0, TEXT("a"), true, ABFPItemFlags::Wearable, 1, 9, 0, TEXT("wielding"), TEXT("a Long Sword (2d5) (+0,+0)"));
+    AddDemoItem(1, TEXT("b"), true, ABFPItemFlags::Wearable, 1, 16, 0, TEXT("wearing"), TEXT("Soft Leather Armour [8,+0]"));
+    AddDemoItem(2, TEXT("c"), true, ABFPItemFlags::Wearable, 1, 19, 0, TEXT("light"), TEXT("a Brass Lantern (with 6200 turns)"));
+    AddDemoItem(10, TEXT("a"), false, ABFPItemFlags::Usable | ABFPItemFlags::Potion | ABFPItemFlags::Sellable, 2, 26, 15, TEXT(""), TEXT("2 Potions of Cure Light Wounds"));
+    AddDemoItem(11, TEXT("b"), false, ABFPItemFlags::Usable | ABFPItemFlags::Scroll | ABFPItemFlags::Sellable, 3, 25, 20, TEXT(""), TEXT("3 Scrolls of Phase Door"));
+    AddDemoItem(12, TEXT("c"), false, ABFPItemFlags::Usable | ABFPItemFlags::Food | ABFPItemFlags::Sellable, 4, 28, 3, TEXT(""), TEXT("4 Rations of Food"));
+    AddDemoItem(13, TEXT("d"), false, ABFPItemFlags::Fuel | ABFPItemFlags::Sellable, 1, 27, 10, TEXT(""), TEXT("a Flask of Oil"));
 
     FABFPEntity Goblin;
     Goblin.Id = 0x1000000000000001ull;
@@ -1114,6 +1359,7 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     Potion.Y = 6;
     Potion.Type = EABFPEntityType::Object;
     Potion.KindId = 1;
+    Potion.CategoryId = 26;
     Potion.Name = TEXT("Potion of Healing");
     Potion.Quantity = 1;
     CurrentSnapshot.Entities.Add(Potion);
@@ -1124,6 +1370,7 @@ void AABFPFirstPersonPawn::BuildDemoSnapshot()
     Sword.Y = 7;
     Sword.Type = EABFPEntityType::Object;
     Sword.KindId = 2;
+    Sword.CategoryId = 9;
     Sword.Name = TEXT("Short Sword");
     Sword.Quantity = 1;
     CurrentSnapshot.Entities.Add(Sword);

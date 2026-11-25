@@ -166,6 +166,13 @@ def main() -> int:
             tasks.append((entry["url"], raw_root / entry["dest"]))
 
     if include_cat("items"):
+        item_gen = repo_root / "tools" / "generate-angband-items.py"
+        if item_gen.is_file() and not args.dry_run:
+            spec = importlib.util.spec_from_file_location("abfp_gen_items", str(item_gen))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            n_items = mod.generate_all(raw_root)
+            print(f"Generated {n_items} bespoke Angband item & viewmodel GLBs.")
         for entry in manifest.get("item_meshes", []):
             if entry.get("source") == "procedural" or not entry.get("url"):
                 continue

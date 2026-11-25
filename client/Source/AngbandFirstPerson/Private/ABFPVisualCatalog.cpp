@@ -21,6 +21,11 @@ namespace
             {
                 bRightBoundary = (After + 1 >= NameLen) || !FChar::IsAlpha(LowerName[After + 1]);
             }
+            else if (!bRightBoundary && LowerName[After] == TEXT('e') &&
+                     After + 1 < NameLen && LowerName[After + 1] == TEXT('s'))
+            {
+                bRightBoundary = (After + 2 >= NameLen) || !FChar::IsAlpha(LowerName[After + 2]);
+            }
 
             if (bLeftBoundary && bRightBoundary)
             {
@@ -59,6 +64,7 @@ const FABFPCreatureVisualEntry* UABFPVisualCatalog::FindCreatureVisual(
 const FABFPItemVisualEntry* UABFPVisualCatalog::FindItemVisual(
     const FABFPEntity& Entity) const
 {
+    /* 1. Exact Angband object kind index (kidx) */
     for (const FABFPItemVisualEntry& Entry : Items)
     {
         if (Entry.KindId >= 0 && Entry.KindId == Entity.KindId && Entry.HasVisualOverride())
@@ -67,29 +73,51 @@ const FABFPItemVisualEntry* UABFPVisualCatalog::FindItemVisual(
         }
     }
 
-    for (const FABFPItemVisualEntry& Entry : Items)
+    /* 2. Exact Angband category (tval) + variant (sval) */
+    if (Entity.CategoryId > 0)
     {
-        if (Entry.KindId < 0 && Entry.CategoryId >= 0 && Entry.CategoryId == Entity.CategoryId &&
-            Entry.VariantId >= 0 && Entry.VariantId == Entity.VariantId && Entry.HasVisualOverride())
+        for (const FABFPItemVisualEntry& Entry : Items)
         {
-            return &Entry;
-        }
-    }
-
-    for (const FABFPItemVisualEntry& Entry : Items)
-    {
-        if (Entry.KindId < 0 && Entry.CategoryId >= 0 && Entry.CategoryId == Entity.CategoryId &&
-            Entry.VariantId < 0 && Entry.HasVisualOverride())
-        {
-            return &Entry;
+            if (Entry.KindId < 0 && Entry.CategoryId >= 0 && Entry.CategoryId == Entity.CategoryId &&
+                Entry.VariantId >= 0 && Entry.VariantId == Entity.VariantId && Entry.HasVisualOverride())
+            {
+                return &Entry;
+            }
         }
     }
 
     const FString LowerName = Entity.Name.ToLower();
+
+    /* 3. Category-scoped keyword overrides (e.g. Torch/Phial in TV_LIGHT, Dagger in TV_SWORD,
+          Axe in TV_POLEARM, Quarterstaff in TV_HAFTED) before blanket tval fallback. */
+    if (Entity.CategoryId > 0)
+    {
+        for (const FABFPItemVisualEntry& Entry : Items)
+        {
+            if (Entry.KindId < 0 && Entry.CategoryId >= 0 && Entry.CategoryId == Entity.CategoryId &&
+                Entry.VariantId < 0 && !Entry.NameContains.IsEmpty() && Entry.HasVisualOverride() &&
+                MatchesWordKeyword(LowerName, Entry.NameContains.ToLower()))
+            {
+                return &Entry;
+            }
+        }
+
+        /* 4. Blanket Angband tval category match — covers all 35 tvals without cross-category collisions. */
+        for (const FABFPItemVisualEntry& Entry : Items)
+        {
+            if (Entry.KindId < 0 && Entry.CategoryId >= 0 && Entry.CategoryId == Entity.CategoryId &&
+                Entry.VariantId < 0 && Entry.NameContains.IsEmpty() && Entry.HasVisualOverride())
+            {
+                return &Entry;
+            }
+        }
+    }
+
+    /* 5. Unscoped word-boundary keyword match (Demo mode or items with CategoryId == 0). */
     for (const FABFPItemVisualEntry& Entry : Items)
     {
         if (Entry.KindId < 0 && Entry.CategoryId < 0 && !Entry.NameContains.IsEmpty() &&
-            Entry.HasVisualOverride() && LowerName.Contains(Entry.NameContains.ToLower()))
+            Entry.HasVisualOverride() && MatchesWordKeyword(LowerName, Entry.NameContains.ToLower()))
         {
             return &Entry;
         }

@@ -261,7 +261,31 @@ public:
     FABFPMeshVariant FirstPersonLantern;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonTorch;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonArtifactLight;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
     FABFPMeshVariant FirstPersonWeapon;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonDagger;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonAxe;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonMace;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonSpear;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonStaff;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ViewModel")
+    FABFPMeshVariant FirstPersonPickaxe;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Terrain")
     FABFPTerrainVisualSet DungeonTerrain;

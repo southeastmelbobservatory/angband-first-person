@@ -477,11 +477,13 @@ static void abfp_append_objects(struct object *obj, int x, int y,
         entity->type = ABFP_ENTITY_OBJECT;
         entity->kind_id = (known && known->kind) ?
             (int32_t)known->kind->kidx : 0;
-        entity->category_id = (known && known->kind) ? known->tval : 0;
+        entity->category_id = known ?
+            (known->tval ? (int32_t)known->tval : (int32_t)obj->tval) : 0;
         entity->variant_id = (known && known->kind) ? known->sval : 0;
         entity->hitpoints = 0;
         entity->max_hitpoints = 0;
-        entity->quantity = (known && known->kind) ? known->number : 1;
+        entity->quantity = known ?
+            (known->number > 0 ? (int32_t)known->number : (int32_t)obj->number) : 1;
     }
 }
 

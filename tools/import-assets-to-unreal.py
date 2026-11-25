@@ -705,6 +705,61 @@ def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0,
     return v
 
 
+def compute_viewmodel_scale(mesh, target_height_cm: float, fallback_scale: float = 0.5) -> tuple:
+    """Scale a first-person weapon/light mesh to a consistent target length in cm regardless
+    of FBX vs glTF import units."""
+    if not mesh:
+        return (fallback_scale, fallback_scale, fallback_scale)
+    try:
+        ext = mesh.get_bounds().box_extent
+        raw_h = max(1.0, float(ext.z) * 2.0, float(ext.x) * 2.0, float(ext.y) * 2.0)
+        s = max(0.05, min(target_height_cm / raw_h, 20.0))
+        return (s, s, s)
+    except Exception:
+        return (fallback_scale, fallback_scale, fallback_scale)
+
+
+def emit_item_visual_entries(item_entries: list, mesh, cfg: dict) -> None:
+    """Emit category-scoped keyword overrides, blanket tval category rules, and unscoped
+    fallback keyword rules for one item mesh."""
+    rot = cfg.get("rotation_offset", [0, 0, 0])
+    scale = cfg.get("scale", [1, 1, 1])
+    loc = cfg.get("location_offset", [0, 0, 8])
+    float_spin = bool(cfg.get("float_and_spin", False))
+    emit_light = bool(cfg.get("emit_light", False))
+    light_color = cfg.get("light_color")
+    base_name = cfg.get("entry_name", "Item")
+
+    def _build_entry(entry_name: str, category_id: int, name_contains: str):
+        item = unreal.ABFPItemVisualEntry()
+        item.set_editor_property("entry_name", entry_name)
+        item.set_editor_property("kind_id", -1)
+        item.set_editor_property("category_id", int(category_id))
+        item.set_editor_property("variant_id", -1)
+        item.set_editor_property("name_contains", name_contains)
+        item.set_editor_property("static_mesh", mesh)
+        item.set_editor_property("scale", unreal.Vector(*scale))
+        item.set_editor_property("location_offset", unreal.Vector(*loc))
+        item.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
+        item.set_editor_property("float_and_spin", float_spin)
+        item.set_editor_property("emit_subtle_light", emit_light)
+        if light_color:
+            item.set_editor_property("accent_light_color", unreal.LinearColor(light_color[0], light_color[1], light_color[2], 1.0))
+        item_entries.append(item)
+
+    scoped_cid = cfg.get("scoped_category_id")
+    if scoped_cid is not None:
+        for kw in cfg.get("scoped_keywords", []):
+            _build_entry(f"{base_name}_Cat{scoped_cid}_{kw}", int(scoped_cid), kw)
+
+    for cid in cfg.get("category_ids", []):
+        _build_entry(f"{base_name}_Cat{cid}", int(cid), "")
+
+    kws = cfg.get("keywords") or ([cfg["name_contains"]] if cfg.get("name_contains") else [])
+    for kw in kws:
+        _build_entry(f"{base_name}_{kw}", -1, kw)
+
+
 def main():
     unreal.log("[ABFP] Starting Unreal asset import...")
     repo_root = find_repo_root()
@@ -948,6 +1003,7 @@ def main():
 
     # 5. Import Poly Haven Hero Props (Lantern, Sword, Boulder, Goblets)
     item_entries = []
+    polyhaven_item_configs = []
     default_item_entry = None
     for entry in manifest.get("polyhaven_models", []):
         model_dir = raw_root / entry["dest_dir"]
@@ -969,23 +1025,7 @@ def main():
                     make_mesh_variant(hero_mesh, scale=(0.65, 0.65, 0.65), loc=(0.0, 0.0, -6.0), rot=(-25.0, 12.0, 38.0)),
                 )
             if "catalog_item" in entry and hero_mesh:
-                ci = entry["catalog_item"]
-                kws = ci.get("keywords") or ([ci["name_contains"]] if ci.get("name_contains") else [])
-                rot = ci.get("rotation_offset", [0, 0, 0])
-                for kw in kws:
-                    item = unreal.ABFPItemVisualEntry()
-                    item.set_editor_property("entry_name", f"{ci['entry_name']}_{kw}")
-                    item.set_editor_property("name_contains", kw)
-                    item.set_editor_property("static_mesh", hero_mesh)
-                    item.set_editor_property("scale", unreal.Vector(*ci.get("scale", [1, 1, 1])))
-                    item.set_editor_property("location_offset", unreal.Vector(*ci.get("location_offset", [0, 0, 8])))
-                    item.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
-                    item.set_editor_property("float_and_spin", bool(ci.get("float_and_spin", False)))
-                    item.set_editor_property("emit_subtle_light", bool(ci.get("emit_light", False)))
-                    if "light_color" in ci:
-                        lc = ci["light_color"]
-                        item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
-                    item_entries.append(item)
+                polyhaven_item_configs.append((hero_mesh, entry["catalog_item"]))
                 if entry["id"] == "brass_goblets" and default_item_entry is None:
                     di = unreal.ABFPItemVisualEntry()
                     di.set_editor_property("entry_name", "Default_Loot")
@@ -999,10 +1039,23 @@ def main():
         except Exception as exc:
             unreal.log_warning(f"[ABFP] Failed importing Poly Haven prop {entry['id']}: {exc}")
 
-    # 6. Import Floor Item Meshes
+    # 6. Generate & Import Floor Item Meshes + Dynamic First-Person ViewModels
+    item_gen_path = repo_root / "tools" / "generate-angband-items.py"
+    if item_gen_path.is_file():
+        try:
+            spec = importlib.util.spec_from_file_location("abfp_gen_items", str(item_gen_path))
+            item_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(item_mod)
+            n_items = item_mod.generate_all(raw_root)
+            unreal.log(f"[ABFP] Generated {n_items} bespoke Angband item & viewmodel GLBs.")
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed generating procedural items: {exc}")
+
+    item_meshes_by_id = {}
     for entry in manifest.get("item_meshes", []):
         src = raw_root / entry["dest"]
         if not src.exists():
+            unreal.log_warning(f"[ABFP] Missing item mesh file: {src}")
             continue
         try:
             unreal.log(f"[ABFP] Importing item mesh {entry['id']}...")
@@ -1010,25 +1063,107 @@ def main():
             paths = import_asset(src, dest_sub, is_skeletal=False)
             mesh = find_asset_in_paths_or_folder(paths, dest_sub, unreal.StaticMesh)
             if not mesh:
+                unreal.log_warning(f"[ABFP] No StaticMesh imported for item {entry['id']}")
                 continue
-            kws = entry.get("keywords") or ([entry["name_contains"]] if entry.get("name_contains") else [])
-            rot = entry.get("rotation_offset", [0, 0, 0])
-            for kw in kws:
-                item = unreal.ABFPItemVisualEntry()
-                item.set_editor_property("entry_name", f"{entry['entry_name']}_{kw}")
-                item.set_editor_property("name_contains", kw)
-                item.set_editor_property("static_mesh", mesh)
-                item.set_editor_property("scale", unreal.Vector(*entry.get("scale", [1, 1, 1])))
-                item.set_editor_property("location_offset", unreal.Vector(*entry.get("location_offset", [0, 0, 8])))
-                item.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
-                item.set_editor_property("float_and_spin", bool(entry.get("float_and_spin", False)))
-                item.set_editor_property("emit_subtle_light", bool(entry.get("emit_light", False)))
-                if "light_color" in entry:
-                    lc = entry["light_color"]
-                    item.set_editor_property("accent_light_color", unreal.LinearColor(lc[0], lc[1], lc[2], 1.0))
-                item_entries.append(item)
+            item_meshes_by_id[entry["id"]] = mesh
+            emit_item_visual_entries(item_entries, mesh, entry)
         except Exception as exc:
             unreal.log_warning(f"[ABFP] Failed importing item {entry['id']}: {exc}")
+
+    # Append Poly Haven item rules after specific item_meshes so scoped overrides stay prioritized
+    for hero_mesh, ci in polyhaven_item_configs:
+        emit_item_visual_entries(item_entries, hero_mesh, ci)
+
+    # Wire dynamic first-person wielded light sources & melee weapons onto DA_DungeonVisualCatalog
+    if "abfp_torch_hand" in item_meshes_by_id:
+        catalog.set_editor_property(
+            "first_person_torch",
+            make_mesh_variant(
+                item_meshes_by_id["abfp_torch_hand"],
+                scale=(0.68, 0.68, 0.68),
+                loc=(2.0, 3.0, -14.0),
+                rot=(-12.0, 0.0, 6.0),
+            ),
+        )
+    if "abfp_phial" in item_meshes_by_id:
+        catalog.set_editor_property(
+            "first_person_artifact_light",
+            make_mesh_variant(
+                item_meshes_by_id["abfp_phial"],
+                scale=(0.82, 0.82, 0.82),
+                loc=(0.0, 3.0, -5.0),
+                rot=(0.0, 0.0, 0.0),
+            ),
+        )
+    if "kk_dagger" in item_meshes_by_id:
+        dm = item_meshes_by_id["kk_dagger"]
+        catalog.set_editor_property(
+            "first_person_dagger",
+            make_mesh_variant(
+                dm,
+                scale=compute_viewmodel_scale(dm, 34.0, 0.30),
+                loc=(4.0, -2.0, -6.0),
+                rot=(-26.0, 12.0, -16.0),
+            ),
+        )
+    if "kk_axe" in item_meshes_by_id:
+        am = item_meshes_by_id["kk_axe"]
+        axe_yaw = 10.0
+        try:
+            if float(am.get_bounds().origin.x) < -3.0:
+                axe_yaw = 190.0
+        except Exception:
+            pass
+        catalog.set_editor_property(
+            "first_person_axe",
+            make_mesh_variant(
+                am,
+                scale=compute_viewmodel_scale(am, 46.0, 0.37),
+                loc=(4.0, -2.0, -10.0),
+                rot=(-22.0, axe_yaw, -14.0),
+            ),
+        )
+    if "abfp_mace" in item_meshes_by_id:
+        catalog.set_editor_property(
+            "first_person_mace",
+            make_mesh_variant(
+                item_meshes_by_id["abfp_mace"],
+                scale=(0.56, 0.56, 0.56),
+                loc=(4.0, -2.0, -14.0),
+                rot=(-22.0, 10.0, -14.0),
+            ),
+        )
+    if "abfp_spear" in item_meshes_by_id:
+        catalog.set_editor_property(
+            "first_person_spear",
+            make_mesh_variant(
+                item_meshes_by_id["abfp_spear"],
+                scale=(0.52, 0.52, 0.52),
+                loc=(6.0, -3.0, -26.0),
+                rot=(-34.0, -8.0, -10.0),
+            ),
+        )
+    if "kk_staff" in item_meshes_by_id:
+        sm = item_meshes_by_id["kk_staff"]
+        catalog.set_editor_property(
+            "first_person_staff",
+            make_mesh_variant(
+                sm,
+                scale=compute_viewmodel_scale(sm, 66.0, 0.31),
+                loc=(6.0, -3.0, -10.0),
+                rot=(-28.0, -6.0, -10.0),
+            ),
+        )
+    if "abfp_pickaxe" in item_meshes_by_id:
+        catalog.set_editor_property(
+            "first_person_pickaxe",
+            make_mesh_variant(
+                item_meshes_by_id["abfp_pickaxe"],
+                scale=(0.58, 0.58, 0.58),
+                loc=(5.0, -2.0, -14.0),
+                rot=(-18.0, -12.0, -12.0),
+            ),
+        )
 
     catalog.set_editor_property("items", item_entries)
     if default_item_entry:

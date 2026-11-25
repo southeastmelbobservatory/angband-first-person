@@ -157,11 +157,12 @@
       "catalog_item": {
         "entry_name": "Lantern",
         "name_contains": "lantern",
+        "category_ids": [
+          19
+        ],
         "keywords": [
           "lantern",
-          "lamp",
-          "phial",
-          "arkenstone"
+          "lamp"
         ],
         "scale": [
           1.6,
@@ -199,6 +200,9 @@
       "catalog_item": {
         "entry_name": "Sword_Hero",
         "name_contains": "sword",
+        "category_ids": [
+          9
+        ],
         "keywords": [
           "sword",
           "blade",
@@ -207,7 +211,10 @@
           "scimitar",
           "cutlass",
           "katana",
-          "tulwar"
+          "tulwar",
+          "estoc",
+          "claymore",
+          "zweihander"
         ],
         "scale": [
           1.2,
@@ -2108,28 +2115,31 @@
   ],
   "item_meshes": [
     {
-      "id": "kk_item_torch",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/torch_mounted.gltf.glb",
-      "dest": "terrain/torch_mounted.glb",
+      "id": "abfp_torch_hand",
+      "source": "procedural",
+      "dest": "items/abfp_torch_hand.glb",
       "unreal_dest": "/Game/Assets/Items",
       "entry_name": "Torch",
-      "name_contains": "torch",
+      "scoped_category_id": 19,
+      "scoped_keywords": [
+        "torch"
+      ],
       "keywords": [
         "torch"
       ],
       "scale": [
-        1.15,
-        1.15,
-        1.15
+        1.5,
+        1.5,
+        1.5
       ],
       "location_offset": [
         0,
         0,
-        18
+        10
       ],
       "rotation_offset": [
-        -35,
-        0,
+        -72,
+        25,
         0
       ],
       "float_and_spin": false,
@@ -2142,14 +2152,812 @@
       "license": "CC0-1.0"
     },
     {
+      "id": "abfp_phial",
+      "source": "procedural",
+      "dest": "items/abfp_phial.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "ArtifactLight",
+      "scoped_category_id": 19,
+      "scoped_keywords": [
+        "phial",
+        "arkenstone",
+        "palantir",
+        "elendil",
+        "galadriel",
+        "thrain",
+        "star"
+      ],
+      "keywords": [
+        "phial",
+        "arkenstone",
+        "palantir"
+      ],
+      "scale": [
+        1.65,
+        1.65,
+        1.65
+      ],
+      "location_offset": [
+        0,
+        0,
+        14
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        0.65,
+        0.88,
+        1.0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_dagger",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/dagger.fbx",
+      "dest": "items/dagger.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Dagger",
+      "scoped_category_id": 9,
+      "scoped_keywords": [
+        "dagger",
+        "knife",
+        "knives",
+        "dirk",
+        "gauche",
+        "stiletto",
+        "scalpel",
+        "baselard",
+        "tanto"
+      ],
+      "keywords": [
+        "dagger",
+        "knife",
+        "knives",
+        "dirk",
+        "gauche",
+        "stiletto",
+        "scalpel",
+        "baselard",
+        "tanto"
+      ],
+      "scale": [
+        1.4,
+        1.4,
+        1.4
+      ],
+      "location_offset": [
+        0,
+        0,
+        10
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_axe",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/axe_1handed.fbx",
+      "dest": "items/axe_1handed.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Axe",
+      "scoped_category_id": 8,
+      "scoped_keywords": [
+        "axe",
+        "hatchet",
+        "lochaber"
+      ],
+      "keywords": [
+        "axe",
+        "hatchet",
+        "lochaber"
+      ],
+      "scale": [
+        1.4,
+        1.4,
+        1.4
+      ],
+      "location_offset": [
+        0,
+        0,
+        10
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_staff",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/staff.fbx",
+      "dest": "items/staff.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Staff",
+      "scoped_category_id": 7,
+      "scoped_keywords": [
+        "quarterstaff"
+      ],
+      "category_ids": [
+        22
+      ],
+      "keywords": [
+        "staff",
+        "staves",
+        "quarterstaff"
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ],
+      "location_offset": [
+        0,
+        0,
+        10
+      ],
+      "float_and_spin": false,
+      "emit_light": true,
+      "light_color": [
+        0.55,
+        0.45,
+        1.0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_mace",
+      "source": "procedural",
+      "dest": "items/abfp_mace.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Mace",
+      "category_ids": [
+        7
+      ],
+      "keywords": [
+        "mace",
+        "hammer",
+        "warhammer",
+        "flail",
+        "morningstar",
+        "morning star",
+        "club",
+        "whip",
+        "maul",
+        "lucerne",
+        "moondust"
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ],
+      "location_offset": [
+        0,
+        0,
+        12
+      ],
+      "rotation_offset": [
+        -75,
+        30,
+        0
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_spear",
+      "source": "procedural",
+      "dest": "items/abfp_spear.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Spear",
+      "category_ids": [
+        8
+      ],
+      "keywords": [
+        "spear",
+        "pike",
+        "halberd",
+        "trident",
+        "lance",
+        "glaive",
+        "polearm",
+        "scythe",
+        "fauchard",
+        "gisarme",
+        "ranseur"
+      ],
+      "scale": [
+        1.05,
+        1.05,
+        1.05
+      ],
+      "location_offset": [
+        0,
+        0,
+        10
+      ],
+      "rotation_offset": [
+        -80,
+        25,
+        0
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_pickaxe",
+      "source": "procedural",
+      "dest": "items/abfp_pickaxe.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Pickaxe",
+      "category_ids": [
+        6
+      ],
+      "keywords": [
+        "pick",
+        "pickaxe",
+        "shovel",
+        "mattock"
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ],
+      "location_offset": [
+        0,
+        0,
+        14
+      ],
+      "rotation_offset": [
+        -72,
+        20,
+        0
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_bow",
+      "source": "procedural",
+      "dest": "items/abfp_bow.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Bow",
+      "category_ids": [
+        5
+      ],
+      "keywords": [
+        "bow",
+        "crossbow",
+        "sling"
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ],
+      "location_offset": [
+        0,
+        0,
+        6
+      ],
+      "rotation_offset": [
+        0,
+        20,
+        0
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_shot_pouch",
+      "source": "procedural",
+      "dest": "items/abfp_shot_pouch.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Shot",
+      "category_ids": [
+        2
+      ],
+      "keywords": [
+        "shot",
+        "pebble"
+      ],
+      "scale": [
+        1.45,
+        1.45,
+        1.45
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_arrows",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/arrow_bundle.fbx",
+      "dest": "items/arrow_bundle.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Ammo",
+      "category_ids": [
+        3,
+        4
+      ],
+      "keywords": [
+        "arrow",
+        "bolt",
+        "spike"
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        1.3
+      ],
+      "location_offset": [
+        0,
+        0,
+        8
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_boots",
+      "source": "procedural",
+      "dest": "items/abfp_boots.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Boots",
+      "category_ids": [
+        10
+      ],
+      "keywords": [
+        "boot",
+        "sandal",
+        "greaves"
+      ],
+      "scale": [
+        1.35,
+        1.35,
+        1.35
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_gloves",
+      "source": "procedural",
+      "dest": "items/abfp_gloves.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Gloves",
+      "category_ids": [
+        11
+      ],
+      "keywords": [
+        "glove",
+        "gauntlet",
+        "cesti"
+      ],
+      "scale": [
+        1.55,
+        1.55,
+        1.55
+      ],
+      "location_offset": [
+        0,
+        0,
+        4
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_helm",
+      "source": "procedural",
+      "dest": "items/abfp_helm.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Helm",
+      "category_ids": [
+        12
+      ],
+      "keywords": [
+        "helm",
+        "helmet",
+        "cap",
+        "hat",
+        "kabuto"
+      ],
+      "scale": [
+        1.35,
+        1.35,
+        1.35
+      ],
+      "location_offset": [
+        0,
+        0,
+        4
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_crown",
+      "source": "procedural",
+      "dest": "items/abfp_crown.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Crown",
+      "category_ids": [
+        13
+      ],
+      "keywords": [
+        "crown",
+        "coronet",
+        "diadem",
+        "tiara"
+      ],
+      "scale": [
+        1.35,
+        1.35,
+        1.35
+      ],
+      "location_offset": [
+        0,
+        0,
+        8
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        1.0,
+        0.84,
+        0.3
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_shield",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/shield_round.fbx",
+      "dest": "items/shield_round.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Shield",
+      "category_ids": [
+        14
+      ],
+      "keywords": [
+        "shield",
+        "buckler",
+        "targe",
+        "aegis"
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        1.3
+      ],
+      "location_offset": [
+        0,
+        0,
+        12
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_cloak",
+      "source": "procedural",
+      "dest": "items/abfp_cloak.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Cloak",
+      "category_ids": [
+        15
+      ],
+      "keywords": [
+        "cloak",
+        "mantle",
+        "cape"
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_dragon_armor",
+      "source": "procedural",
+      "dest": "items/abfp_dragon_armor.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "DragonArmor",
+      "category_ids": [
+        18
+      ],
+      "keywords": [
+        "dragon scale",
+        "dragon mail"
+      ],
+      "scale": [
+        1.28,
+        1.28,
+        1.28
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": true,
+      "light_color": [
+        1.0,
+        0.36,
+        0.18
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_plate_armor",
+      "source": "procedural",
+      "dest": "items/abfp_plate_armor.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "HardArmor",
+      "category_ids": [
+        17
+      ],
+      "keywords": [
+        "plate",
+        "mail",
+        "brigandine",
+        "splint"
+      ],
+      "scale": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_leather_armor",
+      "source": "procedural",
+      "dest": "items/abfp_leather_armor.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "SoftArmor",
+      "category_ids": [
+        16
+      ],
+      "keywords": [
+        "robe",
+        "rag",
+        "leather",
+        "armour",
+        "armor",
+        "padded",
+        "hides"
+      ],
+      "scale": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_amulet",
+      "source": "procedural",
+      "dest": "items/abfp_amulet.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Amulet",
+      "category_ids": [
+        20
+      ],
+      "keywords": [
+        "amulet",
+        "necklace",
+        "pendant",
+        "torque"
+      ],
+      "scale": [
+        1.45,
+        1.45,
+        1.45
+      ],
+      "location_offset": [
+        0,
+        0,
+        22
+      ],
+      "rotation_offset": [
+        25,
+        0,
+        0
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        0.3,
+        0.95,
+        0.55
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_ring",
+      "source": "procedural",
+      "dest": "items/abfp_ring.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Ring",
+      "category_ids": [
+        21
+      ],
+      "keywords": [
+        "ring"
+      ],
+      "scale": [
+        1.55,
+        1.55,
+        1.55
+      ],
+      "location_offset": [
+        0,
+        0,
+        22
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        1.0,
+        0.85,
+        0.32
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_wand",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/wand.fbx",
+      "dest": "items/wand.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Wand",
+      "category_ids": [
+        23
+      ],
+      "keywords": [
+        "wand"
+      ],
+      "scale": [
+        1.4,
+        1.4,
+        1.4
+      ],
+      "location_offset": [
+        0,
+        0,
+        12
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        0.35,
+        0.82,
+        1.0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_rod",
+      "source": "procedural",
+      "dest": "items/abfp_rod.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Rod",
+      "category_ids": [
+        24
+      ],
+      "keywords": [
+        "rod"
+      ],
+      "scale": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "location_offset": [
+        0,
+        0,
+        22
+      ],
+      "rotation_offset": [
+        0,
+        0,
+        15
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        0.42,
+        0.8,
+        1.0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "abfp_scroll",
+      "source": "procedural",
+      "dest": "items/abfp_scroll.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Scroll",
+      "category_ids": [
+        25
+      ],
+      "keywords": [
+        "scroll"
+      ],
+      "scale": [
+        1.35,
+        1.35,
+        1.35
+      ],
+      "location_offset": [
+        0,
+        0,
+        14
+      ],
+      "float_and_spin": true,
+      "emit_light": true,
+      "light_color": [
+        0.55,
+        0.78,
+        1.0
+      ],
+      "license": "CC0-1.0"
+    },
+    {
       "id": "kk_potion_green",
       "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/bottle_A_green.gltf.glb",
       "dest": "items/bottle_A_green.glb",
       "unreal_dest": "/Game/Assets/Items",
       "entry_name": "Potion",
-      "name_contains": "potion",
+      "category_ids": [
+        26
+      ],
       "keywords": [
-        "potion"
+        "potion",
+        "elixir",
+        "draught"
       ],
       "scale": [
         1.4,
@@ -2176,7 +2984,9 @@
       "dest": "items/bottle_A_brown.glb",
       "unreal_dest": "/Game/Assets/Items",
       "entry_name": "Flask",
-      "name_contains": "flask",
+      "category_ids": [
+        27
+      ],
       "keywords": [
         "flask",
         "oil"
@@ -2196,30 +3006,57 @@
       "license": "CC0-1.0"
     },
     {
-      "id": "kk_gold_coins",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf.glb",
-      "dest": "items/coin_stack_large.glb",
+      "id": "abfp_item_mushroom",
+      "source": "procedural",
+      "dest": "items/abfp_item_mushroom.glb",
       "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Gold",
-      "name_contains": "gold",
+      "entry_name": "Mushroom",
+      "category_ids": [
+        29
+      ],
       "keywords": [
-        "gold",
-        "silver",
-        "copper",
-        "mithril",
-        "adamantite",
-        "garnets",
-        "opals",
-        "sapphires",
-        "rubies",
-        "emeralds",
-        "diamonds",
-        "coins"
+        "mushroom"
       ],
       "scale": [
-        1.6,
-        1.6,
-        1.6
+        1.35,
+        1.35,
+        1.35
+      ],
+      "location_offset": [
+        0,
+        0,
+        2
+      ],
+      "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_food_ration",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/plate_food_A.gltf.glb",
+      "dest": "items/plate_food_A.glb",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Food",
+      "category_ids": [
+        28
+      ],
+      "keywords": [
+        "ration",
+        "food",
+        "bread",
+        "biscuit",
+        "waybread",
+        "lembas",
+        "slime mold",
+        "jerky",
+        "pint",
+        "wine",
+        "ale"
+      ],
+      "scale": [
+        1.4,
+        1.4,
+        1.4
       ],
       "location_offset": [
         0,
@@ -2227,11 +3064,46 @@
         4
       ],
       "float_and_spin": false,
+      "emit_light": false,
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "kk_spellbook",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/spellbook_closed.fbx",
+      "dest": "items/spellbook_closed.fbx",
+      "unreal_dest": "/Game/Assets/Items",
+      "entry_name": "Book",
+      "category_ids": [
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "keywords": [
+        "book",
+        "tome",
+        "manual",
+        "spellbook",
+        "grimoire",
+        "handbook"
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "location_offset": [
+        0,
+        0,
+        8
+      ],
+      "float_and_spin": true,
       "emit_light": true,
       "light_color": [
-        1.0,
-        0.82,
-        0.25
+        0.45,
+        0.72,
+        1.0
       ],
       "license": "CC0-1.0"
     },
@@ -2241,7 +3113,9 @@
       "dest": "items/chest_gold.glb",
       "unreal_dest": "/Game/Assets/Items",
       "entry_name": "Chest",
-      "name_contains": "chest",
+      "category_ids": [
+        1
+      ],
       "keywords": [
         "chest",
         "box"
@@ -2266,28 +3140,33 @@
       "license": "CC0-1.0"
     },
     {
-      "id": "kk_food_ration",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/plate_food_A.gltf.glb",
-      "dest": "items/plate_food_A.glb",
+      "id": "kk_gold_coins",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_large.gltf.glb",
+      "dest": "items/coin_stack_large.glb",
       "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Food",
-      "name_contains": "ration",
+      "entry_name": "Gold",
+      "category_ids": [
+        35
+      ],
       "keywords": [
-        "ration",
-        "food",
-        "bread",
-        "biscuit",
-        "waybread",
-        "lembas",
-        "slime mold",
-        "mushroom",
-        "jerky",
-        "pint"
+        "gold",
+        "coins",
+        "pieces",
+        "garnets",
+        "opals",
+        "sapphires",
+        "rubies",
+        "emeralds",
+        "diamonds",
+        "silver",
+        "copper",
+        "mithril",
+        "adamantite"
       ],
       "scale": [
-        1.4,
-        1.4,
-        1.4
+        1.6,
+        1.6,
+        1.6
       ],
       "location_offset": [
         0,
@@ -2295,296 +3174,12 @@
         4
       ],
       "float_and_spin": false,
-      "emit_light": false,
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_key",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/key.gltf.glb",
-      "dest": "items/key.glb",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Ring_Key",
-      "name_contains": "ring",
-      "keywords": [
-        "ring",
-        "amulet"
-      ],
-      "scale": [
-        1.5,
-        1.5,
-        1.5
-      ],
-      "location_offset": [
-        0,
-        0,
-        18
-      ],
-      "float_and_spin": true,
       "emit_light": true,
       "light_color": [
         1.0,
-        0.85,
-        0.35
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "abfp_scroll",
-      "source": "procedural",
-      "dest": "items/abfp_scroll.glb",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Scroll",
-      "name_contains": "scroll",
-      "keywords": [
-        "scroll"
-      ],
-      "scale": [
-        1.35,
-        1.35,
-        1.35
-      ],
-      "location_offset": [
-        0,
-        0,
-        14
-      ],
-      "float_and_spin": true,
-      "emit_light": true,
-      "light_color": [
-        0.55,
-        0.78,
-        1.0
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_spellbook",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/spellbook_closed.fbx",
-      "dest": "items/spellbook_closed.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Book",
-      "name_contains": "book",
-      "keywords": [
-        "book",
-        "tome",
-        "manual",
-        "spellbook",
-        "prayer",
-        "magic"
-      ],
-      "scale": [
-        1.5,
-        1.5,
-        1.5
-      ],
-      "location_offset": [
-        0,
-        0,
-        8
-      ],
-      "float_and_spin": true,
-      "emit_light": true,
-      "light_color": [
-        0.45,
-        0.72,
-        1.0
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_dagger",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/dagger.fbx",
-      "dest": "items/dagger.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Dagger",
-      "name_contains": "dagger",
-      "keywords": [
-        "dagger",
-        "knife",
-        "dirk",
-        "stiletto",
-        "scalpel"
-      ],
-      "scale": [
-        1.4,
-        1.4,
-        1.4
-      ],
-      "location_offset": [
-        0,
-        0,
-        10
-      ],
-      "float_and_spin": false,
-      "emit_light": false,
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_axe",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/axe_1handed.fbx",
-      "dest": "items/axe_1handed.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Axe",
-      "name_contains": "axe",
-      "keywords": [
-        "axe",
-        "mace",
-        "hammer",
-        "flail",
-        "morningstar",
-        "club",
-        "whip",
-        "maul",
-        "pick",
-        "shovel"
-      ],
-      "scale": [
-        1.4,
-        1.4,
-        1.4
-      ],
-      "location_offset": [
-        0,
-        0,
-        10
-      ],
-      "float_and_spin": false,
-      "emit_light": false,
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_staff",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/staff.fbx",
-      "dest": "items/staff.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Staff",
-      "name_contains": "staff",
-      "keywords": [
-        "staff",
-        "spear",
-        "pike",
-        "halberd",
-        "trident",
-        "lance",
-        "glaive",
-        "polearm",
-        "scythe"
-      ],
-      "scale": [
-        1.2,
-        1.2,
-        1.2
-      ],
-      "location_offset": [
-        0,
-        0,
-        10
-      ],
-      "float_and_spin": false,
-      "emit_light": true,
-      "light_color": [
-        0.55,
-        0.45,
-        1.0
-      ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_wand",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/wand.fbx",
-      "dest": "items/wand.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Wand",
-      "name_contains": "wand",
-      "keywords": [
-        "wand",
-        "rod"
-      ],
-      "scale": [
-        1.4,
-        1.4,
-        1.4
-      ],
-      "location_offset": [
-        0,
-        0,
-        12
-      ],
-      "float_and_spin": true,
-      "emit_light": true,
-      "light_color": [
-        0.35,
         0.82,
-        1.0
+        0.25
       ],
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_shield",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/shield_round.fbx",
-      "dest": "items/shield_round.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Shield_Armor",
-      "name_contains": "shield",
-      "keywords": [
-        "shield",
-        "armor",
-        "armour",
-        "mail",
-        "plate",
-        "leather",
-        "robe",
-        "cloak",
-        "helm",
-        "cap",
-        "crown",
-        "boots",
-        "gloves",
-        "gauntlets",
-        "cesti"
-      ],
-      "scale": [
-        1.3,
-        1.3,
-        1.3
-      ],
-      "location_offset": [
-        0,
-        0,
-        12
-      ],
-      "float_and_spin": false,
-      "emit_light": false,
-      "license": "CC0-1.0"
-    },
-    {
-      "id": "kk_arrows",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0/main/addons/kaykit_character_pack_adventures/Assets/fbx/arrow_bundle.fbx",
-      "dest": "items/arrow_bundle.fbx",
-      "unreal_dest": "/Game/Assets/Items",
-      "entry_name": "Ammo",
-      "name_contains": "arrow",
-      "keywords": [
-        "arrow",
-        "bolt",
-        "shot",
-        "pebble",
-        "bow",
-        "sling",
-        "spike"
-      ],
-      "scale": [
-        1.3,
-        1.3,
-        1.3
-      ],
-      "location_offset": [
-        0,
-        0,
-        8
-      ],
-      "float_and_spin": false,
-      "emit_light": false,
       "license": "CC0-1.0"
     }
   ],

@@ -117,6 +117,10 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<UStaticMeshComponent> HeldLanternMesh;
 
+    /** Glowing flame overlay attached to HeldLanternMesh when carrying a lit wooden torch. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UStaticMeshComponent> HeldTorchFlameMesh;
+
 private:
     void MoveForward();
     void MoveBackward();
@@ -148,6 +152,8 @@ private:
     int32 GetActiveMenuItemCount() const;
     void ClampSelectedMenuIndex();
     void ConfigureFirstPersonViewModels();
+    void ApplyViewModelVariant(UStaticMeshComponent* MeshComp, const struct FABFPMeshVariant& Variant);
+    void UpdateEquippedViewModels(bool bForceRefresh = false);
 
     void SendSimpleCommand(const FString& Command);
     void MoveRelative(FVector2D LocalDirection);
@@ -181,5 +187,12 @@ private:
     int32 SelectedMenuIndex = 0;
     float ReconnectRetrySeconds = 0.0f;
     float PlayerDamageFlashSeconds = 0.0f;
+    FString LastEquippedWeaponKey;
+    FString LastEquippedLightKey;
+    FLinearColor ActiveLightColor = FLinearColor(1.0f, 0.80f, 0.56f);
+    float ActiveLightIntensity = 7.5f;
+    float ActiveLightRadius = 2600.0f;
+    float ActiveLightFlickerAmp = 0.035f;
+    bool bHoldingLitTorch = false;
     FABFPNetworkClient NetworkClient;
 };
