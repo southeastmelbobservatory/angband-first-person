@@ -10,6 +10,7 @@
 AABFPItemActor::AABFPItemActor()
 {
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = false;
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
 
@@ -21,49 +22,71 @@ AABFPItemActor::AABFPItemActor()
     CustomMeshComp->SetCastShadow(false);
     CustomMeshComp->SetVisibility(false);
 
-    AccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AccentLight"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
+        TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(
+        TEXT("/Engine/BasicShapes/Cone.Cone"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+
+    CachedSphereMesh = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
+    CachedConeMesh = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : CachedSphereMesh.Get();
+    CachedBasicMat = BasicMaterial.Succeeded() ? BasicMaterial.Object : nullptr;
+}
+
+void AABFPItemActor::EnsureAccentLight()
+{
+    if (AccentLight || !GetWorld()) return;
+    AccentLight = NewObject<UPointLightComponent>(this);
     AccentLight->SetupAttachment(SceneRoot);
+    AccentLight->SetMobility(EComponentMobility::Movable);
     AccentLight->SetRelativeLocation(FVector(0.0f, 0.0f, 32.0f));
     AccentLight->SetIntensity(350.0f);
     AccentLight->SetAttenuationRadius(260.0f);
     AccentLight->SetCastShadows(false);
     AccentLight->SetVisibility(false);
+    AccentLight->RegisterComponent();
+}
 
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
-        TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(
-        TEXT("/Engine/BasicShapes/Cone.Cone"));
+void AABFPItemActor::EnsureProceduralParts()
+{
+    if (Core || !GetWorld()) return;
 
-    auto MakePart = [this](const TCHAR* Name, UStaticMesh* Mesh,
-        const FVector& Location, const FVector& Scale) -> UStaticMeshComponent*
+    auto MakePart = [this](UStaticMesh* Mesh, const FVector& Location,
+        const FVector& Scale) -> UStaticMeshComponent*
     {
-        UStaticMeshComponent* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+        UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(this);
         Part->SetupAttachment(SceneRoot);
         if (Mesh) Part->SetStaticMesh(Mesh);
         Part->SetRelativeLocation(Location);
         Part->SetRelativeScale3D(Scale);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Part->SetCastShadow(true);
+        Part->SetGenerateOverlapEvents(false);
+        Part->SetCanEverAffectNavigation(false);
+        Part->SetCastShadow(false);
+        Part->RegisterComponent();
         return Part;
     };
 
-    UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
-    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : Sphere;
-    Core = MakePart(TEXT("Core"), Sphere, FVector(0, 0, 35), FVector(0.22f, 0.22f, 0.22f));
-    ShardA = MakePart(TEXT("ShardA"), Cone, FVector(0, -16, 43), FVector(0.10f, 0.10f, 0.20f));
-    ShardB = MakePart(TEXT("ShardB"), Cone, FVector(0, 16, 43), FVector(0.10f, 0.10f, 0.20f));
+    Core = MakePart(CachedSphereMesh, FVector(0, 0, 35), FVector(0.22f, 0.22f, 0.22f));
+    ShardA = MakePart(CachedConeMesh, FVector(0, -16, 43), FVector(0.10f, 0.10f, 0.20f));
+    ShardB = MakePart(CachedConeMesh, FVector(0, 16, 43), FVector(0.10f, 0.10f, 0.20f));
 
-    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (BasicMaterial.Succeeded())
+    if (CachedBasicMat)
     {
-        CoreMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        ShardMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        CoreMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
-        ShardMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.28f, 0.82f, 0.94f));
-        Core->SetMaterial(0, CoreMaterial);
-        ShardA->SetMaterial(0, ShardMaterial);
-        ShardB->SetMaterial(0, ShardMaterial);
+        CoreMaterial = UMaterialInstanceDynamic::Create(CachedBasicMat, this);
+        ShardMaterial = UMaterialInstanceDynamic::Create(CachedBasicMat, this);
+        if (CoreMaterial)
+        {
+            CoreMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
+            Core->SetMaterial(0, CoreMaterial);
+        }
+        if (ShardMaterial)
+        {
+            ShardMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.28f, 0.82f, 0.94f));
+            ShardA->SetMaterial(0, ShardMaterial);
+            ShardB->SetMaterial(0, ShardMaterial);
+        }
     }
 }
 
@@ -77,6 +100,7 @@ void AABFPItemActor::ApplyVisualEntry(const FABFPItemVisualEntry* Entry)
         BaseHeightZ = 38.0f;
         if (CustomMeshComp) CustomMeshComp->SetVisibility(false);
         if (AccentLight) AccentLight->SetVisibility(false);
+        EnsureProceduralParts();
         if (Core) Core->SetVisibility(true);
         return;
     }
@@ -103,10 +127,18 @@ void AABFPItemActor::ApplyVisualEntry(const FABFPItemVisualEntry* Entry)
         CustomMeshComp->SetVisibility(true);
     }
 
-    if (AccentLight)
+    if (Entry->bEmitSubtleLight)
     {
-        AccentLight->SetLightColor(Entry->AccentLightColor);
-        AccentLight->SetVisibility(Entry->bEmitSubtleLight);
+        EnsureAccentLight();
+        if (AccentLight)
+        {
+            AccentLight->SetLightColor(Entry->AccentLightColor);
+            AccentLight->SetVisibility(true);
+        }
+    }
+    else if (AccentLight)
+    {
+        AccentLight->SetVisibility(false);
     }
 
     const FVector Loc = GetActorLocation();
@@ -130,6 +162,7 @@ void AABFPItemActor::SetItemAppearance(const FString& Name,
     ItemVariantId = VariantId;
 
     if (bUsingCustomVisual) return;
+    EnsureProceduralParts();
 
     const FString Lower = Name.ToLower();
     const bool bPotion = Lower.Contains(TEXT("potion"));

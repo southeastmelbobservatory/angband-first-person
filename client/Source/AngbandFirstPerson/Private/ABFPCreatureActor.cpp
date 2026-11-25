@@ -16,6 +16,7 @@
 AABFPCreatureActor::AABFPCreatureActor()
 {
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = false;
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
@@ -40,6 +41,10 @@ AABFPCreatureActor::AABFPCreatureActor()
     CustomStaticMeshComp->SetCastShadow(false);
     CustomStaticMeshComp->SetVisibility(false);
 
+    HealthBarRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HealthBarRoot"));
+    HealthBarRoot->SetupAttachment(SceneRoot);
+    HealthBarRoot->SetRelativeLocation(FVector(0.0f, 0.0f, 255.0f));
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(
@@ -48,105 +53,124 @@ AABFPCreatureActor::AABFPCreatureActor()
         TEXT("/Engine/BasicShapes/Cone.Cone"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
+        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-    HealthBarRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HealthBarRoot"));
-    HealthBarRoot->SetupAttachment(SceneRoot);
-    HealthBarRoot->SetRelativeLocation(FVector(0.0f, 0.0f, 255.0f));
+    CachedSphereMesh = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
+    CachedCylinderMesh = CylinderMesh.Succeeded() ? CylinderMesh.Object.Get() : CachedSphereMesh.Get();
+    CachedConeMesh = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : CachedSphereMesh.Get();
+    CachedCubeMesh = CubeMesh.Succeeded() ? CubeMesh.Object : nullptr;
+    CachedBasicMat = BasicMaterial.Succeeded() ? BasicMaterial.Object : nullptr;
+}
 
-    HealthBarBg = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HealthBarBg"));
-    HealthBarBg->SetupAttachment(HealthBarRoot);
-    HealthBarBg->SetRelativeScale3D(FVector(0.02f, 0.86f, 0.09f));
-    HealthBarBg->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    HealthBarBg->SetCastShadow(false);
-    HealthBarBg->SetVisibility(false);
+void AABFPCreatureActor::EnsureHealthBar()
+{
+    if (HealthBarBg || !GetWorld() || !CachedCubeMesh) return;
 
-    HealthBarFill = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HealthBarFill"));
-    HealthBarFill->SetupAttachment(HealthBarRoot);
-    HealthBarFill->SetRelativeLocation(FVector(0.4f, 0.0f, 0.0f));
-    HealthBarFill->SetRelativeScale3D(FVector(0.024f, 0.82f, 0.065f));
-    HealthBarFill->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    HealthBarFill->SetCastShadow(false);
-    HealthBarFill->SetVisibility(false);
-
-    if (CubeMesh.Succeeded())
+    auto MakeBar = [this](const FVector& Loc, const FVector& Scale) -> UStaticMeshComponent*
     {
-        HealthBarBg->SetStaticMesh(CubeMesh.Object);
-        HealthBarFill->SetStaticMesh(CubeMesh.Object);
+        UStaticMeshComponent* Comp = NewObject<UStaticMeshComponent>(this);
+        Comp->SetupAttachment(HealthBarRoot);
+        Comp->SetStaticMesh(CachedCubeMesh);
+        Comp->SetRelativeLocation(Loc);
+        Comp->SetRelativeScale3D(Scale);
+        Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Comp->SetGenerateOverlapEvents(false);
+        Comp->SetCanEverAffectNavigation(false);
+        Comp->SetCastShadow(false);
+        Comp->RegisterComponent();
+        return Comp;
+    };
+
+    HealthBarBg = MakeBar(FVector::ZeroVector, FVector(0.02f, 0.86f, 0.09f));
+    HealthBarFill = MakeBar(FVector(0.4f, 0.0f, 0.0f), FVector(0.024f, 0.82f, 0.065f));
+    if (CachedBasicMat)
+    {
+        UMaterialInstanceDynamic* HealthBgMat = UMaterialInstanceDynamic::Create(CachedBasicMat, this);
+        HealthBarFillMat = UMaterialInstanceDynamic::Create(CachedBasicMat, this);
+        if (HealthBgMat)
+        {
+            HealthBgMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.06f, 0.05f, 0.05f));
+            HealthBarBg->SetMaterial(0, HealthBgMat);
+        }
+        if (HealthBarFillMat)
+        {
+            HealthBarFillMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.88f, 0.16f, 0.12f));
+            HealthBarFill->SetMaterial(0, HealthBarFillMat);
+        }
     }
+}
 
-    auto MakePart = [this](const TCHAR* Name, UStaticMesh* Mesh,
-        const FVector& Location, const FVector& Scale) -> UStaticMeshComponent*
+void AABFPCreatureActor::EnsureProceduralParts()
+{
+    if (Body || !GetWorld()) return;
+
+    auto MakePart = [this](UStaticMesh* Mesh, const FVector& Location,
+        const FVector& Scale, const FRotator& Rot = FRotator::ZeroRotator, bool bStartVis = true) -> UStaticMeshComponent*
     {
-        UStaticMeshComponent* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+        UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(this);
         Part->SetupAttachment(SceneRoot);
         if (Mesh) Part->SetStaticMesh(Mesh);
         Part->SetRelativeLocation(Location);
+        Part->SetRelativeRotation(Rot);
         Part->SetRelativeScale3D(Scale);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Part->SetGenerateOverlapEvents(false);
         Part->SetCanEverAffectNavigation(false);
         Part->SetCastShadow(false);
+        Part->SetVisibility(bStartVis);
+        Part->RegisterComponent();
         return Part;
     };
 
-    UStaticMesh* Sphere = SphereMesh.Succeeded() ? SphereMesh.Object : nullptr;
-    UStaticMesh* Cylinder = CylinderMesh.Succeeded() ? CylinderMesh.Object.Get() : Sphere;
-    UStaticMesh* Cone = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : Sphere;
+    Body = MakePart(CachedSphereMesh, FVector(0, 0, 105), FVector(0.48f, 0.38f, 0.66f));
+    Head = MakePart(CachedSphereMesh, FVector(0, 0, 205), FVector(0.30f, 0.29f, 0.32f));
+    LeftArm = MakePart(CachedCylinderMesh, FVector(0, -42, 112), FVector(0.12f, 0.12f, 0.48f));
+    RightArm = MakePart(CachedCylinderMesh, FVector(0, 42, 112), FVector(0.12f, 0.12f, 0.48f));
+    LeftLeg = MakePart(CachedCylinderMesh, FVector(0, -18, 34), FVector(0.14f, 0.14f, 0.38f));
+    RightLeg = MakePart(CachedCylinderMesh, FVector(0, 18, 34), FVector(0.14f, 0.14f, 0.38f));
+    LeftEye = MakePart(CachedSphereMesh, FVector(24, -12, 211), FVector(0.055f, 0.055f, 0.055f));
+    RightEye = MakePart(CachedSphereMesh, FVector(24, 12, 211), FVector(0.055f, 0.055f, 0.055f));
+    Tail = MakePart(CachedConeMesh, FVector(-72, 0, 68), FVector(0.16f, 0.16f, 0.72f), FRotator(0, 0, -90), false);
+    LeftWing = MakePart(CachedConeMesh, FVector(-8, -68, 155), FVector(0.58f, 0.12f, 0.34f), FRotator(0, 0, -35), false);
+    RightWing = MakePart(CachedConeMesh, FVector(-8, 68, 155), FVector(0.58f, 0.12f, 0.34f), FRotator(0, 0, 35), false);
+    LeftHorn = MakePart(CachedConeMesh, FVector(26, -18, 245), FVector(0.09f, 0.09f, 0.28f), FRotator::ZeroRotator, false);
+    RightHorn = MakePart(CachedConeMesh, FVector(26, 18, 245), FVector(0.09f, 0.09f, 0.28f), FRotator::ZeroRotator, false);
 
-    Body = MakePart(TEXT("Body"), Sphere, FVector(0, 0, 105), FVector(0.48f, 0.38f, 0.66f));
-    Head = MakePart(TEXT("Head"), Sphere, FVector(0, 0, 205), FVector(0.30f, 0.29f, 0.32f));
-    LeftArm = MakePart(TEXT("LeftArm"), Cylinder, FVector(0, -42, 112), FVector(0.12f, 0.12f, 0.48f));
-    RightArm = MakePart(TEXT("RightArm"), Cylinder, FVector(0, 42, 112), FVector(0.12f, 0.12f, 0.48f));
-    LeftLeg = MakePart(TEXT("LeftLeg"), Cylinder, FVector(0, -18, 34), FVector(0.14f, 0.14f, 0.38f));
-    RightLeg = MakePart(TEXT("RightLeg"), Cylinder, FVector(0, 18, 34), FVector(0.14f, 0.14f, 0.38f));
-    LeftEye = MakePart(TEXT("LeftEye"), Sphere, FVector(24, -12, 211), FVector(0.055f, 0.055f, 0.055f));
-    RightEye = MakePart(TEXT("RightEye"), Sphere, FVector(24, 12, 211), FVector(0.055f, 0.055f, 0.055f));
-    Tail = MakePart(TEXT("Tail"), Cone, FVector(-72, 0, 68), FVector(0.16f, 0.16f, 0.72f));
-    Tail->SetRelativeRotation(FRotator(0, 0, -90));
-    LeftWing = MakePart(TEXT("LeftWing"), Cone, FVector(-8, -68, 155), FVector(0.58f, 0.12f, 0.34f));
-    RightWing = MakePart(TEXT("RightWing"), Cone, FVector(-8, 68, 155), FVector(0.58f, 0.12f, 0.34f));
-    LeftWing->SetRelativeRotation(FRotator(0, 0, -35));
-    RightWing->SetRelativeRotation(FRotator(0, 0, 35));
-    LeftHorn = MakePart(TEXT("LeftHorn"), Cone, FVector(26, -18, 245), FVector(0.09f, 0.09f, 0.28f));
-    RightHorn = MakePart(TEXT("RightHorn"), Cone, FVector(26, 18, 245), FVector(0.09f, 0.09f, 0.28f));
-    Tail->SetVisibility(false);
-    LeftWing->SetVisibility(false);
-    RightWing->SetVisibility(false);
-    LeftHorn->SetVisibility(false);
-    RightHorn->SetVisibility(false);
-
-    static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
-        TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (BasicMaterial.Succeeded())
+    if (CachedBasicMat)
     {
-        CreatureMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        UMaterialInstanceDynamic* EyeMaterial = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        UMaterialInstanceDynamic* HealthBgMat = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        HealthBarFillMat = UMaterialInstanceDynamic::Create(BasicMaterial.Object, this);
-        CreatureMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
-        EyeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.55f, 0.08f));
-        HealthBgMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.06f, 0.05f, 0.05f));
-        HealthBarFillMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.88f, 0.16f, 0.12f));
-        if (HealthBarBg) HealthBarBg->SetMaterial(0, HealthBgMat);
-        if (HealthBarFill) HealthBarFill->SetMaterial(0, HealthBarFillMat);
-        Body->SetMaterial(0, CreatureMaterial);
-        Head->SetMaterial(0, CreatureMaterial);
-        LeftArm->SetMaterial(0, CreatureMaterial);
-        RightArm->SetMaterial(0, CreatureMaterial);
-        LeftLeg->SetMaterial(0, CreatureMaterial);
-        RightLeg->SetMaterial(0, CreatureMaterial);
-        Tail->SetMaterial(0, CreatureMaterial);
-        LeftWing->SetMaterial(0, CreatureMaterial);
-        RightWing->SetMaterial(0, CreatureMaterial);
-        LeftHorn->SetMaterial(0, CreatureMaterial);
-        RightHorn->SetMaterial(0, CreatureMaterial);
-        LeftEye->SetMaterial(0, EyeMaterial);
-        RightEye->SetMaterial(0, EyeMaterial);
+        CreatureMaterial = UMaterialInstanceDynamic::Create(CachedBasicMat, this);
+        UMaterialInstanceDynamic* EyeMaterial = UMaterialInstanceDynamic::Create(CachedBasicMat, this);
+        if (CreatureMaterial)
+        {
+            CreatureMaterial->SetVectorParameterValue(TEXT("Color"), BaseColor);
+            Body->SetMaterial(0, CreatureMaterial);
+            Head->SetMaterial(0, CreatureMaterial);
+            LeftArm->SetMaterial(0, CreatureMaterial);
+            RightArm->SetMaterial(0, CreatureMaterial);
+            LeftLeg->SetMaterial(0, CreatureMaterial);
+            RightLeg->SetMaterial(0, CreatureMaterial);
+            Tail->SetMaterial(0, CreatureMaterial);
+            LeftWing->SetMaterial(0, CreatureMaterial);
+            RightWing->SetMaterial(0, CreatureMaterial);
+            LeftHorn->SetMaterial(0, CreatureMaterial);
+            RightHorn->SetMaterial(0, CreatureMaterial);
+        }
+        if (EyeMaterial)
+        {
+            EyeMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.55f, 0.08f));
+            LeftEye->SetMaterial(0, EyeMaterial);
+            RightEye->SetMaterial(0, EyeMaterial);
+        }
     }
 }
 
 void AABFPCreatureActor::SetProceduralPartsVisible(bool bVisible)
 {
+    if (bVisible && !Body)
+    {
+        EnsureProceduralParts();
+    }
     if (Body) Body->SetVisibility(bVisible);
     if (Head) Head->SetVisibility(bVisible);
     if (LeftArm) LeftArm->SetVisibility(bVisible);
@@ -163,31 +187,6 @@ void AABFPCreatureActor::SetProceduralPartsVisible(bool bVisible)
         if (LeftHorn) LeftHorn->SetVisibility(false);
         if (RightHorn) RightHorn->SetVisibility(false);
     }
-}
-
-void AABFPCreatureActor::DestroyUnusedProceduralParts()
-{
-    auto DropPart = [](TObjectPtr<UStaticMeshComponent>& Part)
-    {
-        if (Part)
-        {
-            Part->DestroyComponent();
-            Part = nullptr;
-        }
-    };
-    DropPart(Body);
-    DropPart(Head);
-    DropPart(LeftArm);
-    DropPart(RightArm);
-    DropPart(LeftLeg);
-    DropPart(RightLeg);
-    DropPart(LeftEye);
-    DropPart(RightEye);
-    DropPart(Tail);
-    DropPart(LeftWing);
-    DropPart(RightWing);
-    DropPart(LeftHorn);
-    DropPart(RightHorn);
 }
 
 void AABFPCreatureActor::SetCastShadowsEnabled(bool bEnableShadows)
@@ -231,12 +230,8 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
     {
         bUsingCustomVisual = true;
         bUsingSkeletalVisual = true;
-        DestroyUnusedProceduralParts();
-        if (CustomStaticMeshComp)
-        {
-            CustomStaticMeshComp->DestroyComponent();
-            CustomStaticMeshComp = nullptr;
-        }
+        SetProceduralPartsVisible(false);
+        if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
 
         SkeletalMeshComp->SetSkeletalMeshAsset(Entry->SkeletalMesh);
         SkeletalMeshComp->SetRelativeLocation(Entry->LocationOffset);
@@ -269,12 +264,8 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
     {
         bUsingCustomVisual = true;
         bUsingSkeletalVisual = false;
-        DestroyUnusedProceduralParts();
-        if (SkeletalMeshComp)
-        {
-            SkeletalMeshComp->DestroyComponent();
-            SkeletalMeshComp = nullptr;
-        }
+        SetProceduralPartsVisible(false);
+        if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
 
         CustomStaticMeshComp->SetStaticMesh(Entry->StaticMeshFallback);
         CustomStaticMeshComp->SetRelativeLocation(Entry->LocationOffset);
@@ -295,10 +286,9 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
 
     if (Entry->ActorClassOverride)
     {
-        /* A custom Blueprint actor subclass owns its own mesh hierarchy. */
         bUsingCustomVisual = true;
         bUsingSkeletalVisual = false;
-        DestroyUnusedProceduralParts();
+        SetProceduralPartsVisible(false);
         RefreshTickState();
         return;
     }
@@ -314,6 +304,10 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
 void AABFPCreatureActor::UpdateHealthBar()
 {
     const bool bShowBar = !bDying && MaxHitPoints > 0 && CurrentHitPoints > 0 && CurrentHitPoints < MaxHitPoints;
+    if (bShowBar && !HealthBarBg)
+    {
+        EnsureHealthBar();
+    }
     if (HealthBarBg) HealthBarBg->SetVisibility(bShowBar);
     if (HealthBarFill) HealthBarFill->SetVisibility(bShowBar);
     RefreshTickState();
@@ -347,6 +341,7 @@ void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId
     CreatureKindId = KindId;
 
     if (bUsingCustomVisual) return;
+    EnsureProceduralParts();
 
     const FString Lower = Name.ToLower();
     const bool bDragon = Lower.Contains(TEXT("dragon")) || Lower.Contains(TEXT("wyrm"));

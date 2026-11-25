@@ -544,15 +544,36 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 
     if (Lantern)
     {
-        const float BaseLanternIntensity = (CurrentSnapshot.DungeonDepth == 0) ? 0.35f : ActiveLightIntensity;
-        const float Flicker = 1.0f +
-            FMath::Sin(LanternElapsed * 7.2f) * ActiveLightFlickerAmp +
-            FMath::Sin(LanternElapsed * 15.8f) * (ActiveLightFlickerAmp * 0.55f);
-        Lantern->SetIntensity(BaseLanternIntensity * Flicker);
-        Lantern->SetAttenuationRadius(ActiveLightRadius);
-        Lantern->SetLightColor(PlayerDamageFlashSeconds > 0.0f ?
-            FLinearColor(1.0f, 0.08f, 0.04f) :
-            ActiveLightColor);
+        LanternFlickerAccum += DeltaSeconds;
+        const FLinearColor DesiredColor = (PlayerDamageFlashSeconds > 0.0f)
+            ? FLinearColor(1.0f, 0.08f, 0.04f)
+            : ActiveLightColor;
+        if (!DesiredColor.Equals(LastAppliedLanternColor, 0.004f))
+        {
+            Lantern->SetLightColor(DesiredColor);
+            LastAppliedLanternColor = DesiredColor;
+        }
+        if (FMath::Abs(ActiveLightRadius - LastAppliedLanternRadius) > 1.0f)
+        {
+            Lantern->SetAttenuationRadius(ActiveLightRadius);
+            LastAppliedLanternRadius = ActiveLightRadius;
+        }
+        if (LanternFlickerAccum >= 0.066f || LastAppliedLanternIntensity < 0.0f)
+        {
+            LanternFlickerAccum = 0.0f;
+            const float BaseLanternIntensity = (CurrentSnapshot.DungeonDepth == 0) ? 0.35f : ActiveLightIntensity;
+            const float Flicker = (ActiveLightFlickerAmp > 0.0001f)
+                ? (1.0f +
+                    FMath::Sin(LanternElapsed * 7.2f) * ActiveLightFlickerAmp +
+                    FMath::Sin(LanternElapsed * 15.8f) * (ActiveLightFlickerAmp * 0.55f))
+                : 1.0f;
+            const float DesiredIntensity = BaseLanternIntensity * Flicker;
+            if (FMath::Abs(DesiredIntensity - LastAppliedLanternIntensity) > 0.02f)
+            {
+                Lantern->SetIntensity(DesiredIntensity);
+                LastAppliedLanternIntensity = DesiredIntensity;
+            }
+        }
     }
 
     if (HeldTorchFlameMesh && bHoldingLitTorch)

@@ -230,5 +230,9 @@ private:
     float ActiveLightRadius = 2600.0f;
     float ActiveLightFlickerAmp = 0.035f;
     bool bHoldingLitTorch = false;
+    float LastAppliedLanternRadius = -1.0f;
+    float LastAppliedLanternIntensity = -1.0f;
+    FLinearColor LastAppliedLanternColor = FLinearColor(-1.0f, -1.0f, -1.0f, 1.0f);
+    float LanternFlickerAccum = 0.0f;
     FABFPNetworkClient NetworkClient;
 };

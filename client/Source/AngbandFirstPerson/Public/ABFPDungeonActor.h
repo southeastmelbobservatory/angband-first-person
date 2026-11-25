@@ -34,6 +34,7 @@ struct FABFPActiveProjectile
     float Elapsed = 0.0f;
     float Duration = 0.24f;
     bool bIsExplosion = false;
+    bool bActive = false;
 };
 
 USTRUCT()
@@ -87,8 +88,10 @@ private:
         UMaterialInterface* OverrideMat);
     void ApplyTerrainVisualsForDepth(int32 DungeonDepth);
     void UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
-        const TMap<FIntPoint, const FABFPCell*>& CellMap);
+        const TMap<FIntPoint, const FABFPCell*>& CellMap,
+        TMap<UInstancedStaticMeshComponent*, TArray<FTransform>>& PendingBatches);
     void EnsureRoomLightPool(int32 DesiredCount);
+    void EnsureProjectilePool(int32 PoolSize);
     void SpawnProjectileEffect(const FABFPEvent& Event);
     void TickActiveProjectiles(float DeltaSeconds);
 
@@ -165,4 +168,5 @@ private:
     uint64 LastTerrainSignature = 0;
     bool bHasBuiltTerrainOnce = false;
     float FlickerElapsed = 0.0f;
+    float FlickerUpdateAccum = 0.0f;
 };

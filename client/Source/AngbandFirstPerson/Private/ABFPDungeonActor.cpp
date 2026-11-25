@@ -75,18 +75,18 @@ AABFPDungeonActor::AABFPDungeonActor()
     RememberedFloors = MakeLayer(TEXT("RememberedFloorInstances"), false);
     Ceilings = MakeLayer(TEXT("CeilingInstances"), false);
     RememberedCeilings = MakeLayer(TEXT("RememberedCeilingInstances"), false);
-    Walls = MakeLayer(TEXT("WallInstances"), true);
+    Walls = MakeLayer(TEXT("WallInstances"), false);
     RememberedWalls = MakeLayer(TEXT("RememberedWallInstances"), false);
-    Veins = MakeLayer(TEXT("VeinInstances"), true);
+    Veins = MakeLayer(TEXT("VeinInstances"), false);
     RememberedVeins = MakeLayer(TEXT("RememberedVeinInstances"), false);
-    DoorFrames = MakeLayer(TEXT("DoorFrameInstances"), true);
-    DoorsClosed = MakeLayer(TEXT("DoorClosedInstances"), true);
-    DoorsOpen = MakeLayer(TEXT("DoorOpenInstances"), true);
-    DoorsBroken = MakeLayer(TEXT("DoorBrokenInstances"), true);
-    StairsUp = MakeLayer(TEXT("StairsUpInstances"), true);
-    StairsDown = MakeLayer(TEXT("StairsDownInstances"), true);
-    Rubble = MakeLayer(TEXT("RubbleInstances"), true);
-    Shops = MakeLayer(TEXT("ShopInstances"), true);
+    DoorFrames = MakeLayer(TEXT("DoorFrameInstances"), false);
+    DoorsClosed = MakeLayer(TEXT("DoorClosedInstances"), false);
+    DoorsOpen = MakeLayer(TEXT("DoorOpenInstances"), false);
+    DoorsBroken = MakeLayer(TEXT("DoorBrokenInstances"), false);
+    StairsUp = MakeLayer(TEXT("StairsUpInstances"), false);
+    StairsDown = MakeLayer(TEXT("StairsDownInstances"), false);
+    Rubble = MakeLayer(TEXT("RubbleInstances"), false);
+    Shops = MakeLayer(TEXT("ShopInstances"), false);
     Traps = MakeLayer(TEXT("TrapInstances"), false);
     WallTorches = MakeLayer(TEXT("WallTorchInstances"), false);
     TorchFlames = MakeLayer(TEXT("TorchFlameInstances"), false);
@@ -103,6 +103,7 @@ AABFPDungeonActor::AABFPDungeonActor()
 
     AmbientSky = CreateDefaultSubobject<USkyLightComponent>(TEXT("AmbientSky"));
     AmbientSky->SetupAttachment(SceneRoot);
+    AmbientSky->bRealTimeCapture = false;
     AmbientSky->SetIntensity(0.95f);
     AmbientSky->bLowerHemisphereIsBlack = false;
     AmbientSky->SetLowerHemisphereColor(FLinearColor(0.22f, 0.20f, 0.18f));
@@ -117,7 +118,7 @@ AABFPDungeonActor::AABFPDungeonActor()
     TownSunLight->SetIntensity(2.4f);
     TownSunLight->SetLightColor(FLinearColor(1.0f, 0.84f, 0.66f));
     TownSunLight->SetAtmosphereSunLight(true);
-    TownSunLight->SetCastShadows(true);
+    TownSunLight->SetCastShadows(false);
     TownSunLight->SetVisibility(false);
 
     AtmospherePostProcess = CreateDefaultSubobject<UPostProcessComponent>(TEXT("AtmospherePostProcess"));
@@ -408,7 +409,6 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
             AmbientSky->SetLightColor(FLinearColor(0.75f, 0.45f, 0.36f));
             AmbientSky->SetLowerHemisphereColor(FLinearColor(0.015f, 0.008f, 0.008f));
         }
-        AmbientSky->RecaptureSky();
     }
     if (DungeonFog)
     {
@@ -449,11 +449,11 @@ void AABFPDungeonActor::ApplyTerrainVisualsForDepth(int32 DungeonDepth)
     ConfigureMeshPool(CustomFloorPools, TerrainSet.FloorVariants, nullptr, false, TEXT("CustomFloor"));
     ConfigureMeshPool(CustomRememberedFloorPools, TerrainSet.FloorVariants, RememberedMat, false, TEXT("CustomMemFloor"), &RememberedTint);
     ConfigureMeshPool(CustomCeilingPools, TerrainSet.CeilingVariants, nullptr, false, TEXT("CustomCeiling"));
-    ConfigureMeshPool(CustomWallPools, TerrainSet.WallVariants, nullptr, true, TEXT("CustomWall"));
+    ConfigureMeshPool(CustomWallPools, TerrainSet.WallVariants, nullptr, false, TEXT("CustomWall"));
     ConfigureMeshPool(CustomRememberedWallPools, TerrainSet.WallVariants, RememberedMat, false, TEXT("CustomMemWall"), &RememberedTint);
-    ConfigureMeshPool(CustomVeinPools, TerrainSet.VeinWallVariants, nullptr, true, TEXT("CustomVein"));
+    ConfigureMeshPool(CustomVeinPools, TerrainSet.VeinWallVariants, nullptr, false, TEXT("CustomVein"));
     ConfigureMeshPool(CustomRememberedVeinPools, TerrainSet.VeinWallVariants, RememberedMat, false, TEXT("CustomMemVein"), &RememberedTint);
-    ConfigureMeshPool(CustomPillarPools, TerrainSet.WallPillarVariants, nullptr, true, TEXT("CustomPillar"));
+    ConfigureMeshPool(CustomPillarPools, TerrainSet.WallPillarVariants, nullptr, false, TEXT("CustomPillar"));
     ConfigureMeshPool(CustomWallDecorPools, TerrainSet.WallDecorVariants, nullptr, false, TEXT("CustomWallDecor"));
 
     ConfigureSingleLayer(DoorFrames, TerrainSet.DoorFrame, FallbackCubeMesh,
@@ -509,26 +509,28 @@ FVector AABFPDungeonActor::GridToWorld(int32 X, int32 Y) const
 }
 
 void AABFPDungeonActor::UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
-    const TMap<FIntPoint, const FABFPCell*>& CellMap)
+    const TMap<FIntPoint, const FABFPCell*>& CellMap,
+    TMap<UInstancedStaticMeshComponent*, TArray<FTransform>>& PendingBatches)
 {
     const bool bEnableTorches = !VisualCatalog || VisualCatalog->bSpawnLitRoomTorches;
     const int32 DesiredLights = bEnableTorches ?
-        (VisualCatalog ? VisualCatalog->MaxDynamicRoomLights : 10) : 0;
+        (VisualCatalog ? VisualCatalog->MaxDynamicRoomLights : 6) : 0;
     EnsureRoomLightPool(DesiredLights);
-
-    for (TObjectPtr<UPointLightComponent>& Light : RoomLights)
-    {
-        if (Light) Light->SetVisibility(false);
-    }
 
     if (!bEnableTorches || DesiredLights <= 0 || Snapshot.DungeonDepth == 0)
     {
+        for (TObjectPtr<UPointLightComponent>& Light : RoomLights)
+        {
+            if (Light && Light->IsVisible()) Light->SetVisibility(false);
+        }
         return;
     }
 
     const FABFPTerrainVisualSet* TerrainSet = VisualCatalog ?
         &VisualCatalog->GetTerrainSetForDepth(Snapshot.DungeonDepth) : nullptr;
     const bool bHasCustomTorchMesh = TerrainSet && TerrainSet->WallTorchProp.IsValid();
+    const FLinearColor DesiredColor = VisualCatalog ? VisualCatalog->RoomTorchColor : FLinearColor(1.0f, 0.62f, 0.28f);
+    const float DesiredRadius = VisualCatalog ? VisualCatalog->RoomTorchRadius : 1600.0f;
 
     TArray<FIntPoint> PlacedCoords;
     int32 LightIndex = 0;
@@ -579,47 +581,126 @@ void AABFPDungeonActor::UpdateDynamicRoomLights(const FABFPSnapshot& Snapshot,
 
         if (UPointLightComponent* Light = RoomLights[LightIndex])
         {
-            Light->SetWorldLocation(Tile + SconceOffset - FVector(WallDir.X * 26.0f, WallDir.Y * 26.0f, -8.0f));
-            Light->SetLightColor(VisualCatalog ? VisualCatalog->RoomTorchColor : FLinearColor(1.0f, 0.62f, 0.28f));
-            Light->SetAttenuationRadius(VisualCatalog ? VisualCatalog->RoomTorchRadius : 1600.0f);
-            Light->SetVisibility(true);
+            const FVector TargetLoc = Tile + SconceOffset - FVector(WallDir.X * 26.0f, WallDir.Y * 26.0f, -8.0f);
+            if (!Light->GetComponentLocation().Equals(TargetLoc, 1.0f))
+            {
+                Light->SetWorldLocation(TargetLoc);
+            }
+            if (!Light->GetLightColor().Equals(DesiredColor, 0.004f))
+            {
+                Light->SetLightColor(DesiredColor);
+            }
+            if (FMath::Abs(Light->AttenuationRadius - DesiredRadius) > 1.0f)
+            {
+                Light->SetAttenuationRadius(DesiredRadius);
+            }
+            if (!Light->IsVisible())
+            {
+                Light->SetVisibility(true);
+            }
         }
 
         if (bHasCustomTorchMesh)
         {
-            WallTorches->AddInstance(ComposeVariantTransform(
+            PendingBatches.FindOrAdd(WallTorches).Add(ComposeVariantTransform(
                 Tile + SconceOffset, SconceRot, TerrainSet->WallTorchProp));
         }
         else
         {
-            WallTorches->AddInstance(FTransform(SconceRot, Tile + SconceOffset, FVector(0.14f, 0.14f, 0.42f)));
+            PendingBatches.FindOrAdd(WallTorches).Add(FTransform(SconceRot, Tile + SconceOffset, FVector(0.14f, 0.14f, 0.42f)));
         }
 
         if (TorchFlames)
         {
             const FVector FlamePos = Tile + SconceOffset -
                 FVector(WallDir.X * 16.0f, WallDir.Y * 16.0f, -26.0f);
-            TorchFlames->AddInstance(FTransform(FRotator::ZeroRotator, FlamePos, FVector(0.14f, 0.14f, 0.22f)));
+            PendingBatches.FindOrAdd(TorchFlames).Add(FTransform(FRotator::ZeroRotator, FlamePos, FVector(0.14f, 0.14f, 0.22f)));
         }
 
         PlacedCoords.Add(FIntPoint(Cell.X, Cell.Y));
         ++LightIndex;
     }
+
+    for (int32 Idx = LightIndex; Idx < RoomLights.Num(); ++Idx)
+    {
+        if (RoomLights[Idx] && RoomLights[Idx]->IsVisible())
+        {
+            RoomLights[Idx]->SetVisibility(false);
+        }
+    }
+}
+
+void AABFPDungeonActor::EnsureProjectilePool(int32 PoolSize)
+{
+    if (!GetWorld() || !FallbackSphereMesh || !BaseShapeMat) return;
+    while (ActiveProjectiles.Num() < PoolSize)
+    {
+        UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
+        MeshComp->SetupAttachment(SceneRoot);
+        MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        MeshComp->SetGenerateOverlapEvents(false);
+        MeshComp->SetCanEverAffectNavigation(false);
+        MeshComp->SetCastShadow(false);
+        MeshComp->SetStaticMesh(FallbackSphereMesh.Get());
+        MeshComp->SetVisibility(false);
+
+        UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(BaseShapeMat.Get(), this);
+        if (Mat)
+        {
+            Mat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.55f, 0.72f, 1.0f));
+            MeshComp->SetMaterial(0, Mat);
+        }
+        MeshComp->RegisterComponent();
+
+        UPointLightComponent* LightComp = NewObject<UPointLightComponent>(this);
+        LightComp->SetupAttachment(SceneRoot);
+        LightComp->SetMobility(EComponentMobility::Movable);
+        LightComp->SetCastShadows(false);
+        LightComp->SetUseInverseSquaredFalloff(false);
+        LightComp->SetLightFalloffExponent(1.6f);
+        LightComp->SetIntensity(8.0f);
+        LightComp->SetAttenuationRadius(650.0f);
+        LightComp->SetVisibility(false);
+        LightComp->RegisterComponent();
+
+        FABFPActiveProjectile Slot;
+        Slot.Mesh = MeshComp;
+        Slot.Light = LightComp;
+        Slot.Material = Mat;
+        Slot.bActive = false;
+        ActiveProjectiles.Add(MoveTemp(Slot));
+    }
 }
 
 void AABFPDungeonActor::SpawnProjectileEffect(const FABFPEvent& Event)
 {
-    if (!GetWorld() || !FallbackSphereMesh || !BaseShapeMat) return;
-    if (ActiveProjectiles.Num() >= 12) return;
+    EnsureProjectilePool(6);
+    if (ActiveProjectiles.IsEmpty()) return;
+
+    FABFPActiveProjectile* Chosen = nullptr;
+    for (FABFPActiveProjectile& Slot : ActiveProjectiles)
+    {
+        if (!Slot.bActive)
+        {
+            Chosen = &Slot;
+            break;
+        }
+    }
+    if (!Chosen)
+    {
+        /* Recycle the oldest active slot if all 6 are busy. */
+        Chosen = &ActiveProjectiles[0];
+        for (FABFPActiveProjectile& Slot : ActiveProjectiles)
+        {
+            if (Slot.Elapsed > Chosen->Elapsed) Chosen = &Slot;
+        }
+    }
 
     const bool bIsExplosion = (Event.Value >= 1000);
     const bool bIsPhysicalMissile = (Event.Value == 0);
     const int32 ProjIdx = bIsExplosion ? (Event.Value - 1000) : (bIsPhysicalMissile ? -1 : (Event.Value - 1));
 
-    /* Map Angband list-elements.h indices to vivid elemental colors:
-       0=ACID, 1=ELEC, 2=FIRE, 3=COLD, 4=POIS, 5=LIGHT, 6=DARK, 7=SOUND, 8=SHARD,
-       9=NEXUS, 10=NETHER, 11=CHAOS, 12=DISEN, 13=WATER, 14=ICE, 19=PLASMA, 20=METEOR,
-       21=MISSILE, 22=MANA, 23=HOLY_ORB, 24=ARROW */
+    /* Map Angband list-elements.h indices to vivid elemental colors. */
     FLinearColor Color(0.55f, 0.72f, 1.0f);
     if (bIsPhysicalMissile || ProjIdx == 24) Color = FLinearColor(1.0f, 0.84f, 0.45f);
     else if (ProjIdx == 0 || ProjIdx == 4) Color = FLinearColor(0.22f, 0.95f, 0.30f);
@@ -632,69 +713,63 @@ void AABFPDungeonActor::SpawnProjectileEffect(const FABFPEvent& Event)
 
     const FVector StartPos = GridToWorld(Event.FromX, Event.FromY) + FVector(0.0f, 0.0f, 145.0f);
     const FVector EndPos = GridToWorld(Event.ToX, Event.ToY) + FVector(0.0f, 0.0f, 128.0f);
-
-    UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
-    MeshComp->SetupAttachment(SceneRoot);
-    MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    MeshComp->SetCastShadow(false);
-    MeshComp->SetStaticMesh(bIsPhysicalMissile && FallbackCubeMesh ? FallbackCubeMesh.Get() : FallbackSphereMesh.Get());
-
-    UMaterialInstanceDynamic* Mat = UMaterialInstanceDynamic::Create(BaseShapeMat.Get(), this);
-    if (Mat)
-    {
-        Mat->SetVectorParameterValue(TEXT("Color"), Color);
-        MeshComp->SetMaterial(0, Mat);
-    }
-
     const FVector Delta = EndPos - StartPos;
     const FRotator Orient = Delta.IsNearlyZero() ? FRotator::ZeroRotator : Delta.Rotation();
     const FVector BaseScale = bIsExplosion
         ? FVector(0.55f, 0.55f, 0.55f)
         : (bIsPhysicalMissile ? FVector(0.75f, 0.07f, 0.07f) : FVector(0.32f, 0.24f, 0.24f));
 
-    MeshComp->SetWorldLocation(StartPos);
-    MeshComp->SetWorldRotation(Orient);
-    MeshComp->SetWorldScale3D(BaseScale);
-    MeshComp->RegisterComponent();
+    if (Chosen->Mesh)
+    {
+        UStaticMesh* DesiredMesh = (bIsPhysicalMissile && FallbackCubeMesh) ? FallbackCubeMesh.Get() : FallbackSphereMesh.Get();
+        if (Chosen->Mesh->GetStaticMesh() != DesiredMesh)
+        {
+            Chosen->Mesh->SetStaticMesh(DesiredMesh);
+        }
+        Chosen->Mesh->SetWorldLocation(StartPos);
+        Chosen->Mesh->SetWorldRotation(Orient);
+        Chosen->Mesh->SetWorldScale3D(BaseScale);
+        Chosen->Mesh->SetVisibility(true);
+    }
+    if (Chosen->Material)
+    {
+        Chosen->Material->SetVectorParameterValue(TEXT("Color"), Color);
+    }
+    if (Chosen->Light)
+    {
+        Chosen->Light->SetLightColor(Color);
+        Chosen->Light->SetIntensity(bIsExplosion ? 14.0f : (bIsPhysicalMissile ? 3.5f : 8.5f));
+        const float DesiredRad = bIsExplosion ? 1200.0f : 650.0f;
+        if (FMath::Abs(Chosen->Light->AttenuationRadius - DesiredRad) > 1.0f)
+        {
+            Chosen->Light->SetAttenuationRadius(DesiredRad);
+        }
+        Chosen->Light->SetWorldLocation(StartPos);
+        Chosen->Light->SetVisibility(true);
+    }
 
-    UPointLightComponent* LightComp = NewObject<UPointLightComponent>(this);
-    LightComp->SetupAttachment(SceneRoot);
-    LightComp->SetMobility(EComponentMobility::Movable);
-    LightComp->SetCastShadows(false);
-    LightComp->SetUseInverseSquaredFalloff(false);
-    LightComp->SetLightFalloffExponent(1.6f);
-    LightComp->SetLightColor(Color);
-    LightComp->SetIntensity(bIsExplosion ? 14.0f : (bIsPhysicalMissile ? 3.5f : 8.5f));
-    LightComp->SetAttenuationRadius(bIsExplosion ? 1200.0f : 650.0f);
-    LightComp->SetWorldLocation(StartPos);
-    LightComp->RegisterComponent();
-
-    FABFPActiveProjectile Proj;
-    Proj.Mesh = MeshComp;
-    Proj.Light = LightComp;
-    Proj.Material = Mat;
-    Proj.StartPos = StartPos;
-    Proj.EndPos = EndPos;
-    Proj.BaseScale = BaseScale;
-    Proj.Elapsed = 0.0f;
-    Proj.Duration = bIsExplosion ? 0.34f : FMath::Clamp(Delta.Size() / 4200.0f, 0.14f, 0.32f);
-    Proj.bIsExplosion = bIsExplosion;
-    ActiveProjectiles.Add(MoveTemp(Proj));
+    Chosen->StartPos = StartPos;
+    Chosen->EndPos = EndPos;
+    Chosen->BaseScale = BaseScale;
+    Chosen->Elapsed = 0.0f;
+    Chosen->Duration = bIsExplosion ? 0.34f : FMath::Clamp(Delta.Size() / 4200.0f, 0.14f, 0.32f);
+    Chosen->bIsExplosion = bIsExplosion;
+    Chosen->bActive = true;
 }
 
 void AABFPDungeonActor::TickActiveProjectiles(float DeltaSeconds)
 {
-    for (int32 Idx = ActiveProjectiles.Num() - 1; Idx >= 0; --Idx)
+    for (FABFPActiveProjectile& Proj : ActiveProjectiles)
     {
-        FABFPActiveProjectile& Proj = ActiveProjectiles[Idx];
+        if (!Proj.bActive) continue;
         Proj.Elapsed += DeltaSeconds;
         const float Alpha = FMath::Clamp(Proj.Elapsed / FMath::Max(0.01f, Proj.Duration), 0.0f, 1.0f);
 
         if (Alpha >= 1.0f)
         {
-            if (Proj.Mesh) Proj.Mesh->DestroyComponent();
-            if (Proj.Light) Proj.Light->DestroyComponent();
-            ActiveProjectiles.RemoveAtSwap(Idx);
+            Proj.bActive = false;
+            if (Proj.Mesh) Proj.Mesh->SetVisibility(false);
+            if (Proj.Light) Proj.Light->SetVisibility(false);
             continue;
         }
 
@@ -722,6 +797,11 @@ void AABFPDungeonActor::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     FlickerElapsed += DeltaSeconds;
     TickActiveProjectiles(DeltaSeconds);
+
+    if (LastDepth <= 0) return;
+    FlickerUpdateAccum += DeltaSeconds;
+    if (FlickerUpdateAccum < 0.066f) return;
+    FlickerUpdateAccum = 0.0f;
 
     const float BaseIntensity = VisualCatalog ? FMath::Clamp(VisualCatalog->RoomTorchIntensity, 0.5f, 25.0f) : 5.5f;
     for (int32 Idx = 0; Idx < RoomLights.Num(); ++Idx)
@@ -790,45 +870,17 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         LastTerrainSignature = TerrainSignature;
         bHasBuiltTerrainOnce = true;
 
-    Floors->ClearInstances();
-    RememberedFloors->ClearInstances();
-    Ceilings->ClearInstances();
-    RememberedCeilings->ClearInstances();
-    Walls->ClearInstances();
-    RememberedWalls->ClearInstances();
-    Veins->ClearInstances();
-    RememberedVeins->ClearInstances();
-    DoorFrames->ClearInstances();
-    DoorsClosed->ClearInstances();
-    DoorsOpen->ClearInstances();
-    DoorsBroken->ClearInstances();
-    StairsUp->ClearInstances();
-    StairsDown->ClearInstances();
-    Rubble->ClearInstances();
-    Shops->ClearInstances();
-    Traps->ClearInstances();
-    WallTorches->ClearInstances();
-    if (TorchFlames) TorchFlames->ClearInstances();
-    if (DarknessShroud) DarknessShroud->ClearInstances();
-    if (DarknessBridgeFloors) DarknessBridgeFloors->ClearInstances();
-    if (DarknessBridgeCeilings) DarknessBridgeCeilings->ClearInstances();
-
-    auto ClearPool = [](TArray<FABFPMeshPoolEntry>& Pool)
+    /* Collect all instance transforms per ISMC on the CPU first, then commit each non-empty
+       (or previously non-empty) component with ONE ClearInstances + ONE batched AddInstances()
+       call. This avoids ~1,500 per-instance RenderState/GPU-Scene updates per turn! */
+    TMap<UInstancedStaticMeshComponent*, TArray<FTransform>> PendingBatches;
+    auto QueueInstance = [&PendingBatches](UInstancedStaticMeshComponent* Comp, const FTransform& Xform)
     {
-        for (FABFPMeshPoolEntry& Entry : Pool)
+        if (Comp)
         {
-            if (Entry.Component) Entry.Component->ClearInstances();
+            PendingBatches.FindOrAdd(Comp).Add(Xform);
         }
     };
-    ClearPool(CustomFloorPools);
-    ClearPool(CustomRememberedFloorPools);
-    ClearPool(CustomCeilingPools);
-    ClearPool(CustomWallPools);
-    ClearPool(CustomRememberedWallPools);
-    ClearPool(CustomVeinPools);
-    ClearPool(CustomRememberedVeinPools);
-    ClearPool(CustomPillarPools);
-    ClearPool(CustomWallDecorPools);
 
     TMap<FIntPoint, const FABFPCell*> CellMap;
     CellMap.Reserve(Snapshot.Cells.Num());
@@ -923,13 +975,13 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 if (Pick.Component)
                 {
                     const FRotator RandYaw(0.0f, static_cast<float>((TargetHash >> 8) & 3u) * 90.0f, 0.0f);
-                    Pick.Component->AddInstance(ComposePoolTransform(TargetTile, RandYaw, Pick));
+                    QueueInstance(Pick.Component, ComposePoolTransform(TargetTile, RandYaw, Pick));
                 }
             }
             else
             {
                 UInstancedStaticMeshComponent* FloorLayer = TargetCell.bVisible ? Floors : RememberedFloors;
-                FloorLayer->AddInstance(FTransform(FRotator::ZeroRotator,
+                QueueInstance(FloorLayer, FTransform(FRotator::ZeroRotator,
                     TargetTile - FVector(0.0f, 0.0f, 6.0f),
                     FVector(CellScaleXY, CellScaleXY, 0.12f)));
             }
@@ -942,14 +994,14 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 const FABFPMeshPoolEntry& Pick = CustomCeilingPools[static_cast<int32>((TargetHash >> 4) % static_cast<uint32>(CustomCeilingPools.Num()))];
                 if (Pick.Component)
                 {
-                    Pick.Component->AddInstance(ComposePoolTransform(
+                    QueueInstance(Pick.Component, ComposePoolTransform(
                         TargetTile + FVector(0.0f, 0.0f, WallHeight), FRotator::ZeroRotator, Pick));
                 }
             }
             else
             {
                 UInstancedStaticMeshComponent* CeilingLayer = TargetCell.bVisible ? Ceilings : RememberedCeilings;
-                CeilingLayer->AddInstance(FTransform(FRotator::ZeroRotator,
+                QueueInstance(CeilingLayer, FTransform(FRotator::ZeroRotator,
                     TargetTile + FVector(0.0f, 0.0f, WallHeight + 6.0f),
                     FVector(CellScaleXY, CellScaleXY, 0.12f)));
             }
@@ -971,9 +1023,6 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 (bIsVein && !Cell.bVisible && CustomRememberedVeinPools.Num() > 0) ? CustomRememberedVeinPools :
                 (Cell.bVisible ? CustomWallPools : CustomRememberedWallPools);
 
-            /* Detect checkerboard diagonal passages where two touching corner walls would seal a valid Angband
-               diagonal entry shut in 3D (e.g. room corner entry). Recess the pinching corner(s) cleanly and
-               back them with floor/ceiling slabs so the diagonal passage is clearly visible and walkable. */
             const bool bOpenW = IsOpenPassableAt(Cell.X - 1, Cell.Y);
             const bool bOpenE = IsOpenPassableAt(Cell.X + 1, Cell.Y);
             const bool bOpenN = IsOpenPassableAt(Cell.X, Cell.Y - 1);
@@ -1004,22 +1053,21 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 {
                     if (WallPick)
                     {
-                        WallTargetComp->AddInstance(ComposePoolTransform(Tile, FRotator::ZeroRotator, *WallPick));
+                        QueueInstance(WallTargetComp, ComposePoolTransform(Tile, FRotator::ZeroRotator, *WallPick));
                     }
                     else
                     {
-                        WallTargetComp->AddInstance(FTransform(FRotator::ZeroRotator,
+                        QueueInstance(WallTargetComp, FTransform(FRotator::ZeroRotator,
                             Tile + FVector(0.0f, 0.0f, WallHeight * 0.5f),
                             FVector(CellScaleXY, CellScaleXY, WallScaleZ)));
                     }
                 }
                 else
                 {
-                    /* Back the recessed corner with watertight floor & ceiling slabs. */
                     EmitFloorAndCeiling(Cell, Tile, CellHash, false);
 
                     const float Half = CellSize * 0.5f;
-                    const float Notch = CellSize * 0.2875f; /* 115 cm cut per side -> ~163 cm diagonal passage */
+                    const float Notch = CellSize * 0.2875f;
                     const float X0N = bPinchNW ? (-Half + Notch) : -Half;
                     const float X1N = bPinchNE ? (Half - Notch) : Half;
                     const float X0S = bPinchSW ? (-Half + Notch) : -Half;
@@ -1032,7 +1080,6 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                         { Half - Notch, Half, X0S, X1S }
                     };
 
-                    /* Merge adjacent bands with identical X span (single-corner pinch emits just 2 boxes). */
                     TArray<FBand, TInlineAllocator<3>> Merged;
                     for (int32 b = 0; b < 3; ++b)
                     {
@@ -1054,7 +1101,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                         const float CY = 0.5f * (B.Y0 + B.Y1);
                         const float SX = (B.X1 - B.X0) / 100.0f;
                         const float SY = (B.Y1 - B.Y0) / 100.0f;
-                        WallTargetComp->AddInstance(FTransform(FRotator::ZeroRotator,
+                        QueueInstance(WallTargetComp, FTransform(FRotator::ZeroRotator,
                             Tile + FVector(CX, CY, WallHeight * 0.5f),
                             FVector(SX, SY, WallScaleZ)));
                     }
@@ -1063,12 +1110,10 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             continue;
         }
 
-        /* Floor & ceiling layers (skip solid floor slab on sunken StairsDown when custom stairwell mesh provides its own collar). */
         const bool bSkipFloorForSunkenStairs = (Cell.Terrain == EABFPTerrain::StairsDown) &&
             TerrainSet && TerrainSet->StairsDown.IsValid();
         EmitFloorAndCeiling(Cell, Tile, CellHash, bSkipFloorForSunkenStairs);
 
-        /* Neighbor-aware door orientation for closed, open, and broken doors. */
         if (Cell.Terrain == EABFPTerrain::Door ||
             Cell.Terrain == EABFPTerrain::DoorOpen ||
             Cell.Terrain == EABFPTerrain::DoorBroken)
@@ -1078,18 +1123,17 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 
             if (TerrainSet && TerrainSet->DoorFrame.IsValid())
             {
-                DoorFrames->AddInstance(ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorFrame));
+                QueueInstance(DoorFrames, ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorFrame));
             }
             else
             {
-                /* Left jamb, right jamb, and lintel framing the doorway. */
-                DoorFrames->AddInstance(FTransform(DoorRot,
+                QueueInstance(DoorFrames, FTransform(DoorRot,
                     Tile + DoorRot.RotateVector(FVector(-CellSize * 0.44f, 0.0f, WallHeight * 0.44f)),
                     FVector(0.24f, 0.42f, (WallHeight * 0.88f) / 100.0f)));
-                DoorFrames->AddInstance(FTransform(DoorRot,
+                QueueInstance(DoorFrames, FTransform(DoorRot,
                     Tile + DoorRot.RotateVector(FVector(CellSize * 0.44f, 0.0f, WallHeight * 0.44f)),
                     FVector(0.24f, 0.42f, (WallHeight * 0.88f) / 100.0f)));
-                DoorFrames->AddInstance(FTransform(DoorRot,
+                QueueInstance(DoorFrames, FTransform(DoorRot,
                     Tile + FVector(0.0f, 0.0f, WallHeight * 0.92f),
                     FVector(CellScaleXY, 0.44f, 0.48f)));
             }
@@ -1098,11 +1142,11 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             {
                 if (TerrainSet && TerrainSet->DoorClosedPanel.IsValid())
                 {
-                    DoorsClosed->AddInstance(ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorClosedPanel));
+                    QueueInstance(DoorsClosed, ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorClosedPanel));
                 }
                 else
                 {
-                    DoorsClosed->AddInstance(FTransform(DoorRot,
+                    QueueInstance(DoorsClosed, FTransform(DoorRot,
                         Tile + FVector(0.0f, 0.0f, WallHeight * 0.42f),
                         FVector(CellScaleXY * 0.84f, 0.22f, (WallHeight * 0.84f) / 100.0f)));
                 }
@@ -1111,15 +1155,14 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             {
                 if (TerrainSet && TerrainSet->DoorOpenPanel.IsValid())
                 {
-                    DoorsOpen->AddInstance(ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorOpenPanel));
+                    QueueInstance(DoorsOpen, ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorOpenPanel));
                 }
                 else
                 {
-                    /* Swung 90 degrees open against the right jamb so the corridor is passable visually. */
                     const FRotator SwungRot(0.0f, DoorYaw + 90.0f, 0.0f);
                     const FVector SwungOffset = DoorRot.RotateVector(
                         FVector(CellSize * 0.36f, CellSize * 0.38f, WallHeight * 0.42f));
-                    DoorsOpen->AddInstance(FTransform(SwungRot, Tile + SwungOffset,
+                    QueueInstance(DoorsOpen, FTransform(SwungRot, Tile + SwungOffset,
                         FVector(CellScaleXY * 0.80f, 0.20f, (WallHeight * 0.84f) / 100.0f)));
                 }
             }
@@ -1127,12 +1170,12 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             {
                 if (TerrainSet && TerrainSet->DoorBrokenPanel.IsValid())
                 {
-                    DoorsBroken->AddInstance(ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorBrokenPanel));
+                    QueueInstance(DoorsBroken, ComposeVariantTransform(Tile, DoorRot, TerrainSet->DoorBrokenPanel));
                 }
                 else
                 {
                     const FRotator SplinterRot(12.0f, DoorYaw + 24.0f, 78.0f);
-                    DoorsBroken->AddInstance(FTransform(SplinterRot,
+                    QueueInstance(DoorsBroken, FTransform(SplinterRot,
                         Tile + DoorRot.RotateVector(FVector(CellSize * 0.22f, CellSize * 0.14f, 18.0f)),
                         FVector(CellScaleXY * 0.48f, 0.18f, 0.65f)));
                 }
@@ -1148,7 +1191,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             const FRotator StairRot(0.0f, ComputeStairEntranceYaw(Cell.X, Cell.Y), 0.0f);
             if (CustomStair && CustomStair->IsValid())
             {
-                StairLayer->AddInstance(ComposeVariantTransform(Tile, StairRot, *CustomStair));
+                QueueInstance(StairLayer, ComposeVariantTransform(Tile, StairRot, *CustomStair));
             }
             else
             {
@@ -1157,7 +1200,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                     const int32 RampStep = bUp ? Step : 4 - Step;
                     const float OffsetX = (static_cast<float>(Step) - 2.0f) * (CellSize * 0.18f);
                     const float Height = 12.0f + RampStep * 26.0f;
-                    StairLayer->AddInstance(FTransform(StairRot,
+                    QueueInstance(StairLayer, FTransform(StairRot,
                         Tile + StairRot.RotateVector(FVector(OffsetX, 0.0f, Height)),
                         FVector(CellSize / 520.0f, CellSize / 120.0f, 0.26f)));
                 }
@@ -1168,7 +1211,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             if (TerrainSet && TerrainSet->Rubble.IsValid())
             {
                 const FRotator RandYaw(0.0f, static_cast<float>(CellHash % 360u), 0.0f);
-                Rubble->AddInstance(ComposeVariantTransform(Tile, RandYaw, TerrainSet->Rubble));
+                QueueInstance(Rubble, ComposeVariantTransform(Tile, RandYaw, TerrainSet->Rubble));
             }
             else
             {
@@ -1177,7 +1220,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                     const float OffsetX = (Rock - 1.5f) * CellSize * 0.16f;
                     const float OffsetY = ((Rock % 2) ? 1.0f : -1.0f) * CellSize * 0.14f;
                     const float Height = 18.0f + Rock * 8.0f;
-                    Rubble->AddInstance(FTransform(FRotator(Rock * 9.0f, Rock * 47.0f, Rock * 5.0f),
+                    QueueInstance(Rubble, FTransform(FRotator(Rock * 9.0f, Rock * 47.0f, Rock * 5.0f),
                         Tile + FVector(OffsetX, OffsetY, Height),
                         FVector(0.32f + Rock * 0.04f, 0.28f, 0.26f + Rock * 0.05f)));
                 }
@@ -1190,18 +1233,17 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 
             if (TerrainSet && TerrainSet->ShopFacade.IsValid())
             {
-                Shops->AddInstance(ComposeVariantTransform(Tile, ShopRot, TerrainSet->ShopFacade));
+                QueueInstance(Shops, ComposeVariantTransform(Tile, ShopRot, TerrainSet->ShopFacade));
             }
             else
             {
-                /* Full-height warm 2K dark-oak timber shop portal (left jamb, right jamb, heavy header beam & signboard). */
-                Shops->AddInstance(FTransform(ShopRot,
+                QueueInstance(Shops, FTransform(ShopRot,
                     Tile + ShopRot.RotateVector(FVector(-CellSize * 0.43f, 0.0f, WallHeight * 0.50f)),
                     FVector(0.54f, 0.72f, WallScaleZ)));
-                Shops->AddInstance(FTransform(ShopRot,
+                QueueInstance(Shops, FTransform(ShopRot,
                     Tile + ShopRot.RotateVector(FVector(CellSize * 0.43f, 0.0f, WallHeight * 0.50f)),
                     FVector(0.54f, 0.72f, WallScaleZ)));
-                Shops->AddInstance(FTransform(ShopRot,
+                QueueInstance(Shops, FTransform(ShopRot,
                     Tile + FVector(0.0f, 0.0f, WallHeight * 0.90f),
                     FVector(CellScaleXY, 0.84f, 0.64f)));
             }
@@ -1210,17 +1252,16 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         {
             if (TerrainSet && TerrainSet->TrapMarker.IsValid())
             {
-                Traps->AddInstance(ComposeVariantTransform(Tile, FRotator::ZeroRotator, TerrainSet->TrapMarker));
+                QueueInstance(Traps, ComposeVariantTransform(Tile, FRotator::ZeroRotator, TerrainSet->TrapMarker));
             }
             else
             {
-                Traps->AddInstance(FTransform(FRotator(0.0f, 45.0f, 0.0f),
+                QueueInstance(Traps, FTransform(FRotator(0.0f, 45.0f, 0.0f),
                     Tile + FVector(0.0f, 0.0f, 4.0f),
                     FVector(CellScaleXY * 0.42f, CellScaleXY * 0.42f, 0.06f)));
             }
         }
 
-        /* Optional corner pillars from VisualCatalog where two perpendicular walls meet. */
         if (CustomPillarPools.Num() > 0)
         {
             const bool bN = IsWallAt(Cell.X, Cell.Y - 1);
@@ -1232,7 +1273,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                 const FABFPMeshPoolEntry& Pick = CustomPillarPools[static_cast<int32>((CellHash >> 10) % static_cast<uint32>(CustomPillarPools.Num()))];
                 if (Pick.Component)
                 {
-                    Pick.Component->AddInstance(ComposePoolTransform(
+                    QueueInstance(Pick.Component, ComposePoolTransform(
                         Tile + FVector(CornerX, CornerY, 0.0f), FRotator::ZeroRotator, Pick));
                 }
             };
@@ -1243,8 +1284,6 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             if (bS && bE) PlaceCornerPillar(Half, Half);
         }
 
-        /* Non-blocking decorative medieval wall props (banners, barrels, candles) along open room perimeters only
-           (never in 1-tile-wide corridors or 90-degree corners where props would block walkways or clip into walls). */
         const uint32 DecorMod = (Snapshot.DungeonDepth == 0) ? 11u : 7u;
         if (Cell.bVisible && Cell.Terrain == EABFPTerrain::Floor && CustomWallDecorPools.Num() > 0 &&
             (CellHash % DecorMod) == 0u)
@@ -1279,7 +1318,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                     {
                         const FVector EdgePos = Tile + FVector(Dir.X * CellSize * 0.35f, Dir.Y * CellSize * 0.35f, 0.0f);
                         const FRotator EdgeRot(0.0f, DecorYaw[CheckIdx], 0.0f);
-                        Pick.Component->AddInstance(ComposePoolTransform(EdgePos, EdgeRot, Pick));
+                        QueueInstance(Pick.Component, ComposePoolTransform(EdgePos, EdgeRot, Pick));
                     }
                     break;
                 }
@@ -1287,11 +1326,6 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
     }
 
-    /* Subterranean fog-of-war darkness shroud (Depth > 0):
-       Seal unexplored Unknown tiles bordering known walkable tiles with pitch-black dungeon darkness
-       so unlit corridors never leak into an empty skybox horizon; if an Unknown tile sits directly
-       between two known walkable tiles (Angband LOS crossing an unlit corridor into a lit room),
-       place a dark shadowed floor+ceiling bridge instead of an opaque wall so sightlines stay clear. */
     if (Snapshot.DungeonDepth > 0 && DarknessShroud && DarknessBridgeFloors && DarknessBridgeCeilings)
     {
         auto HasKnownWalkableAlong = [&CellMap](int32 StartX, int32 StartY, int32 StepX, int32 StepY) -> bool
@@ -1339,16 +1373,16 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
 
                     if (bCorridorBridgeNS || bCorridorBridgeEW)
                     {
-                        DarknessBridgeFloors->AddInstance(FTransform(FRotator::ZeroRotator,
+                        QueueInstance(DarknessBridgeFloors, FTransform(FRotator::ZeroRotator,
                             NeighborTile - FVector(0.0f, 0.0f, 6.0f),
                             FVector(CellScaleXY, CellScaleXY, 0.12f)));
-                        DarknessBridgeCeilings->AddInstance(FTransform(FRotator::ZeroRotator,
+                        QueueInstance(DarknessBridgeCeilings, FTransform(FRotator::ZeroRotator,
                             NeighborTile + FVector(0.0f, 0.0f, WallHeight + 6.0f),
                             FVector(CellScaleXY, CellScaleXY, 0.12f)));
                     }
                     else
                     {
-                        DarknessShroud->AddInstance(FTransform(FRotator::ZeroRotator,
+                        QueueInstance(DarknessShroud, FTransform(FRotator::ZeroRotator,
                             NeighborTile + FVector(0.0f, 0.0f, WallHeight * 0.5f),
                             FVector(CellScaleXY, CellScaleXY, (WallHeight + 24.0f) / 100.0f)));
                     }
@@ -1357,7 +1391,59 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
     }
 
-    UpdateDynamicRoomLights(Snapshot, CellMap);
+    UpdateDynamicRoomLights(Snapshot, CellMap, PendingBatches);
+
+    auto CommitLayer = [&PendingBatches](UInstancedStaticMeshComponent* Comp)
+    {
+        if (!Comp) return;
+        const TArray<FTransform>* Batch = PendingBatches.Find(Comp);
+        const bool bHasNew = (Batch && Batch->Num() > 0);
+        if (!bHasNew && Comp->GetInstanceCount() == 0) return;
+        Comp->ClearInstances();
+        if (bHasNew)
+        {
+            Comp->AddInstances(*Batch, false);
+        }
+    };
+    auto CommitPool = [&CommitLayer](TArray<FABFPMeshPoolEntry>& Pool)
+    {
+        for (FABFPMeshPoolEntry& Entry : Pool)
+        {
+            CommitLayer(Entry.Component);
+        }
+    };
+
+    CommitLayer(Floors);
+    CommitLayer(RememberedFloors);
+    CommitLayer(Ceilings);
+    CommitLayer(RememberedCeilings);
+    CommitLayer(Walls);
+    CommitLayer(RememberedWalls);
+    CommitLayer(Veins);
+    CommitLayer(RememberedVeins);
+    CommitLayer(DoorFrames);
+    CommitLayer(DoorsClosed);
+    CommitLayer(DoorsOpen);
+    CommitLayer(DoorsBroken);
+    CommitLayer(StairsUp);
+    CommitLayer(StairsDown);
+    CommitLayer(Rubble);
+    CommitLayer(Shops);
+    CommitLayer(Traps);
+    CommitLayer(WallTorches);
+    CommitLayer(TorchFlames);
+    CommitLayer(DarknessShroud);
+    CommitLayer(DarknessBridgeFloors);
+    CommitLayer(DarknessBridgeCeilings);
+    CommitPool(CustomFloorPools);
+    CommitPool(CustomRememberedFloorPools);
+    CommitPool(CustomCeilingPools);
+    CommitPool(CustomWallPools);
+    CommitPool(CustomRememberedWallPools);
+    CommitPool(CustomVeinPools);
+    CommitPool(CustomRememberedVeinPools);
+    CommitPool(CustomPillarPools);
+    CommitPool(CustomWallDecorPools);
     } /* end if (bTerrainChanged) */
 
     TSet<int64> CurrentIds;
@@ -1414,7 +1500,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Spawned))
             {
                 Creature->ApplyVisualEntry(VisualEntry);
-                Creature->SetCastShadowsEnabled(Snapshot.DungeonDepth == 0);
+                Creature->SetCastShadowsEnabled(false);
                 Creature->UpdateEntityState(Entity);
             }
         }

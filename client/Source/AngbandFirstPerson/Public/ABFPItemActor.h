@@ -5,9 +5,11 @@
 #include "ABFPProtocol.h"
 #include "ABFPItemActor.generated.h"
 
+class UStaticMesh;
 class UStaticMeshComponent;
 class USceneComponent;
 class UPointLightComponent;
+class UMaterialInterface;
 class UMaterialInstanceDynamic;
 struct FABFPItemVisualEntry;
 
@@ -42,11 +44,17 @@ protected:
     TObjectPtr<UPointLightComponent> AccentLight;
 
 private:
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> Core;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> ShardA;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> ShardB;
-    UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CoreMaterial;
-    UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> ShardMaterial;
+    void EnsureProceduralParts();
+    void EnsureAccentLight();
+
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedSphereMesh;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedConeMesh;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInterface> CachedBasicMat;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> Core;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> ShardA;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> ShardB;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> CoreMaterial;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> ShardMaterial;
 
     FString ItemName;
     int32 ItemCategoryId = INDEX_NONE;

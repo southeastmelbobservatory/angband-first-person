@@ -5,9 +5,11 @@
 #include "ABFPProtocol.h"
 #include "ABFPCreatureActor.generated.h"
 
+class UStaticMesh;
 class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
+class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UAnimMontage;
 class USoundBase;
@@ -73,30 +75,37 @@ protected:
     TObjectPtr<UStaticMeshComponent> CustomStaticMeshComp;
 
 private:
+    void EnsureProceduralParts();
+    void EnsureHealthBar();
     void SetProceduralPartsVisible(bool bVisible);
-    void DestroyUnusedProceduralParts();
     void RefreshTickState();
     void UpdateHealthBar();
 
-    UPROPERTY() TObjectPtr<USceneComponent> HealthBarRoot;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> HealthBarBg;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> HealthBarFill;
-    UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> HealthBarFillMat;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedSphereMesh;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedCylinderMesh;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedConeMesh;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedCubeMesh;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInterface> CachedBasicMat;
 
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> Body;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> Head;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftArm;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightArm;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftLeg;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightLeg;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftEye;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightEye;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> Tail;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftWing;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightWing;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> LeftHorn;
-    UPROPERTY() TObjectPtr<UStaticMeshComponent> RightHorn;
-    UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CreatureMaterial;
+    UPROPERTY() TObjectPtr<USceneComponent> HealthBarRoot;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> HealthBarBg;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> HealthBarFill;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> HealthBarFillMat;
+
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> Body;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> Head;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> LeftArm;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> RightArm;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> LeftLeg;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> RightLeg;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> LeftEye;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> RightEye;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> Tail;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> LeftWing;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> RightWing;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> LeftHorn;
+    UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> RightHorn;
+    UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> CreatureMaterial;
     UPROPERTY(Transient) TObjectPtr<UAnimMontage> ActiveHitMontage;
     UPROPERTY(Transient) TObjectPtr<UAnimMontage> ActiveDeathMontage;
     UPROPERTY(Transient) TObjectPtr<USoundBase> ActiveHitSound;
