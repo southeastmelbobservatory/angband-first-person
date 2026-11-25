@@ -236,15 +236,16 @@
   ],
   "terrain_meshes": [
     {
-      "id": "kk_stairs_up",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/stairs_walled.gltf.glb",
-      "dest": "terrain/stairs_walled.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
+      "id": "abfp_stairs_up",
+      "source": "procedural",
+      "dest": "terrain/abfp_stairs_up.glb",
+      "unreal_dest": "/Game/Assets/Terrain/Features",
       "catalog_slot": "dungeon.stairs_up",
+      "use_own_material": true,
       "scale": [
-        0.68,
-        0.68,
-        0.68
+        1.0,
+        1.0,
+        1.0
       ],
       "license": "CC0-1.0",
       "location_offset": [
@@ -254,20 +255,16 @@
       ]
     },
     {
-      "id": "kk_stairs_down",
-      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0/main/addons/kaykit_dungeon_remastered/Assets/gltf/stairs_wide.gltf.glb",
-      "dest": "terrain/stairs_wide.glb",
-      "unreal_dest": "/Game/Assets/Terrain",
+      "id": "abfp_stairs_down",
+      "source": "procedural",
+      "dest": "terrain/abfp_stairs_down.glb",
+      "unreal_dest": "/Game/Assets/Terrain/Features",
       "catalog_slot": "dungeon.stairs_down",
+      "use_own_material": true,
       "scale": [
-        0.52,
-        0.52,
-        0.52
-      ],
-      "rotation_offset": [
-        0,
-        180,
-        0
+        1.0,
+        1.0,
+        1.0
       ],
       "license": "CC0-1.0",
       "location_offset": [

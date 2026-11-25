@@ -619,7 +619,8 @@ def make_mesh_variant(mesh, material=None, scale=(1.0, 1.0, 1.0), loc=(0.0, 0.0,
     if material:
         v.set_editor_property("material_override", material)
     v.set_editor_property("location_offset", unreal.Vector(*loc))
-    v.set_editor_property("rotation_offset", unreal.Rotator(rot[0], rot[1], rot[2]))
+    # Explicit keyword args: unreal.Rotator positional order is (roll, pitch, yaw), NOT (pitch, yaw, roll)!
+    v.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
     v.set_editor_property("scale", unreal.Vector(*scale))
     return v
 
@@ -742,7 +743,18 @@ def main():
                 make_mesh_variant(cube_mesh, material=vein_mat, scale=(4.0, 4.0, 3.2), loc=(0.0, 0.0, 160.0))
             )
 
-    # 4b. Import Modular Dungeon Props (Pillars, Doors, Stairs, Traps, Torches, Shop Archways, Wall Decor)
+    # 4b. Generate & Import Modular Dungeon Props (Stairs, Rubble, Traps, Torches, Wall Decor)
+    feat_gen_path = repo_root / "tools" / "generate-dungeon-features.py"
+    if feat_gen_path.is_file():
+        try:
+            spec = importlib.util.spec_from_file_location("abfp_gen_features", str(feat_gen_path))
+            feat_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(feat_mod)
+            n_feat = feat_mod.generate_all(raw_root)
+            unreal.log(f"[ABFP] Generated {n_feat} bespoke dungeon architecture GLBs.")
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Failed generating dungeon features: {exc}")
+
     for entry in manifest.get("terrain_meshes", []):
         src = raw_root / entry["dest"]
         if not src.exists():
@@ -756,12 +768,18 @@ def main():
                 unreal.log_warning(f"[ABFP] No StaticMesh imported for {entry['id']}")
                 continue
 
-            mat_override = materials_by_name.get(entry.get("material_override", ""))
-            if not mat_override:
-                mat_override = kaykit_dungeon_mat or make_instanced_material_for_mesh(
+            if entry.get("use_own_material"):
+                mat_override = make_instanced_material_for_mesh(
                     entry["id"], paths, dest_sub, instanced_master_mat
                 )
-            assign_material_all_slots(mesh, mat_override)
+            else:
+                mat_override = materials_by_name.get(entry.get("material_override", ""))
+                if not mat_override:
+                    mat_override = kaykit_dungeon_mat or make_instanced_material_for_mesh(
+                        entry["id"], paths, dest_sub, instanced_master_mat
+                    )
+            if mat_override:
+                assign_material_all_slots(mesh, mat_override)
             variant = make_mesh_variant(
                 mesh,
                 material=mat_override,
@@ -867,7 +885,7 @@ def main():
             elif entry["id"] == "antique_estoc" and hero_mesh:
                 catalog.set_editor_property(
                     "first_person_weapon",
-                    make_mesh_variant(hero_mesh, scale=(0.65, 0.65, 0.65), loc=(0.0, 0.0, -6.0), rot=(38.0, -25.0, 12.0)),
+                    make_mesh_variant(hero_mesh, scale=(0.65, 0.65, 0.65), loc=(0.0, 0.0, -6.0), rot=(-25.0, 12.0, 38.0)),
                 )
             if "catalog_item" in entry:
                 ci = entry["catalog_item"]
@@ -880,7 +898,7 @@ def main():
                     item.set_editor_property("scale", unreal.Vector(*ci.get("scale", [1, 1, 1])))
                     item.set_editor_property("location_offset", unreal.Vector(*ci.get("location_offset", [0, 0, 8])))
                     rot = ci.get("rotation_offset", [0, 0, 0])
-                    item.set_editor_property("rotation_offset", unreal.Rotator(rot[0], rot[1], rot[2]))
+                    item.set_editor_property("rotation_offset", unreal.Rotator(pitch=float(rot[0]), yaw=float(rot[1]), roll=float(rot[2])))
                     item.set_editor_property("float_and_spin", bool(ci.get("float_and_spin", False)))
                     item.set_editor_property("emit_subtle_light", bool(ci.get("emit_light", False)))
                     if "light_color" in ci:

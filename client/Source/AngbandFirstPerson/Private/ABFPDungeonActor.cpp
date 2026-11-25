@@ -644,6 +644,44 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         return 0.0f;
     };
 
+    /* Compute stair entrance yaw so steps face an open walkable neighbor (preferring a back wall behind them). */
+    auto ComputeStairEntranceYaw = [&CellMap, &IsWallAt](int32 X, int32 Y) -> float
+    {
+        static const FIntPoint Dirs[4] = {
+            FIntPoint(1, 0), FIntPoint(0, 1), FIntPoint(-1, 0), FIntPoint(0, -1)
+        };
+        static const float Yaws[4] = { 0.0f, 90.0f, 180.0f, -90.0f };
+
+        auto IsOpenFloorAt = [&CellMap](int32 NX, int32 NY) -> bool
+        {
+            const FABFPCell* const* Found = CellMap.Find(FIntPoint(NX, NY));
+            if (!Found || !*Found) return false;
+            const EABFPTerrain T = (*Found)->Terrain;
+            return T == EABFPTerrain::Floor || T == EABFPTerrain::DoorOpen ||
+                T == EABFPTerrain::Door || T == EABFPTerrain::DoorBroken ||
+                T == EABFPTerrain::Shop || T == EABFPTerrain::Trap;
+        };
+
+        /* First pass: open neighbor with a wall directly opposite (ideal for 3-wall alcoves & room edges). */
+        for (int32 i = 0; i < 4; ++i)
+        {
+            if (IsOpenFloorAt(X + Dirs[i].X, Y + Dirs[i].Y) &&
+                IsWallAt(X - Dirs[i].X, Y - Dirs[i].Y))
+            {
+                return Yaws[i];
+            }
+        }
+        /* Second pass: any open neighbor. */
+        for (int32 i = 0; i < 4; ++i)
+        {
+            if (IsOpenFloorAt(X + Dirs[i].X, Y + Dirs[i].Y))
+            {
+                return Yaws[i];
+            }
+        }
+        return 90.0f;
+    };
+
     const FABFPTerrainVisualSet* TerrainSet = VisualCatalog ?
         &VisualCatalog->GetTerrainSetForDepth(Snapshot.DungeonDepth) : nullptr;
     const bool bShouldBuildCeilings = (Snapshot.DungeonDepth > 0) &&
@@ -685,7 +723,10 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             continue;
         }
 
-        /* Floor layer (all non-wall known cells). */
+        /* Floor layer (all non-wall known cells; skip solid floor slab on sunken StairsDown when custom stairwell mesh provides its own collar). */
+        const bool bSkipFloorForSunkenStairs = (Cell.Terrain == EABFPTerrain::StairsDown) &&
+            TerrainSet && TerrainSet->StairsDown.IsValid();
+        if (!bSkipFloorForSunkenStairs)
         {
             const TArray<FABFPMeshPoolEntry>& FloorPool =
                 Cell.bVisible ? CustomFloorPools : CustomRememberedFloorPools;
@@ -805,9 +846,10 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             const FABFPMeshVariant* CustomStair = TerrainSet ?
                 (bUp ? &TerrainSet->StairsUp : &TerrainSet->StairsDown) : nullptr;
             UInstancedStaticMeshComponent* StairLayer = bUp ? StairsUp : StairsDown;
+            const FRotator StairRot(0.0f, ComputeStairEntranceYaw(Cell.X, Cell.Y), 0.0f);
             if (CustomStair && CustomStair->IsValid())
             {
-                StairLayer->AddInstance(ComposeVariantTransform(Tile, FRotator::ZeroRotator, *CustomStair));
+                StairLayer->AddInstance(ComposeVariantTransform(Tile, StairRot, *CustomStair));
             }
             else
             {
@@ -816,8 +858,8 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
                     const int32 RampStep = bUp ? Step : 4 - Step;
                     const float OffsetX = (static_cast<float>(Step) - 2.0f) * (CellSize * 0.18f);
                     const float Height = 12.0f + RampStep * 26.0f;
-                    StairLayer->AddInstance(FTransform(FRotator::ZeroRotator,
-                        Tile + FVector(OffsetX, 0.0f, Height),
+                    StairLayer->AddInstance(FTransform(StairRot,
+                        Tile + StairRot.RotateVector(FVector(OffsetX, 0.0f, Height)),
                         FVector(CellSize / 520.0f, CellSize / 120.0f, 0.26f)));
                 }
             }

@@ -140,7 +140,16 @@ def main() -> int:
             tasks.extend(resolve_polyhaven_model_tasks(entry, raw_root))
 
     if include_cat("terrain"):
+        feat_gen = repo_root / "tools" / "generate-dungeon-features.py"
+        if feat_gen.is_file() and not args.dry_run:
+            spec = importlib.util.spec_from_file_location("abfp_gen_features", str(feat_gen))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            n_feat = mod.generate_all(raw_root)
+            print(f"Generated {n_feat} bespoke dungeon architecture GLBs.")
         for entry in manifest.get("terrain_meshes", []):
+            if entry.get("source") == "procedural" or not entry.get("url"):
+                continue
             tasks.append((entry["url"], raw_root / entry["dest"]))
 
     if include_cat("creatures"):
