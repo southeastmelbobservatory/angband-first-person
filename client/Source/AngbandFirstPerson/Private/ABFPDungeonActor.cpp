@@ -64,6 +64,8 @@ AABFPDungeonActor::AABFPDungeonActor()
         UInstancedStaticMeshComponent* Comp = CreateDefaultSubobject<UInstancedStaticMeshComponent>(Name);
         Comp->SetupAttachment(SceneRoot);
         Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Comp->SetGenerateOverlapEvents(false);
+        Comp->SetCanEverAffectNavigation(false);
         Comp->SetCastShadow(bCastShadow);
         return Comp;
     };
@@ -229,6 +231,7 @@ void AABFPDungeonActor::SetVisualCatalog(UABFPVisualCatalog* InCatalog)
 {
     VisualCatalog = InCatalog;
     ConfiguredVisualDepthCategory = INDEX_NONE;
+    bHasBuiltTerrainOnce = false;
     if (VisualCatalog)
     {
         CellSize = VisualCatalog->CellSize;
@@ -301,6 +304,8 @@ void AABFPDungeonActor::ConfigureMeshPool(
         Comp->SetupAttachment(SceneRoot);
         Comp->SetStaticMesh(Variant.Mesh);
         Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Comp->SetGenerateOverlapEvents(false);
+        Comp->SetCanEverAffectNavigation(false);
         Comp->SetCastShadow(bCastShadow);
         UMaterialInterface* ChosenMat = nullptr;
         if (DynamicTint && Variant.MaterialOverride)
@@ -629,6 +634,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
         }
         SpawnedEntities.Empty();
         LastDepth = Snapshot.DungeonDepth;
+        bHasBuiltTerrainOnce = false;
         if (bChangedLevels && VisualCatalog && VisualCatalog->StairsSound)
         {
             UGameplayStatics::PlaySound2D(this, VisualCatalog->StairsSound);
@@ -636,6 +642,28 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     }
 
     ApplyTerrainVisualsForDepth(Snapshot.DungeonDepth);
+
+    /* Hash terrain layout (depth + all cell coordinates/types/visibility/lighting).
+       When only monsters/items move (e.g. a pack of creatures moving while the player fights or waits),
+       the terrain signature is identical — skip tearing down and rebuilding 1,500+ ISM instances! */
+    uint64 TerrainSignature = static_cast<uint64>(Snapshot.DungeonDepth) * 0x9E3779B97F4A7C15ULL ^
+        static_cast<uint64>(Snapshot.Cells.Num());
+    for (const FABFPCell& Cell : Snapshot.Cells)
+    {
+        const uint64 Packed =
+            (static_cast<uint64>(static_cast<uint32>(Cell.X)) << 32) ^
+            (static_cast<uint64>(static_cast<uint32>(Cell.Y)) << 16) ^
+            (static_cast<uint64>(Cell.Terrain) << 4) ^
+            (Cell.bVisible ? 2ULL : 0ULL) ^
+            (Cell.bLit ? 1ULL : 0ULL);
+        TerrainSignature ^= Packed + 0x9E3779B97F4A7C15ULL + (TerrainSignature << 6) + (TerrainSignature >> 2);
+    }
+
+    const bool bTerrainChanged = !bHasBuiltTerrainOnce || (TerrainSignature != LastTerrainSignature);
+    if (bTerrainChanged)
+    {
+        LastTerrainSignature = TerrainSignature;
+        bHasBuiltTerrainOnce = true;
 
     Floors->ClearInstances();
     RememberedFloors->ClearInstances();
@@ -1205,6 +1233,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
     }
 
     UpdateDynamicRoomLights(Snapshot, CellMap);
+    } /* end if (bTerrainChanged) */
 
     TSet<int64> CurrentIds;
     for (const FABFPEntity& Entity : Snapshot.Entities)
@@ -1260,6 +1289,7 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Spawned))
             {
                 Creature->ApplyVisualEntry(VisualEntry);
+                Creature->SetCastShadowsEnabled(Snapshot.DungeonDepth == 0);
                 Creature->UpdateEntityState(Entity);
             }
         }

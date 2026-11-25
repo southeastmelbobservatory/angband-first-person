@@ -16,7 +16,9 @@ AABFPItemActor::AABFPItemActor()
     CustomMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CustomItemMesh"));
     CustomMeshComp->SetupAttachment(SceneRoot);
     CustomMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    CustomMeshComp->SetCastShadow(true);
+    CustomMeshComp->SetGenerateOverlapEvents(false);
+    CustomMeshComp->SetCanEverAffectNavigation(false);
+    CustomMeshComp->SetCastShadow(false);
     CustomMeshComp->SetVisibility(false);
 
     AccentLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("AccentLight"));
@@ -71,6 +73,7 @@ void AABFPItemActor::ApplyVisualEntry(const FABFPItemVisualEntry* Entry)
     {
         bUsingCustomVisual = false;
         bFloatAndSpin = true;
+        SetActorTickEnabled(true);
         BaseHeightZ = 38.0f;
         if (CustomMeshComp) CustomMeshComp->SetVisibility(false);
         if (AccentLight) AccentLight->SetVisibility(false);
@@ -80,6 +83,7 @@ void AABFPItemActor::ApplyVisualEntry(const FABFPItemVisualEntry* Entry)
 
     bUsingCustomVisual = true;
     bFloatAndSpin = Entry->bFloatAndSpin;
+    SetActorTickEnabled(bFloatAndSpin);
     BaseHeightZ = Entry->LocationOffset.Z;
 
     if (Core) Core->SetVisibility(false);

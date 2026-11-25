@@ -23,13 +23,21 @@ AABFPCreatureActor::AABFPCreatureActor()
     SkeletalMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMesh"));
     SkeletalMeshComp->SetupAttachment(SceneRoot);
     SkeletalMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    SkeletalMeshComp->SetCastShadow(true);
+    SkeletalMeshComp->SetGenerateOverlapEvents(false);
+    SkeletalMeshComp->SetCanEverAffectNavigation(false);
+    SkeletalMeshComp->SetCastShadow(false);
+    SkeletalMeshComp->bCastInsetShadow = false;
+    SkeletalMeshComp->bComponentUseFixedSkelBounds = true;
+    SkeletalMeshComp->bEnableUpdateRateOptimizations = true;
+    SkeletalMeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
     SkeletalMeshComp->SetVisibility(false);
 
     CustomStaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CustomStaticMesh"));
     CustomStaticMeshComp->SetupAttachment(SceneRoot);
     CustomStaticMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    CustomStaticMeshComp->SetCastShadow(true);
+    CustomStaticMeshComp->SetGenerateOverlapEvents(false);
+    CustomStaticMeshComp->SetCanEverAffectNavigation(false);
+    CustomStaticMeshComp->SetCastShadow(false);
     CustomStaticMeshComp->SetVisibility(false);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
@@ -75,7 +83,9 @@ AABFPCreatureActor::AABFPCreatureActor()
         Part->SetRelativeLocation(Location);
         Part->SetRelativeScale3D(Scale);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Part->SetCastShadow(true);
+        Part->SetGenerateOverlapEvents(false);
+        Part->SetCanEverAffectNavigation(false);
+        Part->SetCastShadow(false);
         return Part;
     };
 
@@ -155,6 +165,45 @@ void AABFPCreatureActor::SetProceduralPartsVisible(bool bVisible)
     }
 }
 
+void AABFPCreatureActor::DestroyUnusedProceduralParts()
+{
+    auto DropPart = [](TObjectPtr<UStaticMeshComponent>& Part)
+    {
+        if (Part)
+        {
+            Part->DestroyComponent();
+            Part = nullptr;
+        }
+    };
+    DropPart(Body);
+    DropPart(Head);
+    DropPart(LeftArm);
+    DropPart(RightArm);
+    DropPart(LeftLeg);
+    DropPart(RightLeg);
+    DropPart(LeftEye);
+    DropPart(RightEye);
+    DropPart(Tail);
+    DropPart(LeftWing);
+    DropPart(RightWing);
+    DropPart(LeftHorn);
+    DropPart(RightHorn);
+}
+
+void AABFPCreatureActor::SetCastShadowsEnabled(bool bEnableShadows)
+{
+    if (SkeletalMeshComp) SkeletalMeshComp->SetCastShadow(bEnableShadows);
+    if (CustomStaticMeshComp) CustomStaticMeshComp->SetCastShadow(bEnableShadows);
+}
+
+void AABFPCreatureActor::RefreshTickState()
+{
+    const bool bHealthBarVisible = HealthBarBg && HealthBarBg->IsVisible();
+    const bool bNeedTick = !bUsingCustomVisual || bInterpolating || bDying ||
+        DamageFlashSeconds > 0.0f || bHealthBarVisible;
+    SetActorTickEnabled(bNeedTick);
+}
+
 void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
 {
     ActiveHitMontage = nullptr;
@@ -169,6 +218,7 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
         if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
         if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
         SetProceduralPartsVisible(true);
+        RefreshTickState();
         return;
     }
 
@@ -181,8 +231,12 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
     {
         bUsingCustomVisual = true;
         bUsingSkeletalVisual = true;
-        SetProceduralPartsVisible(false);
-        if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
+        DestroyUnusedProceduralParts();
+        if (CustomStaticMeshComp)
+        {
+            CustomStaticMeshComp->DestroyComponent();
+            CustomStaticMeshComp = nullptr;
+        }
 
         SkeletalMeshComp->SetSkeletalMeshAsset(Entry->SkeletalMesh);
         SkeletalMeshComp->SetRelativeLocation(Entry->LocationOffset);
@@ -207,6 +261,7 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
             SkeletalMeshComp->PlayAnimation(Entry->IdleAnim, true);
         }
         SkeletalMeshComp->SetVisibility(true);
+        RefreshTickState();
         return;
     }
 
@@ -214,8 +269,12 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
     {
         bUsingCustomVisual = true;
         bUsingSkeletalVisual = false;
-        SetProceduralPartsVisible(false);
-        if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
+        DestroyUnusedProceduralParts();
+        if (SkeletalMeshComp)
+        {
+            SkeletalMeshComp->DestroyComponent();
+            SkeletalMeshComp = nullptr;
+        }
 
         CustomStaticMeshComp->SetStaticMesh(Entry->StaticMeshFallback);
         CustomStaticMeshComp->SetRelativeLocation(Entry->LocationOffset);
@@ -230,6 +289,7 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
             }
         }
         CustomStaticMeshComp->SetVisibility(true);
+        RefreshTickState();
         return;
     }
 
@@ -238,7 +298,8 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
         /* A custom Blueprint actor subclass owns its own mesh hierarchy. */
         bUsingCustomVisual = true;
         bUsingSkeletalVisual = false;
-        SetProceduralPartsVisible(false);
+        DestroyUnusedProceduralParts();
+        RefreshTickState();
         return;
     }
 
@@ -247,6 +308,7 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
     if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
     if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
     SetProceduralPartsVisible(true);
+    RefreshTickState();
 }
 
 void AABFPCreatureActor::UpdateHealthBar()
@@ -254,6 +316,7 @@ void AABFPCreatureActor::UpdateHealthBar()
     const bool bShowBar = !bDying && MaxHitPoints > 0 && CurrentHitPoints > 0 && CurrentHitPoints < MaxHitPoints;
     if (HealthBarBg) HealthBarBg->SetVisibility(bShowBar);
     if (HealthBarFill) HealthBarFill->SetVisibility(bShowBar);
+    RefreshTickState();
     if (!bShowBar || !HealthBarFill) return;
 
     const float Ratio = FMath::Clamp(
@@ -347,6 +410,7 @@ void AABFPCreatureActor::PlayHitReaction(int32 Damage)
 {
     if (bDying) return;
     DamageFlashSeconds = 0.22f;
+    RefreshTickState();
 
     if (bUsingSkeletalVisual && SkeletalMeshComp && ActiveHitMontage)
     {
@@ -367,6 +431,7 @@ void AABFPCreatureActor::PlayDeathReaction()
     if (bDying) return;
     bDying = true;
     UpdateHealthBar();
+    RefreshTickState();
     DeathSeconds = 0.0f;
     DeathDuration = 0.72f;
     if (bInterpolating)
@@ -406,6 +471,7 @@ void AABFPCreatureActor::SetTargetLocation(const FVector& Location,
     {
         OnCreatureMovementChanged(bInterpolating);
     }
+    RefreshTickState();
 }
 
 void AABFPCreatureActor::Tick(float DeltaSeconds)
@@ -447,6 +513,7 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
             SetActorRotation(TargetRotation);
             bInterpolating = false;
             OnCreatureMovementChanged(false);
+            RefreshTickState();
         }
     }
 
@@ -465,6 +532,10 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
 
     if (bUsingCustomVisual)
     {
+        if (DamageFlashSeconds <= 0.0f && !bInterpolating && !(HealthBarBg && HealthBarBg->IsVisible()))
+        {
+            SetActorTickEnabled(false);
+        }
         return;
     }
 

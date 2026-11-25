@@ -107,7 +107,8 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
      * make the socket readable with zero payload. Probe that case as well so
      * the pawn's reconnect loop can recover after a host restart.
      */
-    while (true)
+    int32 RecvChunks = 0;
+    while (RecvChunks < 32)
     {
         uint32 Pending = 0;
         const bool bHasPending = Socket->HasPendingData(Pending) && Pending > 0;
@@ -118,7 +119,7 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
         }
 
         const int32 ToRead = bHasPending ?
-            static_cast<int32>(FMath::Min<uint32>(Pending, 8192)) : 8192;
+            static_cast<int32>(FMath::Min<uint32>(Pending, 16384)) : 16384;
         const int32 OldNum = RawReceiveBuffer.Num();
         RawReceiveBuffer.SetNumUninitialized(OldNum + ToRead);
         int32 Read = 0;
@@ -129,6 +130,7 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
             return false;
         }
         RawReceiveBuffer.SetNum(OldNum + Read, EAllowShrinking::No);
+        ++RecvChunks;
         if (RawReceiveBuffer.Num() > 4 * 1024 * 1024)
         {
             Disconnect();
@@ -136,26 +138,29 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
         }
     }
 
-    bool bUpdated = false;
-    int32 ConsumeOffset = 0;
-    while (ConsumeOffset < RawReceiveBuffer.Num())
+    /* If multiple complete snapshots arrived during a hitch, deserialize only the newest one
+       (preserving any older lines' discard via ConsumeOffset) so the GameThread never burns
+       cycles parsing stale intermediate 45KB JSON frames. */
+    int32 LastNewlineIndex = INDEX_NONE;
+    int32 PrevNewlineIndex = INDEX_NONE;
+    for (int32 Idx = 0; Idx < RawReceiveBuffer.Num(); ++Idx)
     {
-        int32 NewlineIndex = INDEX_NONE;
-        for (int32 Idx = ConsumeOffset; Idx < RawReceiveBuffer.Num(); ++Idx)
+        if (RawReceiveBuffer[Idx] == static_cast<uint8>('\n'))
         {
-            if (RawReceiveBuffer[Idx] == static_cast<uint8>('\n'))
-            {
-                NewlineIndex = Idx;
-                break;
-            }
+            PrevNewlineIndex = LastNewlineIndex;
+            LastNewlineIndex = Idx;
         }
-        if (NewlineIndex == INDEX_NONE) break;
+    }
 
-        const int32 LineLength = NewlineIndex - ConsumeOffset;
+    bool bUpdated = false;
+    if (LastNewlineIndex != INDEX_NONE)
+    {
+        const int32 LineStart = (PrevNewlineIndex == INDEX_NONE) ? 0 : (PrevNewlineIndex + 1);
+        const int32 LineLength = LastNewlineIndex - LineStart;
         if (LineLength > 0)
         {
             FUTF8ToTCHAR Converter(
-                reinterpret_cast<const ANSICHAR*>(RawReceiveBuffer.GetData() + ConsumeOffset),
+                reinterpret_cast<const ANSICHAR*>(RawReceiveBuffer.GetData() + LineStart),
                 LineLength);
             const FString Line(Converter.Length(), Converter.Get());
             FABFPSnapshot Parsed;
@@ -165,12 +170,7 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
                 bUpdated = true;
             }
         }
-        ConsumeOffset = NewlineIndex + 1;
-    }
-
-    if (ConsumeOffset > 0)
-    {
-        RawReceiveBuffer.RemoveAt(0, ConsumeOffset, EAllowShrinking::No);
+        RawReceiveBuffer.RemoveAt(0, LastNewlineIndex + 1, EAllowShrinking::No);
     }
 
     return bUpdated;

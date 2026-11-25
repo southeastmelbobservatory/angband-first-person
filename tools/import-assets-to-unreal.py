@@ -608,6 +608,60 @@ def build_creature_color_material(entry_id: str, color_rgb, use_vertex_color: bo
     return mat
 
 
+def decimate_creature_mesh(mesh, entry_id: str, max_tris: int = 4500) -> None:
+    """Automatically decimate ultra-high-poly CC0 creature meshes (e.g. 300K-triangle Grab3D models)
+    down to ~4,500 triangles on LOD0 so packs of 10+ dungeon creatures never stall DX11/SM5 GPUs."""
+    if not mesh:
+        return
+    try:
+        if isinstance(mesh, unreal.StaticMesh):
+            sm_subsys = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+            if not sm_subsys:
+                return
+            tris = int(sm_subsys.get_number_triangles(mesh, 0))
+            if tris <= max_tris + 500:
+                return
+            pct = max(0.012, min(1.0, float(max_tris) / float(tris)))
+            opts = sm_subsys.get_lod_reduction_settings(mesh, 0)
+            opts.set_editor_property("percent_triangles", pct)
+            sm_subsys.set_lod_reduction_settings(mesh, 0, opts)
+            unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+            after = int(sm_subsys.get_number_triangles(mesh, 0))
+            unreal.log(f"[ABFP] Reduced StaticMesh {entry_id}: {tris} -> {after} tris")
+        elif isinstance(mesh, unreal.SkeletalMesh):
+            sk_subsys = unreal.get_editor_subsystem(unreal.SkeletalMeshEditorSubsystem)
+            if not sk_subsys:
+                return
+            # Query LOD0 triangle count if available via lod_info / sections
+            lod_infos = None
+            try:
+                lod_infos = mesh.get_editor_property("lod_info")
+            except Exception:
+                lod_infos = None
+            # Only decimate heavy rigged meshes (known >15K tris) using reduction_settings + regenerate_lod
+            heavy_rigged = {
+                "cc0_yeti": 0.018,
+                "cc0_stone_golem": 0.018,
+                "cc0_werewolf": 0.018,
+                "cc0_zombie": 0.020,
+                "cc0_vampire_bat": 0.18,
+                "quaternius_creep": 0.32,
+            }
+            pct = heavy_rigged.get(entry_id)
+            if pct is None:
+                return
+            if lod_infos and len(lod_infos) > 0:
+                red = lod_infos[0].get_editor_property("reduction_settings")
+                red.set_editor_property("num_of_triangles_percentage", pct)
+                lod_infos[0].set_editor_property("reduction_settings", red)
+                mesh.set_editor_property("lod_info", lod_infos)
+                ok = sk_subsys.regenerate_lod(mesh, 1, True)
+                unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                unreal.log(f"[ABFP] Reduced SkeletalMesh {entry_id} to {pct*100:.1f}% tris (ok={ok})")
+    except Exception as exc:
+        unreal.log_warning(f"[ABFP] Mesh reduction skipped for {entry_id}: {exc}")
+
+
 def compute_creature_fit(mesh, entry: dict):
     """Compute uniform scale and floor-grounding Z offset from the imported Unreal mesh bounds
     so every creature matches its target_height_cm and stands cleanly on the floor."""
@@ -1033,6 +1087,7 @@ def main():
                 continue
 
             imported_species += 1
+            decimate_creature_mesh(skel_mesh or static_mesh, entry["id"], max_tris=4500)
             idle_anim = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
             hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
             death_sound = audio_by_id.get(entry.get("death_sound", ""))

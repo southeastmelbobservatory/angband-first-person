@@ -45,6 +45,7 @@ public:
     void SetTargetLocation(const FVector& Location, const FRotator& Rotation);
     void SetCreatureAppearance(const FString& Name, int32 KindId);
     void ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry);
+    void SetCastShadowsEnabled(bool bEnableShadows);
     void UpdateEntityState(const FABFPEntity& Entity);
 
 protected:
@@ -73,6 +74,8 @@ protected:
 
 private:
     void SetProceduralPartsVisible(bool bVisible);
+    void DestroyUnusedProceduralParts();
+    void RefreshTickState();
     void UpdateHealthBar();
 
     UPROPERTY() TObjectPtr<USceneComponent> HealthBarRoot;

@@ -140,5 +140,7 @@ private:
 
     int32 LastDepth = INDEX_NONE;
     int32 ConfiguredVisualDepthCategory = INDEX_NONE;
+    uint64 LastTerrainSignature = 0;
+    bool bHasBuiltTerrainOnce = false;
     float FlickerElapsed = 0.0f;
 };
