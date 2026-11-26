@@ -1,10 +1,12 @@
 #include "ABFPNetworkClient.h"
 
 #include "Dom/JsonObject.h"
+#include "HAL/PlatformTime.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "SocketSubsystem.h"
+#include "SocketTypes.h"
 #include "Containers/StringConv.h"
 
 namespace
@@ -35,7 +37,12 @@ namespace
     }
 }
 
-bool FABFPNetworkClient::Connect(const FString& Host, int32 Port)
+FABFPNetworkClient::~FABFPNetworkClient()
+{
+    Disconnect();
+}
+
+bool FABFPNetworkClient::BeginConnect(const FString& Host, int32 Port)
 {
     Disconnect();
     ISocketSubsystem* Subsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
@@ -44,20 +51,91 @@ bool FABFPNetworkClient::Connect(const FString& Host, int32 Port)
     Socket = Subsystem->CreateSocket(NAME_Stream, TEXT("ABFP TCP Client"), false);
     if (!Socket) return false;
 
+    /* Set non-blocking BEFORE Connect() so Winsock never freezes the GameThread for
+     * ~2.04 seconds of synchronous TCP SYN retransmissions when no host is listening. */
+    if (!Socket->SetNonBlocking(true))
+    {
+        Disconnect();
+        return false;
+    }
+    Socket->SetNoDelay(true);
+
     bool bValidAddress = false;
     TSharedRef<FInternetAddr> Address = Subsystem->CreateInternetAddr();
     Address->SetIp(*Host, bValidAddress);
     Address->SetPort(Port);
-    if (!bValidAddress || !Socket->Connect(*Address))
+    if (!bValidAddress)
     {
         Disconnect();
         return false;
     }
 
-    Socket->SetNonBlocking(true);
-    Socket->SetNoDelay(true);
+    const bool bConnectStarted = Socket->Connect(*Address);
+    if (!bConnectStarted)
+    {
+        const ESocketErrors LastError = Subsystem->GetLastErrorCode();
+        if (LastError != SE_NO_ERROR &&
+            LastError != SE_EWOULDBLOCK &&
+            LastError != SE_EINPROGRESS)
+        {
+            Disconnect();
+            return false;
+        }
+    }
+
     RawReceiveBuffer.Reset();
+    ConnectStartTimeSeconds = FPlatformTime::Seconds();
+    LastConnectPollTimeSeconds = 0.0;
+
+    /* Check once immediately in case loopback completed synchronously. */
+    const ESocketConnectionState SockState = Socket->GetConnectionState();
+    if (SockState == ESocketConnectionState::SCS_Connected)
+    {
+        ConnectionState = EABFPConnectionState::Connected;
+    }
+    else if (SockState == ESocketConnectionState::SCS_ConnectionError)
+    {
+        Disconnect();
+        return false;
+    }
+    else
+    {
+        ConnectionState = EABFPConnectionState::Connecting;
+    }
     return true;
+}
+
+EABFPConnectionState FABFPNetworkClient::TickConnect()
+{
+    if (ConnectionState != EABFPConnectionState::Connecting || !Socket)
+    {
+        return ConnectionState;
+    }
+
+    const double Now = FPlatformTime::Seconds();
+    if ((Now - ConnectStartTimeSeconds) >= 3.0)
+    {
+        Disconnect();
+        return ConnectionState;
+    }
+
+    /* Poll immediately on the first tick after BeginConnect(), then every 50ms. */
+    if (LastConnectPollTimeSeconds > 0.0 && (Now - LastConnectPollTimeSeconds) < 0.05)
+    {
+        return ConnectionState;
+    }
+    LastConnectPollTimeSeconds = Now;
+
+    const ESocketConnectionState SockState = Socket->GetConnectionState();
+    if (SockState == ESocketConnectionState::SCS_Connected)
+    {
+        ConnectionState = EABFPConnectionState::Connected;
+    }
+    else if (SockState == ESocketConnectionState::SCS_ConnectionError)
+    {
+        Disconnect();
+    }
+    return ConnectionState;
 }
 
 void FABFPNetworkClient::Disconnect()
@@ -69,18 +147,15 @@ void FABFPNetworkClient::Disconnect()
             Subsystem->DestroySocket(Socket);
         Socket = nullptr;
     }
+    ConnectionState = EABFPConnectionState::Disconnected;
+    ConnectStartTimeSeconds = 0.0;
+    LastConnectPollTimeSeconds = 0.0;
     RawReceiveBuffer.Reset();
-}
-
-bool FABFPNetworkClient::IsConnected() const
-{
-    return Socket != nullptr &&
-        Socket->GetConnectionState() == ESocketConnectionState::SCS_Connected;
 }
 
 bool FABFPNetworkClient::SendCommand(const FString& Command)
 {
-    if (!Socket || Command.IsEmpty()) return false;
+    if (!IsConnected() || Command.IsEmpty()) return false;
     const FString Wire = Command + TEXT("\n");
     FTCHARToUTF8 Utf8(*Wire);
     int32 Offset = 0;
@@ -100,7 +175,7 @@ bool FABFPNetworkClient::SendCommand(const FString& Command)
 
 bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
 {
-    if (!Socket) return false;
+    if (!IsConnected()) return false;
 
     /*
      * HasPendingData() reports payload bytes, but an orderly TCP close can
@@ -123,7 +198,20 @@ bool FABFPNetworkClient::PollSnapshot(FABFPSnapshot& OutSnapshot)
         const int32 OldNum = RawReceiveBuffer.Num();
         RawReceiveBuffer.SetNumUninitialized(OldNum + ToRead);
         int32 Read = 0;
-        if (!Socket->Recv(RawReceiveBuffer.GetData() + OldNum, ToRead, Read) || Read <= 0)
+        const bool bRecvOk = Socket->Recv(RawReceiveBuffer.GetData() + OldNum, ToRead, Read);
+        if (!bRecvOk)
+        {
+            RawReceiveBuffer.SetNum(OldNum, EAllowShrinking::No);
+            ISocketSubsystem* Subsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+            const ESocketErrors LastError = Subsystem ? Subsystem->GetLastErrorCode() : SE_NO_ERROR;
+            if (LastError == SE_EWOULDBLOCK || LastError == SE_EINTR)
+            {
+                break;
+            }
+            Disconnect();
+            return false;
+        }
+        if (Read <= 0)
         {
             RawReceiveBuffer.SetNum(OldNum, EAllowShrinking::No);
             Disconnect();

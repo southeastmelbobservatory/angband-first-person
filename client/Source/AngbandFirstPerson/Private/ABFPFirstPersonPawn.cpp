@@ -359,23 +359,40 @@ void AABFPFirstPersonPawn::BeginPlay()
         Dungeon->SetVisualCatalog(LoadedVisualCatalog);
     }
 
-    bLiveMode = NetworkClient.Connect(HostAddress, HostPort);
-    if (bLiveMode)
+    bLiveMode = false;
+    bOfflineDemoInitialized = false;
+    ReconnectRetrySeconds = 3.0f;
+    InitialConnectGraceSeconds = 0.45f;
+
+    if (NetworkClient.BeginConnect(HostAddress, HostPort))
     {
-        AddStatusMessage(FString::Printf(TEXT("Connected to Angband host %s:%d. Waiting for state..."),
-            *HostAddress, HostPort));
+        if (NetworkClient.IsConnected())
+        {
+            bLiveMode = true;
+            InitialConnectGraceSeconds = 0.0f;
+            AddStatusMessage(FString::Printf(TEXT("Connected to Angband host %s:%d. Waiting for state..."),
+                *HostAddress, HostPort));
+        }
     }
     else
     {
-        BuildDemoSnapshot();
-        UpdateEquippedViewModels(true);
-        const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
-        SetActorLocation(FVector(CurrentSnapshot.PlayerX * GridCellSize,
-            CurrentSnapshot.PlayerY * GridCellSize, 0.0f));
-        TargetPawnLocation = GetActorLocation();
-        if (Dungeon) Dungeon->ApplySnapshot(CurrentSnapshot);
-        AppendMessages(CurrentSnapshot.Messages);
+        InitialConnectGraceSeconds = 0.0f;
+        StartOfflineShowcase();
     }
+}
+
+void AABFPFirstPersonPawn::StartOfflineShowcase()
+{
+    if (bOfflineDemoInitialized || bHaveAuthoritativeState || bLiveMode) return;
+    bOfflineDemoInitialized = true;
+    BuildDemoSnapshot();
+    UpdateEquippedViewModels(true);
+    const float GridCellSize = Dungeon ? Dungeon->CellSize : 400.0f;
+    SetActorLocation(FVector(CurrentSnapshot.PlayerX * GridCellSize,
+        CurrentSnapshot.PlayerY * GridCellSize, 0.0f));
+    TargetPawnLocation = GetActorLocation();
+    if (Dungeon) Dungeon->ApplySnapshot(CurrentSnapshot);
+    AppendMessages(CurrentSnapshot.Messages);
 }
 
 void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
@@ -419,28 +436,72 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         }
     }
 
-    if (!NetworkClient.IsConnected())
+    const EABFPConnectionState PrevConnState = NetworkClient.GetConnectionState();
+    const EABFPConnectionState ConnState = NetworkClient.TickConnect();
+
+    if (PrevConnState == EABFPConnectionState::Connecting &&
+        ConnState == EABFPConnectionState::Connected)
+    {
+        bLiveMode = true;
+        bHaveAuthoritativeState = false;
+        bAwaitingServerTurn = false;
+        AwaitingTurnSeconds = 0.0f;
+        bInterpolatingMove = false;
+        InitialConnectGraceSeconds = 0.0f;
+        AddStatusMessage(FString::Printf(TEXT("Connected to Angband host %s:%d"),
+            *HostAddress, HostPort));
+    }
+    else if (PrevConnState == EABFPConnectionState::Connecting &&
+        ConnState == EABFPConnectionState::Disconnected)
+    {
+        ReconnectRetrySeconds = bLiveMode ? 1.5f : 3.0f;
+    }
+
+    if (ConnState != EABFPConnectionState::Connected)
     {
         if (bLiveMode && bHaveAuthoritativeState)
         {
             bHaveAuthoritativeState = false;
             bAwaitingServerTurn = false;
             AwaitingTurnSeconds = 0.0f;
+            ReconnectRetrySeconds = 1.0f;
             AddStatusMessage(TEXT("Disconnected from Angband host. Reconnecting..."));
         }
-        ReconnectRetrySeconds -= DeltaSeconds;
-        if (ReconnectRetrySeconds <= 0.0f)
+
+        if (ConnState == EABFPConnectionState::Connecting)
         {
-            ReconnectRetrySeconds = 2.0f;
-            if (NetworkClient.Connect(HostAddress, HostPort))
+            if (InitialConnectGraceSeconds > 0.0f)
             {
-                bLiveMode = true;
-                bHaveAuthoritativeState = false;
-                bAwaitingServerTurn = false;
-                AwaitingTurnSeconds = 0.0f;
-                bInterpolatingMove = false;
-                AddStatusMessage(FString::Printf(TEXT("Connected to Angband host %s:%d"),
-                    *HostAddress, HostPort));
+                InitialConnectGraceSeconds -= DeltaSeconds;
+                if (InitialConnectGraceSeconds <= 0.0f && !bLiveMode && !bHaveAuthoritativeState && !bOfflineDemoInitialized)
+                {
+                    StartOfflineShowcase();
+                }
+            }
+        }
+        else
+        {
+            if (!bLiveMode && !bHaveAuthoritativeState && !bOfflineDemoInitialized)
+            {
+                InitialConnectGraceSeconds = 0.0f;
+                StartOfflineShowcase();
+            }
+
+            ReconnectRetrySeconds -= DeltaSeconds;
+            if (ReconnectRetrySeconds <= 0.0f)
+            {
+                ReconnectRetrySeconds = bLiveMode ? 1.5f : 3.0f;
+                if (NetworkClient.BeginConnect(HostAddress, HostPort) && NetworkClient.IsConnected())
+                {
+                    bLiveMode = true;
+                    bHaveAuthoritativeState = false;
+                    bAwaitingServerTurn = false;
+                    AwaitingTurnSeconds = 0.0f;
+                    bInterpolatingMove = false;
+                    InitialConnectGraceSeconds = 0.0f;
+                    AddStatusMessage(FString::Printf(TEXT("Connected to Angband host %s:%d"),
+                        *HostAddress, HostPort));
+                }
             }
         }
     }

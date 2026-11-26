@@ -186,6 +186,7 @@ private:
 
     void SendSimpleCommand(const FString& Command);
     void MoveRelative(FVector2D LocalDirection);
+    void StartOfflineShowcase();
     void BuildDemoSnapshot();
     void TryDemoStep(int32 DX, int32 DY);
     void TryDemoInteract(int32 DX, int32 DY);
@@ -207,6 +208,7 @@ private:
     float AttackSwingSeconds = 0.0f;
     bool bInterpolatingMove = false;
     bool bLiveMode = false;
+    bool bOfflineDemoInitialized = false;
     bool bAwaitingServerTurn = false;
     float AwaitingTurnSeconds = 0.0f;
     bool bHaveAuthoritativeState = false;
@@ -215,6 +217,7 @@ private:
     EABFPMenuMode ActiveMenu = EABFPMenuMode::None;
     int32 SelectedMenuIndex = 0;
     float ReconnectRetrySeconds = 0.0f;
+    float InitialConnectGraceSeconds = 0.0f;
     float PlayerDamageFlashSeconds = 0.0f;
     float NewCharConfirmSeconds = 0.0f;
     int64 LockedTargetId = 0;
