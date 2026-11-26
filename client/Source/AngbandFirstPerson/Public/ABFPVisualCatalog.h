@@ -300,6 +300,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Creatures")
     FABFPCreatureVisualEntry DefaultCreature;
 
+    /** Shared unlit translucent radial shadow disc placed under every creature to ground it with zero shadow-map cost. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Creatures")
+    TObjectPtr<UMaterialInterface> CreatureContactShadowMaterial = nullptr;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Items")
     TArray<FABFPItemVisualEntry> Items;
 

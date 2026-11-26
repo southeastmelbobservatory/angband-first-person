@@ -1106,8 +1106,8 @@
     },
     {
       "id": "cc0_spider",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/pixispider/pixispider.glb",
-      "dest": "creatures/spider.glb",
+      "source": "procedural",
+      "dest": "creatures/abfp_cave_spider.glb",
       "unreal_dest": "/Game/Assets/Creatures/Spider",
       "rigged": false,
       "keywords": [
@@ -1128,13 +1128,7 @@
       "hit_sound": "imp_hurt",
       "death_sound": "imp_death",
       "license": "CC0-1.0",
-      "target_height_cm": 95,
-      "fallback_color": [
-        0.018,
-        0.012,
-        0.015
-      ],
-      "fallback_roughness": 0.45
+      "target_height_cm": 105
     },
     {
       "id": "cc0_vampire_bat",
@@ -1242,10 +1236,10 @@
     },
     {
       "id": "cc0_dragon",
-      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/converted/cethiels-dragon-3d/dragon.glb",
-      "dest": "creatures/dragon.glb",
+      "url": "https://raw.githubusercontent.com/oosawak/cc0-monsters/main/files/grab3d/dragon/preview.glb",
+      "dest": "creatures/dragon_sculpted.glb",
       "unreal_dest": "/Game/Assets/Creatures/Dragon",
-      "rigged": true,
+      "rigged": false,
       "keywords": [
         "dragon",
         "wyrm"

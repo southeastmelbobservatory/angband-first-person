@@ -8,6 +8,8 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Sound/SoundBase.h"
@@ -41,6 +43,16 @@ AABFPCreatureActor::AABFPCreatureActor()
     CustomStaticMeshComp->SetCastShadow(false);
     CustomStaticMeshComp->SetVisibility(false);
 
+    ContactShadowComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ContactShadow"));
+    ContactShadowComp->SetupAttachment(SceneRoot);
+    ContactShadowComp->SetRelativeLocation(FVector(0.0f, 0.0f, 1.5f));
+    ContactShadowComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ContactShadowComp->SetGenerateOverlapEvents(false);
+    ContactShadowComp->SetCanEverAffectNavigation(false);
+    ContactShadowComp->SetCastShadow(false);
+    ContactShadowComp->bReceivesDecals = false;
+    ContactShadowComp->SetVisibility(false);
+
     HealthBarRoot = CreateDefaultSubobject<USceneComponent>(TEXT("HealthBarRoot"));
     HealthBarRoot->SetupAttachment(SceneRoot);
     HealthBarRoot->SetRelativeLocation(FVector(0.0f, 0.0f, 255.0f));
@@ -53,6 +65,8 @@ AABFPCreatureActor::AABFPCreatureActor()
         TEXT("/Engine/BasicShapes/Cone.Cone"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneMesh(
+        TEXT("/Engine/BasicShapes/Plane.Plane"));
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMaterial(
         TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
@@ -60,7 +74,15 @@ AABFPCreatureActor::AABFPCreatureActor()
     CachedCylinderMesh = CylinderMesh.Succeeded() ? CylinderMesh.Object.Get() : CachedSphereMesh.Get();
     CachedConeMesh = ConeMesh.Succeeded() ? ConeMesh.Object.Get() : CachedSphereMesh.Get();
     CachedCubeMesh = CubeMesh.Succeeded() ? CubeMesh.Object : nullptr;
+    CachedPlaneMesh = PlaneMesh.Succeeded() ? PlaneMesh.Object : nullptr;
     CachedBasicMat = BasicMaterial.Succeeded() ? BasicMaterial.Object : nullptr;
+
+    if (ContactShadowComp && CachedPlaneMesh)
+    {
+        ContactShadowComp->SetStaticMesh(CachedPlaneMesh);
+        ContactShadowComp->SetRelativeScale3D(FVector(BaseShadowScale, BaseShadowScale, 1.0f));
+    }
+    AnimPhaseOffset = FMath::FRandRange(0.0f, 6.283185f);
 }
 
 void AABFPCreatureActor::EnsureHealthBar()
@@ -195,11 +217,79 @@ void AABFPCreatureActor::SetCastShadowsEnabled(bool bEnableShadows)
     if (CustomStaticMeshComp) CustomStaticMeshComp->SetCastShadow(bEnableShadows);
 }
 
+void AABFPCreatureActor::SetContactShadowMaterial(UMaterialInterface* ShadowMat)
+{
+    bHasContactShadowMat = (ShadowMat != nullptr);
+    if (!ContactShadowComp) return;
+    if (ShadowMat)
+    {
+        ContactShadowComp->SetMaterial(0, ShadowMat);
+        RefreshContactShadowSize();
+        ContactShadowComp->SetVisibility(!bDying);
+    }
+    else
+    {
+        ContactShadowComp->SetVisibility(false);
+    }
+}
+
+void AABFPCreatureActor::RefreshContactShadowSize()
+{
+    if (!ContactShadowComp) return;
+    float FootprintDiameter = 120.0f;
+    if (bUsingSkeletalVisual && SkeletalMeshComp && SkeletalMeshComp->GetSkeletalMeshAsset())
+    {
+        const FBoxSphereBounds Bounds = SkeletalMeshComp->GetSkeletalMeshAsset()->GetBounds();
+        const float SpanX = Bounds.BoxExtent.X * 2.0f * FMath::Abs(BaseSkeletalScale.X);
+        const float SpanY = Bounds.BoxExtent.Y * 2.0f * FMath::Abs(BaseSkeletalScale.Y);
+        FootprintDiameter = FMath::Max(SpanX, SpanY);
+    }
+    else if (bUsingCustomVisual && CustomStaticMeshComp && CustomStaticMeshComp->GetStaticMesh())
+    {
+        const FBoxSphereBounds Bounds = CustomStaticMeshComp->GetStaticMesh()->GetBounds();
+        const float SpanX = Bounds.BoxExtent.X * 2.0f * FMath::Abs(BaseCustomScale.X);
+        const float SpanY = Bounds.BoxExtent.Y * 2.0f * FMath::Abs(BaseCustomScale.Y);
+        FootprintDiameter = FMath::Max(SpanX, SpanY);
+    }
+
+    /* Plane basic shape is 100x100cm; soft radial fade peaks near center, so ~1.25x footprint looks grounded. */
+    BaseShadowScale = FMath::Clamp((FootprintDiameter * 1.22f) / 100.0f, 0.72f, 2.85f);
+    if (bFloatingSpecies)
+    {
+        BaseShadowScale *= 0.84f;
+    }
+    ContactShadowComp->SetRelativeScale3D(FVector(BaseShadowScale, BaseShadowScale, 1.0f));
+}
+
+void AABFPCreatureActor::SetIdleAnimationActive(bool bActive)
+{
+    if (bIdleAnimActive == bActive) return;
+    bIdleAnimActive = bActive;
+    if (!bIdleAnimActive && !bDying && DamageFlashSeconds <= 0.0f && AttackLungeSeconds <= 0.0f)
+    {
+        if (bUsingSkeletalVisual && SkeletalMeshComp)
+        {
+            SkeletalMeshComp->SetRelativeLocation(BaseSkeletalLocation);
+            SkeletalMeshComp->SetRelativeRotation(BaseSkeletalRotation);
+            SkeletalMeshComp->SetRelativeScale3D(BaseSkeletalScale);
+        }
+        else if (bUsingCustomVisual && CustomStaticMeshComp)
+        {
+            CustomStaticMeshComp->SetRelativeLocation(BaseCustomLocation);
+            CustomStaticMeshComp->SetRelativeRotation(BaseCustomRotation);
+            CustomStaticMeshComp->SetRelativeScale3D(BaseCustomScale);
+        }
+    }
+    RefreshTickState();
+}
+
 void AABFPCreatureActor::RefreshTickState()
 {
     const bool bHealthBarVisible = HealthBarBg && HealthBarBg->IsVisible();
-    const bool bNeedTick = !bUsingCustomVisual || bInterpolating || bDying ||
-        DamageFlashSeconds > 0.0f || bHealthBarVisible;
+    const bool bNeedIdleCustom = bUsingCustomVisual && bIdleAnimActive &&
+        (!bUsingSkeletalVisual || bFloatingSpecies);
+    const bool bNeedTick = !bUsingCustomVisual || bNeedIdleCustom || bInterpolating || bDying ||
+        DamageFlashSeconds > 0.0f || AttackLungeSeconds > 0.0f || bHealthBarVisible;
     SetActorTickEnabled(bNeedTick);
 }
 
@@ -234,9 +324,12 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
         if (CustomStaticMeshComp) CustomStaticMeshComp->SetVisibility(false);
 
         SkeletalMeshComp->SetSkeletalMeshAsset(Entry->SkeletalMesh);
-        SkeletalMeshComp->SetRelativeLocation(Entry->LocationOffset);
-        SkeletalMeshComp->SetRelativeRotation(Entry->RotationOffset);
-        SkeletalMeshComp->SetRelativeScale3D(Entry->Scale);
+        BaseSkeletalLocation = Entry->LocationOffset;
+        BaseSkeletalRotation = Entry->RotationOffset;
+        BaseSkeletalScale = Entry->Scale;
+        SkeletalMeshComp->SetRelativeLocation(BaseSkeletalLocation);
+        SkeletalMeshComp->SetRelativeRotation(BaseSkeletalRotation);
+        SkeletalMeshComp->SetRelativeScale3D(BaseSkeletalScale);
         if (Entry->MaterialOverride)
         {
             const int32 NumMats = FMath::Max(1, SkeletalMeshComp->GetNumMaterials());
@@ -256,6 +349,7 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
             SkeletalMeshComp->PlayAnimation(Entry->IdleAnim, true);
         }
         SkeletalMeshComp->SetVisibility(true);
+        RefreshContactShadowSize();
         RefreshTickState();
         return;
     }
@@ -268,9 +362,12 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
         if (SkeletalMeshComp) SkeletalMeshComp->SetVisibility(false);
 
         CustomStaticMeshComp->SetStaticMesh(Entry->StaticMeshFallback);
-        CustomStaticMeshComp->SetRelativeLocation(Entry->LocationOffset);
-        CustomStaticMeshComp->SetRelativeRotation(Entry->RotationOffset);
-        CustomStaticMeshComp->SetRelativeScale3D(Entry->Scale);
+        BaseCustomLocation = Entry->LocationOffset;
+        BaseCustomRotation = Entry->RotationOffset;
+        BaseCustomScale = Entry->Scale;
+        CustomStaticMeshComp->SetRelativeLocation(BaseCustomLocation);
+        CustomStaticMeshComp->SetRelativeRotation(BaseCustomRotation);
+        CustomStaticMeshComp->SetRelativeScale3D(BaseCustomScale);
         if (Entry->MaterialOverride)
         {
             const int32 NumMats = FMath::Max(1, CustomStaticMeshComp->GetNumMaterials());
@@ -280,6 +377,7 @@ void AABFPCreatureActor::ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry)
             }
         }
         CustomStaticMeshComp->SetVisibility(true);
+        RefreshContactShadowSize();
         RefreshTickState();
         return;
     }
@@ -340,10 +438,21 @@ void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId
     CreatureName = Name;
     CreatureKindId = KindId;
 
+    const FString Lower = Name.ToLower();
+    bFloatingSpecies = Lower.Contains(TEXT("eye")) || Lower.Contains(TEXT("beholder")) ||
+        Lower.Contains(TEXT("bat")) || Lower.Contains(TEXT("ghost")) ||
+        Lower.Contains(TEXT("wraith")) || Lower.Contains(TEXT("phantom")) ||
+        Lower.Contains(TEXT("spirit")) || Lower.Contains(TEXT("spectre")) ||
+        Lower.Contains(TEXT("phoenix")) || Lower.Contains(TEXT("wyvern")) ||
+        Lower.Contains(TEXT("hornet")) || Lower.Contains(TEXT("vortex")) ||
+        Lower.Contains(TEXT("raven")) || Lower.Contains(TEXT("eagle")) ||
+        Lower.Contains(TEXT("bird"));
+    RefreshContactShadowSize();
+    RefreshTickState();
+
     if (bUsingCustomVisual) return;
     EnsureProceduralParts();
 
-    const FString Lower = Name.ToLower();
     const bool bDragon = Lower.Contains(TEXT("dragon")) || Lower.Contains(TEXT("wyrm"));
     const bool bSerpent = Lower.Contains(TEXT("snake")) ||
         Lower.Contains(TEXT("worm")) || Lower.Contains(TEXT("naga"));
@@ -404,7 +513,7 @@ void AABFPCreatureActor::SetCreatureAppearance(const FString& Name, int32 KindId
 void AABFPCreatureActor::PlayHitReaction(int32 Damage)
 {
     if (bDying) return;
-    DamageFlashSeconds = 0.22f;
+    DamageFlashSeconds = 0.24f;
     RefreshTickState();
 
     if (bUsingSkeletalVisual && SkeletalMeshComp && ActiveHitMontage)
@@ -421,10 +530,18 @@ void AABFPCreatureActor::PlayHitReaction(int32 Damage)
     OnCreatureDamaged(Damage, CurrentHitPoints, MaxHitPoints);
 }
 
+void AABFPCreatureActor::PlayAttackReaction()
+{
+    if (bDying) return;
+    AttackLungeSeconds = 0.28f;
+    RefreshTickState();
+}
+
 void AABFPCreatureActor::PlayDeathReaction()
 {
     if (bDying) return;
     bDying = true;
+    if (ContactShadowComp) ContactShadowComp->SetVisibility(false);
     UpdateHealthBar();
     RefreshTickState();
     DeathSeconds = 0.0f;
@@ -493,6 +610,7 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
 
     Elapsed += DeltaSeconds;
     DamageFlashSeconds = FMath::Max(0.0f, DamageFlashSeconds - DeltaSeconds);
+    AttackLungeSeconds = FMath::Max(0.0f, AttackLungeSeconds - DeltaSeconds);
 
     if (bInterpolating)
     {
@@ -527,7 +645,73 @@ void AABFPCreatureActor::Tick(float DeltaSeconds)
 
     if (bUsingCustomVisual)
     {
-        if (DamageFlashSeconds <= 0.0f && !bInterpolating && !(HealthBarBg && HealthBarBg->IsVisible()))
+        const float Phase = Elapsed + AnimPhaseOffset;
+        const float HitAlpha = FMath::Sin(FMath::Clamp(DamageFlashSeconds / 0.24f, 0.0f, 1.0f) * PI);
+        const float LungeAlpha = FMath::Sin(FMath::Clamp(AttackLungeSeconds / 0.28f, 0.0f, 1.0f) * PI);
+
+        FVector Offset = FVector::ZeroVector;
+        FRotator RotDelta = FRotator::ZeroRotator;
+        FVector ScaleMul = FVector::OneVector;
+
+        /* Visceral combat feedback on every custom mesh: lunge forward on attack, recoil backward on hit. */
+        if (LungeAlpha > 0.001f)
+        {
+            Offset.X += LungeAlpha * 46.0f;
+            Offset.Z += LungeAlpha * 10.0f;
+            RotDelta.Pitch -= LungeAlpha * 11.0f;
+        }
+        if (HitAlpha > 0.001f)
+        {
+            Offset.X -= HitAlpha * 24.0f;
+            RotDelta.Pitch += HitAlpha * 12.0f;
+            const float Squash = 1.0f + HitAlpha * 0.075f;
+            ScaleMul = FVector(Squash, Squash, 1.0f / Squash);
+        }
+
+        if (bIdleAnimActive)
+        {
+            if (bFloatingSpecies)
+            {
+                const float Hover = FMath::Sin(Phase * 2.6f) * 11.0f;
+                Offset.Z += Hover;
+                RotDelta.Roll += FMath::Sin(Phase * 1.4f) * 4.5f;
+                if (ContactShadowComp && bHasContactShadowMat)
+                {
+                    const float ShadowPulse = BaseShadowScale * (1.0f - (Hover / 110.0f));
+                    ContactShadowComp->SetRelativeScale3D(FVector(ShadowPulse, ShadowPulse, 1.0f));
+                }
+            }
+            else if (!bUsingSkeletalVisual)
+            {
+                /* Subtle organic breathing + menacing weight shift on static meshes (zero-stall, nearby only). */
+                const float Breath = FMath::Sin(Phase * 2.2f);
+                ScaleMul.Z *= (1.0f + Breath * 0.024f);
+                ScaleMul.X *= (1.0f - Breath * 0.010f);
+                ScaleMul.Y *= (1.0f - Breath * 0.010f);
+                RotDelta.Yaw += FMath::Sin(Phase * 0.95f) * 2.8f;
+                if (bInterpolating)
+                {
+                    Offset.Z += FMath::Abs(FMath::Sin(Phase * 11.0f)) * 9.0f;
+                }
+            }
+        }
+
+        if (bUsingSkeletalVisual && SkeletalMeshComp)
+        {
+            SkeletalMeshComp->SetRelativeLocation(BaseSkeletalLocation + Offset);
+            SkeletalMeshComp->SetRelativeRotation(BaseSkeletalRotation + RotDelta);
+            SkeletalMeshComp->SetRelativeScale3D(BaseSkeletalScale * ScaleMul);
+        }
+        else if (CustomStaticMeshComp)
+        {
+            CustomStaticMeshComp->SetRelativeLocation(BaseCustomLocation + Offset);
+            CustomStaticMeshComp->SetRelativeRotation(BaseCustomRotation + RotDelta);
+            CustomStaticMeshComp->SetRelativeScale3D(BaseCustomScale * ScaleMul);
+        }
+
+        const bool bNeedIdleCustom = bIdleAnimActive && (!bUsingSkeletalVisual || bFloatingSpecies);
+        if (!bNeedIdleCustom && DamageFlashSeconds <= 0.0f && AttackLungeSeconds <= 0.0f &&
+            !bInterpolating && !(HealthBarBg && HealthBarBg->IsVisible()))
         {
             SetActorTickEnabled(false);
         }

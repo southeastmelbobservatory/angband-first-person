@@ -27,6 +27,9 @@ public:
     void PlayHitReaction(int32 Damage);
 
     UFUNCTION(BlueprintCallable, Category="Angband|Creature")
+    void PlayAttackReaction();
+
+    UFUNCTION(BlueprintCallable, Category="Angband|Creature")
     void PlayDeathReaction();
 
     UFUNCTION(BlueprintPure, Category="Angband|Creature")
@@ -47,6 +50,8 @@ public:
     void SetTargetLocation(const FVector& Location, const FRotator& Rotation);
     void SetCreatureAppearance(const FString& Name, int32 KindId);
     void ApplyVisualEntry(const FABFPCreatureVisualEntry* Entry);
+    void SetContactShadowMaterial(UMaterialInterface* ShadowMat);
+    void SetIdleAnimationActive(bool bActive);
     void SetCastShadowsEnabled(bool bEnableShadows);
     void UpdateEntityState(const FABFPEntity& Entity);
 
@@ -74,10 +79,14 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<UStaticMeshComponent> CustomStaticMeshComp;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UStaticMeshComponent> ContactShadowComp;
+
 private:
     void EnsureProceduralParts();
     void EnsureHealthBar();
     void SetProceduralPartsVisible(bool bVisible);
+    void RefreshContactShadowSize();
     void RefreshTickState();
     void UpdateHealthBar();
 
@@ -85,6 +94,7 @@ private:
     UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedCylinderMesh;
     UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedConeMesh;
     UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedCubeMesh;
+    UPROPERTY(Transient) TObjectPtr<UStaticMesh> CachedPlaneMesh;
     UPROPERTY(Transient) TObjectPtr<UMaterialInterface> CachedBasicMat;
 
     UPROPERTY() TObjectPtr<USceneComponent> HealthBarRoot;
@@ -117,6 +127,18 @@ private:
     int32 MaxHitPoints = 0;
     bool bUsingCustomVisual = false;
     bool bUsingSkeletalVisual = false;
+    bool bIdleAnimActive = false;
+    bool bFloatingSpecies = false;
+    bool bHasContactShadowMat = false;
+    FVector BaseCustomLocation = FVector::ZeroVector;
+    FRotator BaseCustomRotation = FRotator::ZeroRotator;
+    FVector BaseCustomScale = FVector::OneVector;
+    FVector BaseSkeletalLocation = FVector::ZeroVector;
+    FRotator BaseSkeletalRotation = FRotator::ZeroRotator;
+    FVector BaseSkeletalScale = FVector::OneVector;
+    float BaseShadowScale = 1.35f;
+    float AnimPhaseOffset = 0.0f;
+    float AttackLungeSeconds = 0.0f;
     FLinearColor BaseColor = FLinearColor(0.12f, 0.19f, 0.11f);
     FVector BaseBodyScale = FVector(0.48f, 0.38f, 0.66f);
     FVector BaseHeadScale = FVector(0.30f, 0.29f, 0.32f);

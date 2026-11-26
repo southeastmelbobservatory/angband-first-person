@@ -83,7 +83,7 @@ $ImportExit = $LASTEXITCODE
 if (Test-Path $ImportLog) {
     Write-Host ""
     Write-Host "=== [ABFP] Import Summary ===" -ForegroundColor Cyan
-    Select-String -Path $ImportLog -Pattern "\[ABFP\] (Creature species imported|Default creature|Reduced |Mesh reduction|Saved /Game/Data|No mesh found|Failed importing|Failed building)" | ForEach-Object { Write-Host $_.Line }
+    Select-String -Path $ImportLog -Pattern "\[ABFP\] (Creature species imported|Default creature|Built \d+-LOD|Reduced |Mesh LOD|Mesh reduction|Saved /Game/Data|No mesh found|Failed importing|Failed building)" | ForEach-Object { Write-Host $_.Line }
 }
 
 if ($ImportExit -ne 0) {

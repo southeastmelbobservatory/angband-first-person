@@ -1463,7 +1463,11 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             {
                 if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Existing->Get()))
                 {
+                    const int32 DistTiles = FMath::Max(
+                        FMath::Abs(Entity.X - Snapshot.PlayerX),
+                        FMath::Abs(Entity.Y - Snapshot.PlayerY));
                     Creature->UpdateEntityState(Entity);
+                    Creature->SetIdleAnimationActive(DistTiles <= 7);
                     Creature->SetTargetLocation(Location, Facing);
                 }
                 else
@@ -1499,9 +1503,17 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             Spawned = GetWorld()->SpawnActor<AActor>(SpawnClass, Location, Facing, Params);
             if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Spawned))
             {
+                const int32 DistTiles = FMath::Max(
+                    FMath::Abs(Entity.X - Snapshot.PlayerX),
+                    FMath::Abs(Entity.Y - Snapshot.PlayerY));
                 Creature->ApplyVisualEntry(VisualEntry);
+                if (VisualCatalog && VisualCatalog->CreatureContactShadowMaterial)
+                {
+                    Creature->SetContactShadowMaterial(VisualCatalog->CreatureContactShadowMaterial);
+                }
                 Creature->SetCastShadowsEnabled(false);
                 Creature->UpdateEntityState(Entity);
+                Creature->SetIdleAnimationActive(DistTiles <= 7);
             }
         }
         else
@@ -1534,6 +1546,14 @@ void AABFPDungeonActor::ApplySnapshot(const FABFPSnapshot& Snapshot)
             {
                 if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Target->Get()))
                     Creature->PlayHitReaction(Event.Value);
+            }
+        }
+        else if (Event.Type == EABFPEventType::Attack && Event.SubjectId != 1)
+        {
+            if (TObjectPtr<AActor>* Attacker = SpawnedEntities.Find(Event.SubjectId))
+            {
+                if (AABFPCreatureActor* Creature = Cast<AABFPCreatureActor>(Attacker->Get()))
+                    Creature->PlayAttackReaction();
             }
         }
         else if (Event.Type == EABFPEventType::Death)

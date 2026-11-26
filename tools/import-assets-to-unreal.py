@@ -111,6 +111,16 @@ def find_asset_in_paths_or_folder(imported_paths: list, folder_path: str, asset_
     return fallback
 
 
+def connect_single_input(mel, from_node, from_pin: str, to_node) -> bool:
+    for pin_name in ("", "Input"):
+        try:
+            if mel.connect_material_expressions(from_node, from_pin, to_node, pin_name):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def connect_uv_to_sampler(mel, uv_node, sampler_node):
     for pin_name in ("UVs", "Coordinates"):
         try:
@@ -564,13 +574,318 @@ def build_creature_textured_material(entry_id: str, tex_path: Path, roughness: f
     return mat
 
 
-def build_creature_color_material(entry_id: str, color_rgb, use_vertex_color: bool = False, roughness: float = 0.72):
-    """Build a rich PBR Material for untextured/vertex-colored CC0 creature meshes so they never
-    appear as flat untextured white clay."""
+def build_creature_pbr_master_material(raw_root: Path):
+    """Build ONE shared PBR Master Material for untextured/vertex-colored CC0 creatures
+    (M_ABFP_CreaturePBRMaster) with object-local organic micro-detail Normal + Roughness/AO
+    and subtle Fresnel rim lighting. All 14+ fallback-colored beasts share this single shader
+    via lightweight MaterialInstanceConstants — richer visuals AND fewer shader compiles."""
     mat_folder = "/Game/Assets/Materials/Creatures"
     if not unreal.EditorAssetLibrary.does_directory_exist(mat_folder):
         unreal.EditorAssetLibrary.make_directory(mat_folder)
 
+    detail_tex = None
+    normal_tex = None
+    tex_folder = "/Game/Assets/Materials/Textures/Creatures"
+    detail_src = raw_root / "creatures" / "_shared_organic_detail.png"
+    normal_src = raw_root / "creatures" / "_shared_organic_normal.png"
+    if detail_src.is_file():
+        paths = import_asset(detail_src, tex_folder, asset_name="T_ABFP_OrganicDetail")
+        detail_tex = find_asset_in_paths_or_folder(paths, tex_folder, unreal.Texture2D, "T_ABFP_OrganicDetail")
+        if isinstance(detail_tex, unreal.Texture2D):
+            detail_tex.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
+            detail_tex.set_editor_property("srgb", False)
+            unreal.EditorAssetLibrary.save_loaded_asset(detail_tex)
+    if normal_src.is_file():
+        paths = import_asset(normal_src, tex_folder, asset_name="T_ABFP_OrganicNormal")
+        normal_tex = find_asset_in_paths_or_folder(paths, tex_folder, unreal.Texture2D, "T_ABFP_OrganicNormal")
+        if isinstance(normal_tex, unreal.Texture2D):
+            normal_tex.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_NORMALMAP)
+            normal_tex.set_editor_property("srgb", False)
+            unreal.EditorAssetLibrary.save_loaded_asset(normal_tex)
+
+    mat_name = "M_ABFP_CreaturePBRMaster"
+    mat_asset_path = f"{mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, mat_folder, unreal.Material, factory
+        )
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("used_with_skeletal_mesh", True)
+
+    base_param = mel.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -760, -340)
+    base_param.set_editor_property("parameter_name", "BaseColor")
+    base_param.set_editor_property("default_value", unreal.LinearColor(0.16, 0.12, 0.09, 1.0))
+
+    accent_param = mel.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -760, -140)
+    accent_param.set_editor_property("parameter_name", "AccentColor")
+    accent_param.set_editor_property("default_value", unreal.LinearColor(0.08, 0.06, 0.04, 1.0))
+
+    use_vc_param = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -760, 40)
+    use_vc_param.set_editor_property("parameter_name", "UseVertexColor")
+    use_vc_param.set_editor_property("default_value", 0.0)
+
+    rough_min_param = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -760, 220)
+    rough_min_param.set_editor_property("parameter_name", "RoughnessMin")
+    rough_min_param.set_editor_property("default_value", 0.42)
+
+    rough_max_param = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -760, 320)
+    rough_max_param.set_editor_property("parameter_name", "RoughnessMax")
+    rough_max_param.set_editor_property("default_value", 0.86)
+
+    detail_scale_param = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -1180, 140)
+    detail_scale_param.set_editor_property("parameter_name", "DetailScale")
+    detail_scale_param.set_editor_property("default_value", 0.015)
+
+    rim_color_param = mel.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -760, 520)
+    rim_color_param.set_editor_property("parameter_name", "RimColor")
+    rim_color_param.set_editor_property("default_value", unreal.LinearColor(0.28, 0.24, 0.20, 1.0))
+
+    rim_str_param = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -760, 680)
+    rim_str_param.set_editor_property("parameter_name", "RimStrength")
+    rim_str_param.set_editor_property("default_value", 0.14)
+
+    # Object-local 2D coordinates (WorldPosition - ObjectPositionWS) so organic bump & mottling
+    # stick to moving beasts and work identically on both UV and non-UV meshes.
+    proj_uv = None
+    try:
+        world_pos = mel.create_material_expression(mat, unreal.MaterialExpressionWorldPosition, -1400, 0)
+        obj_pos = mel.create_material_expression(mat, unreal.MaterialExpressionObjectPositionWS, -1400, 120)
+        local_pos = mel.create_material_expression(mat, unreal.MaterialExpressionSubtract, -1180, 40)
+        mel.connect_material_expressions(world_pos, "", local_pos, "A")
+        mel.connect_material_expressions(obj_pos, "", local_pos, "B")
+
+        scaled_pos = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -1000, 60)
+        mel.connect_material_expressions(local_pos, "", scaled_pos, "A")
+        mel.connect_material_expressions(detail_scale_param, "", scaled_pos, "B")
+
+        mask_xy = mel.create_material_expression(mat, unreal.MaterialExpressionComponentMask, -820, -20)
+        mask_xy.set_editor_property("r", True)
+        mask_xy.set_editor_property("g", True)
+        mask_xy.set_editor_property("b", False)
+        mask_xy.set_editor_property("a", False)
+        connect_single_input(mel, scaled_pos, "", mask_xy)
+
+        mask_zy = mel.create_material_expression(mat, unreal.MaterialExpressionComponentMask, -820, 80)
+        mask_zy.set_editor_property("r", False)
+        mask_zy.set_editor_property("g", True)
+        mask_zy.set_editor_property("b", True)
+        mask_zy.set_editor_property("a", False)
+        connect_single_input(mel, scaled_pos, "", mask_zy)
+
+        proj_uv = mel.create_material_expression(mat, unreal.MaterialExpressionAdd, -640, 20)
+        mel.connect_material_expressions(mask_xy, "", proj_uv, "A")
+        mel.connect_material_expressions(mask_zy, "", proj_uv, "B")
+    except Exception as exc:
+        unreal.log_warning(f"[ABFP] CreaturePBRMaster object-local UV fallback: {exc}")
+        proj_uv = mel.create_material_expression(mat, unreal.MaterialExpressionTextureCoordinate, -640, 20)
+        proj_uv.set_editor_property("u_tiling", 3.0)
+        proj_uv.set_editor_property("v_tiling", 3.0)
+
+    detail_node = None
+    if detail_tex:
+        detail_node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -480, 120)
+        detail_node.texture = detail_tex
+        detail_node.sampler_type = unreal.MaterialSamplerType.SAMPLERTYPE_MASKS
+        connect_uv_to_sampler(mel, proj_uv, detail_node)
+
+    # BaseColor: Lerp(BaseColor, AccentColor, Detail.R) -> optional VertexColor mix -> micro-AO
+    mottled_col = base_param
+    if detail_node:
+        lerp_col = mel.create_material_expression(mat, unreal.MaterialExpressionLinearInterpolate, -420, -240)
+        mel.connect_material_expressions(base_param, "", lerp_col, "A")
+        mel.connect_material_expressions(accent_param, "", lerp_col, "B")
+        mel.connect_material_expressions(detail_node, "R", lerp_col, "Alpha")
+        mottled_col = lerp_col
+
+    vc_node = mel.create_material_expression(mat, unreal.MaterialExpressionVertexColor, -420, -80)
+    vc_lerp = mel.create_material_expression(mat, unreal.MaterialExpressionLinearInterpolate, -220, -200)
+    mel.connect_material_expressions(mottled_col, "", vc_lerp, "A")
+    mel.connect_material_expressions(vc_node, "", vc_lerp, "B")
+    mel.connect_material_expressions(use_vc_param, "", vc_lerp, "Alpha")
+
+    if detail_node:
+        ao_mul = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -60, -180)
+        mel.connect_material_expressions(vc_lerp, "", ao_mul, "A")
+        mel.connect_material_expressions(detail_node, "B", ao_mul, "B")
+        mel.connect_material_property(ao_mul, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        mel.connect_material_property(detail_node, "B", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+
+        rough_lerp = mel.create_material_expression(mat, unreal.MaterialExpressionLinearInterpolate, -200, 240)
+        mel.connect_material_expressions(rough_min_param, "", rough_lerp, "A")
+        mel.connect_material_expressions(rough_max_param, "", rough_lerp, "B")
+        mel.connect_material_expressions(detail_node, "G", rough_lerp, "Alpha")
+        mel.connect_material_property(rough_lerp, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    else:
+        mel.connect_material_property(vc_lerp, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        mel.connect_material_property(rough_max_param, "", unreal.MaterialProperty.MP_ROUGHNESS)
+
+    if normal_tex:
+        nrm_node = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -420, 380)
+        nrm_node.texture = normal_tex
+        nrm_node.sampler_type = unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL
+        connect_uv_to_sampler(mel, proj_uv, nrm_node)
+        connect_rgb_to_property(mel, nrm_node, unreal.MaterialProperty.MP_NORMAL, "CreaturePBRMaster.Normal")
+
+    # Subtle Fresnel rim sheen so dark beasts pop cleanly against torchlit walls
+    try:
+        fresnel = mel.create_material_expression(mat, unreal.MaterialExpressionFresnel, -420, 560)
+        try:
+            fresnel.set_editor_property("exponent", 3.4)
+            fresnel.set_editor_property("base_reflect_fraction", 0.04)
+        except Exception:
+            pass
+        rim_mul1 = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -220, 560)
+        mel.connect_material_expressions(fresnel, "", rim_mul1, "A")
+        mel.connect_material_expressions(rim_color_param, "", rim_mul1, "B")
+        rim_mul2 = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -60, 580)
+        mel.connect_material_expressions(rim_mul1, "", rim_mul2, "A")
+        mel.connect_material_expressions(rim_str_param, "", rim_mul2, "B")
+        mel.connect_material_property(rim_mul2, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    except Exception as exc:
+        unreal.log_warning(f"[ABFP] CreaturePBRMaster Fresnel rim skipped: {exc}")
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
+def build_contact_shadow_material():
+    """Build a single ultra-cheap translucent radial contact-shadow disc Material
+    (M_ABFP_ContactShadow) placed under creatures so every monster looks grounded on the floor
+    with zero dynamic shadow-map cost."""
+    mat_folder = "/Game/Assets/Materials/Creatures"
+    if not unreal.EditorAssetLibrary.does_directory_exist(mat_folder):
+        unreal.EditorAssetLibrary.make_directory(mat_folder)
+
+    mat_name = "M_ABFP_ContactShadow"
+    mat_asset_path = f"{mat_folder}/{mat_name}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
+        mat = unreal.EditorAssetLibrary.load_asset(mat_asset_path)
+    else:
+        factory = unreal.MaterialFactoryNew()
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            mat_name, mat_folder, unreal.Material, factory
+        )
+    if not isinstance(mat, unreal.Material):
+        return None
+
+    mel = unreal.MaterialEditingLibrary
+    mel.delete_all_material_expressions(mat)
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    try:
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    except Exception:
+        pass
+
+    black = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -180)
+    black.set_editor_property("constant", unreal.LinearColor(0.0, 0.0, 0.0, 1.0))
+    mel.connect_material_property(black, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+
+    uv = mel.create_material_expression(mat, unreal.MaterialExpressionTextureCoordinate, -980, 60)
+    center = mel.create_material_expression(mat, unreal.MaterialExpressionConstant2Vector, -980, 180)
+    center.set_editor_property("r", 0.5)
+    center.set_editor_property("g", 0.5)
+
+    delta = mel.create_material_expression(mat, unreal.MaterialExpressionSubtract, -780, 80)
+    mel.connect_material_expressions(uv, "", delta, "A")
+    mel.connect_material_expressions(center, "", delta, "B")
+
+    dist_sq = mel.create_material_expression(mat, unreal.MaterialExpressionDotProduct, -600, 80)
+    mel.connect_material_expressions(delta, "", dist_sq, "A")
+    mel.connect_material_expressions(delta, "", dist_sq, "B")
+
+    four = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -600, 200)
+    four.set_editor_property("r", 4.0)
+    norm_sq = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -440, 100)
+    mel.connect_material_expressions(dist_sq, "", norm_sq, "A")
+    mel.connect_material_expressions(four, "", norm_sq, "B")
+
+    inv = mel.create_material_expression(mat, unreal.MaterialExpressionOneMinus, -300, 100)
+    connect_single_input(mel, norm_sq, "", inv)
+
+    clamped = mel.create_material_expression(mat, unreal.MaterialExpressionClamp, -180, 100)
+    try:
+        clamped.set_editor_property("min_default", 0.0)
+        clamped.set_editor_property("max_default", 1.0)
+    except Exception:
+        pass
+    connect_single_input(mel, inv, "", clamped)
+
+    soft = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -40, 100)
+    mel.connect_material_expressions(clamped, "", soft, "A")
+    mel.connect_material_expressions(clamped, "", soft, "B")
+
+    strength = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -40, 220)
+    strength.set_editor_property("r", 0.62)
+    opacity = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, 100, 120)
+    mel.connect_material_expressions(soft, "", opacity, "A")
+    mel.connect_material_expressions(strength, "", opacity, "B")
+    mel.connect_material_property(opacity, "", unreal.MaterialProperty.MP_OPACITY)
+
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
+    return mat
+
+
+def build_creature_color_material(entry_id: str, color_rgb, use_vertex_color: bool = False,
+                                  roughness: float = 0.72, master_mat=None):
+    """Build a lightweight MaterialInstanceConstant derived from M_ABFP_CreaturePBRMaster
+    (with organic normal/roughness/rim detail and zero extra shader compiles) for untextured
+    or vertex-colored CC0 creature meshes."""
+    mat_folder = "/Game/Assets/Materials/Creatures"
+    if not unreal.EditorAssetLibrary.does_directory_exist(mat_folder):
+        unreal.EditorAssetLibrary.make_directory(mat_folder)
+
+    r = float(color_rgb[0])
+    g = float(color_rgb[1])
+    b = float(color_rgb[2])
+
+    if isinstance(master_mat, unreal.Material):
+        inst_name = f"MI_ABFP_Creature_{entry_id}"
+        inst_path = f"{mat_folder}/{inst_name}"
+        if unreal.EditorAssetLibrary.does_asset_exist(inst_path):
+            mic = unreal.EditorAssetLibrary.load_asset(inst_path)
+        else:
+            factory = unreal.MaterialInstanceConstantFactoryNew()
+            mic = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+                inst_name, mat_folder, unreal.MaterialInstanceConstant, factory
+            )
+        if isinstance(mic, unreal.MaterialInstanceConstant):
+            mel = unreal.MaterialEditingLibrary
+            mel.set_material_instance_parent(mic, master_mat)
+            # Slightly darker crevice accent + subtle warm dungeon rim lift so dark fur/chitin reads clearly
+            mel.set_material_instance_vector_parameter_value(
+                mic, "BaseColor", unreal.LinearColor(r, g, b, 1.0)
+            )
+            mel.set_material_instance_vector_parameter_value(
+                mic, "AccentColor", unreal.LinearColor(r * 0.48, g * 0.46, b * 0.44, 1.0)
+            )
+            mel.set_material_instance_vector_parameter_value(
+                mic, "RimColor",
+                unreal.LinearColor(min(1.0, r * 1.4 + 0.16), min(1.0, g * 1.3 + 0.13), min(1.0, b * 1.3 + 0.11), 1.0)
+            )
+            mel.set_material_instance_scalar_parameter_value(
+                mic, "UseVertexColor", 1.0 if use_vertex_color else 0.0
+            )
+            rough_clamped = max(0.18, min(0.95, float(roughness)))
+            mel.set_material_instance_scalar_parameter_value(mic, "RoughnessMin", max(0.14, rough_clamped - 0.24))
+            mel.set_material_instance_scalar_parameter_value(mic, "RoughnessMax", min(0.96, rough_clamped + 0.10))
+            mel.set_material_instance_scalar_parameter_value(mic, "RimStrength", 0.16)
+            try:
+                mel.update_material_instance(mic)
+            except Exception:
+                pass
+            unreal.EditorAssetLibrary.save_asset(inst_path, only_if_is_dirty=False)
+            return mic
+
+    # Fallback: standalone material if master failed to build
     mat_name = f"M_ABFP_Creature_{entry_id}"
     mat_asset_path = f"{mat_folder}/{mat_name}"
     if unreal.EditorAssetLibrary.does_asset_exist(mat_asset_path):
@@ -580,37 +895,31 @@ def build_creature_color_material(entry_id: str, color_rgb, use_vertex_color: bo
         mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
             mat_name, mat_folder, unreal.Material, factory
         )
-
     if not isinstance(mat, unreal.Material):
         return None
-
     mel = unreal.MaterialEditingLibrary
     mel.delete_all_material_expressions(mat)
     mat.set_editor_property("used_with_skeletal_mesh", True)
-
     if use_vertex_color:
         vc = mel.create_material_expression(mat, unreal.MaterialExpressionVertexColor, -420, -140)
         connect_rgb_to_property(mel, vc, unreal.MaterialProperty.MP_BASE_COLOR, f"{mat_name}.VertexColor")
     else:
         col = mel.create_material_expression(mat, unreal.MaterialExpressionConstant3Vector, -360, -140)
-        col.set_editor_property(
-            "constant",
-            unreal.LinearColor(float(color_rgb[0]), float(color_rgb[1]), float(color_rgb[2]), 1.0),
-        )
+        col.set_editor_property("constant", unreal.LinearColor(r, g, b, 1.0))
         mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
-
     rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -320, 100)
     rough.set_editor_property("r", float(roughness))
     mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
-
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_asset(mat_asset_path, only_if_is_dirty=False)
     return mat
 
 
-def decimate_creature_mesh(mesh, entry_id: str, max_tris: int = 4500) -> None:
-    """Automatically decimate ultra-high-poly CC0 creature meshes (e.g. 300K-triangle Grab3D models)
-    down to ~4,500 triangles on LOD0 so packs of 10+ dungeon creatures never stall DX11/SM5 GPUs."""
+def decimate_creature_mesh(mesh, entry_id: str, lod0_tris: int = 24000,
+                           lod1_tris: int = 6500, lod2_tris: int = 1800) -> None:
+    """Build a 3-tier automatic LOD chain for creature meshes so close-up beasts render
+    with crisp ~24K-triangle sculpted fidelity while mid/far monsters drop seamlessly to
+    ~6.5K / ~1.8K triangles — high visual detail with zero GPU stalls."""
     if not mesh:
         return
     try:
@@ -619,47 +928,81 @@ def decimate_creature_mesh(mesh, entry_id: str, max_tris: int = 4500) -> None:
             if not sm_subsys:
                 return
             tris = int(sm_subsys.get_number_triangles(mesh, 0))
-            if tris <= max_tris + 500:
+            if tris <= 3000:
                 return
-            pct = max(0.012, min(1.0, float(max_tris) / float(tris)))
-            opts = sm_subsys.get_lod_reduction_settings(mesh, 0)
-            opts.set_editor_property("percent_triangles", pct)
-            sm_subsys.set_lod_reduction_settings(mesh, 0, opts)
-            unreal.EditorAssetLibrary.save_loaded_asset(mesh)
-            after = int(sm_subsys.get_number_triangles(mesh, 0))
-            unreal.log(f"[ABFP] Reduced StaticMesh {entry_id}: {tris} -> {after} tris")
+
+            if tris > lod0_tris + 1500:
+                p0 = max(0.04, min(1.0, float(lod0_tris) / float(tris)))
+                p1 = max(0.015, min(p0 * 0.5, float(lod1_tris) / float(tris)))
+                p2 = max(0.005, min(p1 * 0.5, float(lod2_tris) / float(tris)))
+            else:
+                # Preserve 100% full fidelity on LOD0 for 3K..25K meshes, add LOD1 & LOD2 for distance
+                p0 = 1.0
+                p1 = 0.42
+                p2 = 0.16
+
+            applied_chain = False
+            try:
+                red_opts = unreal.StaticMeshReductionOptions()
+                red_opts.auto_compute_lod_screen_size = False
+                tiers = []
+                for pct, screen_sz in ((p0, 1.0), (p1, 0.28), (p2, 0.10)):
+                    s = unreal.StaticMeshReductionSettings()
+                    s.percent_triangles = float(pct)
+                    s.screen_size = float(screen_sz)
+                    tiers.append(s)
+                red_opts.reduction_settings = tiers
+                sm_subsys.set_lods(mesh, red_opts)
+                applied_chain = True
+            except Exception as lod_exc:
+                unreal.log_warning(f"[ABFP] set_lods fallback on {entry_id}: {lod_exc}")
+                if p0 < 0.999:
+                    opts = sm_subsys.get_lod_reduction_settings(mesh, 0)
+                    opts.set_editor_property("percent_triangles", p0)
+                    sm_subsys.set_lod_reduction_settings(mesh, 0, opts)
+                    applied_chain = True
+
+            if applied_chain:
+                unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                after0 = int(sm_subsys.get_number_triangles(mesh, 0))
+                lod_cnt = int(sm_subsys.get_lod_count(mesh))
+                unreal.log(f"[ABFP] Built {lod_cnt}-LOD StaticMesh {entry_id}: {tris} -> LOD0={after0} tris")
+
         elif isinstance(mesh, unreal.SkeletalMesh):
             sk_subsys = unreal.get_editor_subsystem(unreal.SkeletalMeshEditorSubsystem)
             if not sk_subsys:
                 return
-            # Query LOD0 triangle count if available via lod_info / sections
-            lod_infos = None
-            try:
-                lod_infos = mesh.get_editor_property("lod_info")
-            except Exception:
-                lod_infos = None
-            # Only decimate heavy rigged meshes (known >15K tris) using reduction_settings + regenerate_lod
+            # High-fidelity 3-tier targets for heavy rigged CC0 meshes (~24K LOD0 / ~7K LOD1 / ~2.4K LOD2)
             heavy_rigged = {
-                "cc0_yeti": 0.018,
-                "cc0_stone_golem": 0.018,
-                "cc0_werewolf": 0.018,
-                "cc0_zombie": 0.020,
-                "cc0_vampire_bat": 0.18,
-                "quaternius_creep": 0.32,
+                "cc0_yeti":        (0.085, 0.024, 0.008),
+                "cc0_stone_golem": (0.085, 0.024, 0.008),
+                "cc0_werewolf":    (0.085, 0.024, 0.008),
+                "cc0_zombie":      (0.095, 0.026, 0.009),
+                "cc0_vampire_bat": (0.75,  0.26,  0.09),
+                "quaternius_creep": (1.0,  0.42,  0.16),
             }
-            pct = heavy_rigged.get(entry_id)
-            if pct is None:
+            pcts = heavy_rigged.get(entry_id)
+            if pcts is None:
                 return
-            if lod_infos and len(lod_infos) > 0:
-                red = lod_infos[0].get_editor_property("reduction_settings")
-                red.set_editor_property("num_of_triangles_percentage", pct)
-                lod_infos[0].set_editor_property("reduction_settings", red)
+            # Regenerate a 3-LOD skeletal chain (LOD0 high detail + LOD1/LOD2 for distance)
+            ok = sk_subsys.regenerate_lod(mesh, 3, True)
+            lod_infos = mesh.get_editor_property("lod_info")
+            if lod_infos and len(lod_infos) >= 1:
+                screens = (1.0, 0.30, 0.11)
+                for idx in range(min(3, len(lod_infos))):
+                    red = lod_infos[idx].get_editor_property("reduction_settings")
+                    red.set_editor_property("num_of_triangles_percentage", float(pcts[idx]))
+                    lod_infos[idx].set_editor_property("reduction_settings", red)
+                    try:
+                        lod_infos[idx].set_editor_property("screen_size", unreal.PerPlatformFloat(default=screens[idx]))
+                    except Exception:
+                        pass
                 mesh.set_editor_property("lod_info", lod_infos)
-                ok = sk_subsys.regenerate_lod(mesh, 1, True)
+                ok = sk_subsys.regenerate_lod(mesh, len(lod_infos), True)
                 unreal.EditorAssetLibrary.save_loaded_asset(mesh)
-                unreal.log(f"[ABFP] Reduced SkeletalMesh {entry_id} to {pct*100:.1f}% tris (ok={ok})")
+                unreal.log(f"[ABFP] Built {len(lod_infos)}-LOD SkeletalMesh {entry_id} (LOD0={pcts[0]*100:.1f}%, ok={ok})")
     except Exception as exc:
-        unreal.log_warning(f"[ABFP] Mesh reduction skipped for {entry_id}: {exc}")
+        unreal.log_warning(f"[ABFP] Mesh LOD build skipped for {entry_id}: {exc}")
 
 
 def compute_creature_fit(mesh, entry: dict):
@@ -1182,6 +1525,14 @@ def main():
             unreal.log_warning(f"[ABFP] Failed generating procedural creatures: {exc}")
 
     merge_kaykit_fn = load_kaykit_merger(repo_root)
+    creature_pbr_master = build_creature_pbr_master_material(raw_root)
+    contact_shadow_mat = build_contact_shadow_material()
+    if contact_shadow_mat:
+        try:
+            catalog.set_editor_property("creature_contact_shadow_material", contact_shadow_mat)
+        except Exception as exc:
+            unreal.log_warning(f"[ABFP] Could not bind creature_contact_shadow_material: {exc}")
+
     creature_entries = []
     default_creature_entry = None
     default_creature_priority = 999
@@ -1222,7 +1573,7 @@ def main():
                 continue
 
             imported_species += 1
-            decimate_creature_mesh(skel_mesh or static_mesh, entry["id"], max_tris=4500)
+            decimate_creature_mesh(skel_mesh or static_mesh, entry["id"], lod0_tris=24000, lod1_tris=6500, lod2_tris=1800)
             idle_anim = find_asset_in_paths_or_folder(paths, entry["unreal_dest"], unreal.AnimSequence, "idle") if skel_mesh else None
             hit_sound = audio_by_id.get(entry.get("hit_sound", ""))
             death_sound = audio_by_id.get(entry.get("death_sound", ""))
@@ -1240,7 +1591,8 @@ def main():
                     entry["id"],
                     entry.get("fallback_color", [0.12, 0.08, 0.05]),
                     use_vertex_color=bool(entry.get("use_vertex_color", False)),
-                    roughness=float(entry.get("fallback_roughness", 0.88)),
+                    roughness=float(entry.get("fallback_roughness", 0.80)),
+                    master_mat=creature_pbr_master,
                 )
 
             cand_prio = default_candidates.get(entry["id"], 999)
