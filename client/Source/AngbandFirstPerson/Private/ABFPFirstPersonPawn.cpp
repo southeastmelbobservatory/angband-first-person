@@ -433,6 +433,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         {
             bAwaitingServerTurn = false;
             AwaitingTurnSeconds = 0.0f;
+            if (bIsRunning) StopRunning();
         }
     }
 
@@ -447,6 +448,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         bAwaitingServerTurn = false;
         AwaitingTurnSeconds = 0.0f;
         bInterpolatingMove = false;
+        if (bIsRunning) StopRunning();
         InitialConnectGraceSeconds = 0.0f;
         AddStatusMessage(FString::Printf(TEXT("Connected to Angband host %s:%d"),
             *HostAddress, HostPort));
@@ -464,6 +466,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
             bHaveAuthoritativeState = false;
             bAwaitingServerTurn = false;
             AwaitingTurnSeconds = 0.0f;
+            if (bIsRunning) StopRunning();
             ReconnectRetrySeconds = 1.0f;
             AddStatusMessage(TEXT("Disconnected from Angband host. Reconnecting..."));
         }
@@ -600,6 +603,11 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
             AwaitingTurnSeconds = 0.0f;
             bHaveAuthoritativeState = true;
             UpdateEquippedViewModels(bExitedBirth);
+
+            if (bIsRunning)
+            {
+                EvaluatePostStepRunStop(CurrentSnapshot.Events, bLevelChanged);
+            }
         }
     }
 
@@ -669,23 +677,38 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
         LanternMount->SetRelativeRotation(FRotator(0.0f, 0.0f, SwayRoll));
     }
 
+    if (bIsRunning && !bAwaitingServerTurn)
+    {
+        const float DistSqToTarget = FVector::DistSquared(GetActorLocation(), TargetPawnLocation);
+        if (!bInterpolatingMove || DistSqToTarget <= 1600.0f)
+        {
+            ExecuteRunStep();
+        }
+    }
+
     if (bInterpolatingMove)
     {
         StepBobElapsed += DeltaSeconds;
-        const FVector Current = FMath::VInterpTo(GetActorLocation(),
-            TargetPawnLocation, DeltaSeconds, 12.0f);
+        const FVector Current = bIsRunning
+            ? FMath::VInterpConstantTo(GetActorLocation(), TargetPawnLocation, DeltaSeconds, 2200.0f)
+            : FMath::VInterpTo(GetActorLocation(), TargetPawnLocation, DeltaSeconds, 12.0f);
         SetActorLocation(Current);
         if (Camera)
         {
-            const float BobZ = FMath::Abs(FMath::Sin(StepBobElapsed * 12.0f)) * 5.0f;
+            const float BobFreq = bIsRunning ? 18.0f : 12.0f;
+            const float BobAmp = bIsRunning ? 7.0f : 5.0f;
+            const float BobZ = FMath::Abs(FMath::Sin(StepBobElapsed * BobFreq)) * BobAmp;
             Camera->SetRelativeLocation(FVector(0.0f, 0.0f, CameraBaseHeight + BobZ));
         }
         if (FVector::DistSquared(Current, TargetPawnLocation) < 4.0f)
         {
             SetActorLocation(TargetPawnLocation);
             bInterpolatingMove = false;
-            StepBobElapsed = 0.0f;
-            if (Camera) Camera->SetRelativeLocation(FVector(0.0f, 0.0f, CameraBaseHeight));
+            if (!bIsRunning)
+            {
+                StepBobElapsed = 0.0f;
+                if (Camera) Camera->SetRelativeLocation(FVector(0.0f, 0.0f, CameraBaseHeight));
+            }
         }
     }
     else if (Camera)
@@ -701,6 +724,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 
 void AABFPFirstPersonPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    StopRunning();
     NetworkClient.Disconnect();
     Super::EndPlay(EndPlayReason);
 }
@@ -713,6 +737,7 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction("MoveBackward", IE_Pressed, this, &AABFPFirstPersonPawn::MoveBackward);
     PlayerInputComponent->BindAction("TurnLeft", IE_Pressed, this, &AABFPFirstPersonPawn::TurnLeft);
     PlayerInputComponent->BindAction("TurnRight", IE_Pressed, this, &AABFPFirstPersonPawn::TurnRight);
+    PlayerInputComponent->BindAction("ToggleRun", IE_Pressed, this, &AABFPFirstPersonPawn::ToggleRun);
     PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AABFPFirstPersonPawn::InteractForward);
     PlayerInputComponent->BindAction("WaitTurn", IE_Pressed, this, &AABFPFirstPersonPawn::WaitTurn);
     PlayerInputComponent->BindAction("GoUp", IE_Pressed, this, &AABFPFirstPersonPawn::GoUp);
@@ -1254,6 +1279,7 @@ void AABFPFirstPersonPawn::TurnLeft()
         MenuTab();
         return;
     }
+    if (bIsRunning) StopRunning();
     TargetControlYaw = FRotator::NormalizeAxis(TargetControlYaw - 45.0f);
 }
 
@@ -1297,7 +1323,27 @@ void AABFPFirstPersonPawn::TurnRight()
         MenuTab();
         return;
     }
+    if (bIsRunning) StopRunning();
     TargetControlYaw = FRotator::NormalizeAxis(TargetControlYaw + 45.0f);
+}
+
+void AABFPFirstPersonPawn::ToggleRun()
+{
+    if (IsTypingCharacterName() || ActiveMenu != EABFPMenuMode::None) return;
+    if (CurrentSnapshot.bPlayerDead) return;
+
+    if (bIsRunning)
+    {
+        StopRunning();
+        bRunModeEnabled = false;
+        AddStatusMessage(TEXT("Run mode OFF."));
+        return;
+    }
+
+    bRunModeEnabled = !bRunModeEnabled;
+    AddStatusMessage(bRunModeEnabled
+        ? TEXT("Run mode ON: press [Up] or [Down] to run, [Shift / .] to toggle off.")
+        : TEXT("Run mode OFF."));
 }
 
 void AABFPFirstPersonPawn::ToggleHelp()
@@ -1315,6 +1361,7 @@ void AABFPFirstPersonPawn::ToggleMinimap()
 void AABFPFirstPersonPawn::ToggleInventory()
 {
     if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (bIsRunning) StopRunning();
     ActiveMenu = (ActiveMenu == EABFPMenuMode::Inventory) ? EABFPMenuMode::None : EABFPMenuMode::Inventory;
     SelectedMenuIndex = 0;
     ClampSelectedMenuIndex();
@@ -1323,6 +1370,7 @@ void AABFPFirstPersonPawn::ToggleInventory()
 void AABFPFirstPersonPawn::ToggleEquipment()
 {
     if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (bIsRunning) StopRunning();
     ActiveMenu = (ActiveMenu == EABFPMenuMode::Equipment) ? EABFPMenuMode::None : EABFPMenuMode::Equipment;
     SelectedMenuIndex = 0;
     ClampSelectedMenuIndex();
@@ -1331,6 +1379,7 @@ void AABFPFirstPersonPawn::ToggleEquipment()
 void AABFPFirstPersonPawn::ToggleShop()
 {
     if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (bIsRunning) StopRunning();
     if (ActiveMenu == EABFPMenuMode::ShopBuy || ActiveMenu == EABFPMenuMode::ShopSell)
     {
         ActiveMenu = EABFPMenuMode::None;
@@ -1350,6 +1399,7 @@ void AABFPFirstPersonPawn::ToggleShop()
 void AABFPFirstPersonPawn::ToggleSpells()
 {
     if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (bIsRunning) StopRunning();
     if (ActiveMenu == EABFPMenuMode::Spellbook)
     {
         ActiveMenu = EABFPMenuMode::None;
@@ -1365,6 +1415,7 @@ void AABFPFirstPersonPawn::QuickFire()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
     if (CurrentSnapshot.bPlayerDead) return;
+    if (bIsRunning) StopRunning();
 
     if (!CurrentSnapshot.bHasLauncher)
     {
@@ -1400,6 +1451,7 @@ void AABFPFirstPersonPawn::QuickCast()
     }
     if (ActiveMenu != EABFPMenuMode::None) return;
     if (CurrentSnapshot.bPlayerDead) return;
+    if (bIsRunning) StopRunning();
 
     const FABFPSpellEntry* Spell = GetQuickCastSpell();
     if (!Spell)
@@ -1441,6 +1493,7 @@ void AABFPFirstPersonPawn::NewCharacter()
 {
     if (IsTypingCharacterName()) return;
     if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (bIsRunning) StopRunning();
 
     if (!CurrentSnapshot.bPlayerDead && NewCharConfirmSeconds <= 0.0f)
     {
@@ -1497,6 +1550,10 @@ void AABFPFirstPersonPawn::MenuClose()
     {
         ActiveMenu = EABFPMenuMode::None;
         SelectedMenuIndex = 0;
+    }
+    else if (bIsRunning)
+    {
+        StopRunning();
     }
 }
 
@@ -1875,6 +1932,7 @@ void AABFPFirstPersonPawn::MenuThrowSelected()
 void AABFPFirstPersonPawn::QuickQuaff()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning) StopRunning();
 
     int32 BestIdx = INDEX_NONE;
     FString BestName;
@@ -1926,6 +1984,7 @@ void AABFPFirstPersonPawn::QuickEat()
         return;
     }
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning) StopRunning();
 
     for (const FABFPInventoryItem& Item : CurrentSnapshot.Inventory)
     {
@@ -1967,6 +2026,7 @@ void AABFPFirstPersonPawn::RestTurn()
         return;
     }
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning) StopRunning();
 
     if (bLiveMode)
     {
@@ -1993,6 +2053,7 @@ void AABFPFirstPersonPawn::InteractForward()
         MenuConfirm();
         return;
     }
+    if (bIsRunning) StopRunning();
 
     if (CurrentSnapshot.Shop.bActive)
     {
@@ -2015,6 +2076,11 @@ void AABFPFirstPersonPawn::InteractForward()
 void AABFPFirstPersonPawn::WaitTurn()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning)
+    {
+        StopRunning();
+        return;
+    }
 
     if (bLiveMode)
     {
@@ -2028,6 +2094,7 @@ void AABFPFirstPersonPawn::WaitTurn()
 void AABFPFirstPersonPawn::GoUp()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning) StopRunning();
 
     if (bLiveMode)
     {
@@ -2046,6 +2113,7 @@ void AABFPFirstPersonPawn::GoUp()
 void AABFPFirstPersonPawn::GoDown()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning) StopRunning();
 
     if (bLiveMode)
     {
@@ -2061,6 +2129,7 @@ void AABFPFirstPersonPawn::GoDown()
 void AABFPFirstPersonPawn::AutoPickup()
 {
     if (ActiveMenu != EABFPMenuMode::None) return;
+    if (bIsRunning) StopRunning();
 
     if (bLiveMode)
     {
@@ -2083,9 +2152,272 @@ void AABFPFirstPersonPawn::AutoPickup()
     }
 }
 
+const FABFPCell* AABFPFirstPersonPawn::FindCellAt(int32 X, int32 Y) const
+{
+    return CurrentSnapshot.Cells.FindByPredicate(
+        [X, Y](const FABFPCell& Cell) { return Cell.X == X && Cell.Y == Y; });
+}
+
+const FABFPEntity* AABFPFirstPersonPawn::FindEntityAt(int32 X, int32 Y, EABFPEntityType Type) const
+{
+    return CurrentSnapshot.Entities.FindByPredicate(
+        [X, Y, Type](const FABFPEntity& Entity)
+        {
+            return Entity.Type == Type && Entity.X == X && Entity.Y == Y;
+        });
+}
+
+void AABFPFirstPersonPawn::CaptureRunBaseline()
+{
+    RunLastPlayerGrid = FIntPoint(CurrentSnapshot.PlayerX, CurrentSnapshot.PlayerY);
+    RunLastPlayerHP = CurrentSnapshot.PlayerHitPoints;
+    RunVisibleMonsters.Reset();
+    for (const FABFPEntity& Entity : CurrentSnapshot.Entities)
+    {
+        if (Entity.Type == EABFPEntityType::Monster)
+        {
+            RunVisibleMonsters.Add(Entity.Id, FIntPoint(Entity.X, Entity.Y));
+        }
+    }
+}
+
+void AABFPFirstPersonPawn::StopRunning(const FString& Reason)
+{
+    if (!bIsRunning) return;
+    bIsRunning = false;
+    RunDirection = FIntPoint::ZeroValue;
+    RunStepsTaken = 0;
+    RunVisibleMonsters.Reset();
+    if (!Reason.IsEmpty())
+    {
+        AddStatusMessage(Reason);
+    }
+}
+
+bool AABFPFirstPersonPawn::CheckPreStepRunObstacle(int32 NextX, int32 NextY, FString& OutReason) const
+{
+    if (const FABFPEntity* Mon = FindEntityAt(NextX, NextY, EABFPEntityType::Monster))
+    {
+        OutReason = FString::Printf(TEXT("Run stopped: %s in path."),
+            Mon->Name.IsEmpty() ? TEXT("monster") : *Mon->Name);
+        return false;
+    }
+
+    const FABFPCell* NextCell = FindCellAt(NextX, NextY);
+    if (!NextCell)
+    {
+        OutReason = TEXT("Run stopped at unknown terrain.");
+        return false;
+    }
+    if (NextCell->bOccupiedByMonster)
+    {
+        OutReason = TEXT("Run stopped: monster in path.");
+        return false;
+    }
+
+    switch (NextCell->Terrain)
+    {
+    case EABFPTerrain::Wall:
+    case EABFPTerrain::Vein:
+    case EABFPTerrain::Rubble:
+    case EABFPTerrain::Unknown:
+        OutReason = TEXT("Run stopped at wall.");
+        return false;
+    case EABFPTerrain::Door:
+        OutReason = TEXT("Run stopped at closed door.");
+        return false;
+    case EABFPTerrain::Trap:
+        OutReason = TEXT("Run stopped before trap!");
+        return false;
+    case EABFPTerrain::Shop:
+        OutReason = TEXT("Run stopped at shop entrance.");
+        return false;
+    default:
+        return true;
+    }
+}
+
+void AABFPFirstPersonPawn::EvaluatePostStepRunStop(const TArray<FABFPEvent>& StepEvents, bool bLevelChanged)
+{
+    if (!bIsRunning) return;
+
+    if (CurrentSnapshot.bPlayerDead || CurrentSnapshot.Birth.bActive ||
+        CurrentSnapshot.Shop.bActive || ActiveMenu != EABFPMenuMode::None || bLevelChanged)
+    {
+        StopRunning();
+        return;
+    }
+
+    if (CurrentSnapshot.PlayerHitPoints < RunLastPlayerHP)
+    {
+        StopRunning(TEXT("Run stopped: you took damage!"));
+        return;
+    }
+
+    for (const FABFPEvent& Ev : StepEvents)
+    {
+        if ((Ev.Type == EABFPEventType::Damage && Ev.TargetId == 1) ||
+            (Ev.Type == EABFPEventType::Attack && Ev.TargetId == 1))
+        {
+            StopRunning(TEXT("Run stopped: under attack!"));
+            return;
+        }
+    }
+
+    if (CurrentSnapshot.PlayerX == RunLastPlayerGrid.X &&
+        CurrentSnapshot.PlayerY == RunLastPlayerGrid.Y)
+    {
+        StopRunning(TEXT("Run stopped: path blocked."));
+        return;
+    }
+
+    for (const FABFPEntity& Entity : CurrentSnapshot.Entities)
+    {
+        if (Entity.Type != EABFPEntityType::Monster) continue;
+        const FIntPoint CurPos(Entity.X, Entity.Y);
+        const FIntPoint* PrevPos = RunVisibleMonsters.Find(Entity.Id);
+        if (!PrevPos)
+        {
+            StopRunning(FString::Printf(TEXT("Run stopped: spotted %s!"),
+                Entity.Name.IsEmpty() ? TEXT("a monster") : *Entity.Name));
+            return;
+        }
+        if (*PrevPos != CurPos)
+        {
+            StopRunning(FString::Printf(TEXT("Run stopped: %s moved!"),
+                Entity.Name.IsEmpty() ? TEXT("monster") : *Entity.Name));
+            return;
+        }
+    }
+
+    for (const FABFPEvent& Ev : StepEvents)
+    {
+        if (Ev.Type == EABFPEventType::EntityMoved && Ev.SubjectId != 1)
+        {
+            StopRunning(TEXT("Run stopped: a monster moved!"));
+            return;
+        }
+    }
+
+    const FABFPEntity* UnderfootItem = FindEntityAt(
+        CurrentSnapshot.PlayerX, CurrentSnapshot.PlayerY, EABFPEntityType::Object);
+    const FABFPCell* UnderfootCell = FindCellAt(CurrentSnapshot.PlayerX, CurrentSnapshot.PlayerY);
+    if (UnderfootItem || (UnderfootCell && UnderfootCell->bOccupiedByObject))
+    {
+        const FString ItemName = (UnderfootItem && !UnderfootItem->Name.IsEmpty())
+            ? UnderfootItem->Name : TEXT("an item");
+        StopRunning(FString::Printf(TEXT("Run stopped: %s in path."), *ItemName));
+        return;
+    }
+
+    if (UnderfootCell &&
+        (UnderfootCell->Terrain == EABFPTerrain::StairsUp ||
+         UnderfootCell->Terrain == EABFPTerrain::StairsDown))
+    {
+        StopRunning(TEXT("Run stopped at stairs."));
+        return;
+    }
+
+    if (RunStepsTaken >= 100)
+    {
+        StopRunning(TEXT("Run stopped."));
+        return;
+    }
+
+    FString NextReason;
+    if (!CheckPreStepRunObstacle(
+        CurrentSnapshot.PlayerX + RunDirection.X,
+        CurrentSnapshot.PlayerY + RunDirection.Y,
+        NextReason))
+    {
+        StopRunning(NextReason);
+        return;
+    }
+
+    CaptureRunBaseline();
+}
+
+void AABFPFirstPersonPawn::StartRun(int32 DX, int32 DY)
+{
+    const int32 NextX = CurrentSnapshot.PlayerX + DX;
+    const int32 NextY = CurrentSnapshot.PlayerY + DY;
+    FString BlockedReason;
+    if (!CheckPreStepRunObstacle(NextX, NextY, BlockedReason))
+    {
+        const FABFPCell* NextCell = FindCellAt(NextX, NextY);
+        if (NextCell && NextCell->Terrain == EABFPTerrain::Trap)
+        {
+            AddStatusMessage(TEXT("Trap directly ahead! Press [F] to disarm or toggle Run off to step onto it."));
+            return;
+        }
+
+        /* Standing right next to a door, monster, shop, or wall: fall back to a normal
+         * single step so attacking monsters / opening doors / entering shops still works. */
+        if (bLiveMode)
+        {
+            SendSimpleCommand(DirectionCommandName(TEXT("MOVE"), DX, DY));
+        }
+        else
+        {
+            TryDemoStep(DX, DY);
+        }
+        return;
+    }
+
+    bIsRunning = true;
+    RunDirection = FIntPoint(DX, DY);
+    RunStepsTaken = 0;
+    CaptureRunBaseline();
+    ExecuteRunStep();
+}
+
+void AABFPFirstPersonPawn::ExecuteRunStep()
+{
+    if (!bIsRunning) return;
+    if (bLiveMode && (!bHaveAuthoritativeState || bAwaitingServerTurn)) return;
+
+    const int32 NextX = CurrentSnapshot.PlayerX + RunDirection.X;
+    const int32 NextY = CurrentSnapshot.PlayerY + RunDirection.Y;
+    FString Reason;
+    if (!CheckPreStepRunObstacle(NextX, NextY, Reason))
+    {
+        StopRunning(Reason);
+        return;
+    }
+
+    CaptureRunBaseline();
+    ++RunStepsTaken;
+
+    if (bLiveMode)
+    {
+        const FString Cmd = DirectionCommandName(TEXT("MOVE"), RunDirection.X, RunDirection.Y);
+        if (Cmd.IsEmpty() || !NetworkClient.SendCommand(Cmd))
+        {
+            StopRunning();
+            return;
+        }
+        bAwaitingServerTurn = true;
+        AwaitingTurnSeconds = 0.0f;
+    }
+    else
+    {
+        TryDemoStep(RunDirection.X, RunDirection.Y);
+        EvaluatePostStepRunStop(TArray<FABFPEvent>(), false);
+    }
+}
+
 void AABFPFirstPersonPawn::MoveRelative(FVector2D LocalDirection)
 {
-    if (bInterpolatingMove || ActiveMenu != EABFPMenuMode::None) return;
+    if (ActiveMenu != EABFPMenuMode::None) return;
+    if (CurrentSnapshot.bPlayerDead) return;
+
+    if (bIsRunning)
+    {
+        StopRunning();
+        return;
+    }
+
+    if (bInterpolatingMove) return;
 
     const FVector WorldDirection = FRotationMatrix(FRotator(0.0f, TargetControlYaw, 0.0f))
         .TransformVector(FVector(LocalDirection.X, LocalDirection.Y, 0.0f));
@@ -2096,6 +2428,12 @@ void AABFPFirstPersonPawn::MoveRelative(FVector2D LocalDirection)
         static_cast<int32>(FMath::Sign(WorldDirection.Y)) : 0;
 
     if (DX == 0 && DY == 0) return;
+
+    if (bRunModeEnabled)
+    {
+        StartRun(DX, DY);
+        return;
+    }
 
     if (bLiveMode)
     {
@@ -2314,6 +2652,8 @@ void AABFPFirstPersonPawn::TryDemoStep(int32 DX, int32 DY)
         Target->Terrain == EABFPTerrain::Vein ||
         Target->Terrain == EABFPTerrain::Rubble ||
         Target->Terrain == EABFPTerrain::Unknown) return;
+
+    if (FindEntityAt(TargetX, TargetY, EABFPEntityType::Monster)) return;
 
     if (Target->Terrain == EABFPTerrain::Door)
     {

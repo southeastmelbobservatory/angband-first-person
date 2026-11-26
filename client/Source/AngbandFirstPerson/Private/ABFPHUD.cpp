@@ -113,6 +113,26 @@ void AABFPHUD::DrawVitalsPanel(const AABFPFirstPersonPawn* Pawn, const FABFPSnap
     const float X = 20.0f;
     const float Y = Canvas->ClipY - PanelH - 20.0f;
 
+    if (Pawn->IsRunModeEnabled() || Pawn->IsRunning())
+    {
+        const float PillH = 22.0f;
+        const float PillY = Y - PillH - 6.0f;
+        const bool bRunningNow = Pawn->IsRunning();
+        const FLinearColor PillBg = bRunningNow
+            ? FLinearColor(0.06f, 0.16f, 0.10f, 0.90f)
+            : FLinearColor(0.12f, 0.09f, 0.04f, 0.88f);
+        const FLinearColor PillAccent = bRunningNow
+            ? FLinearColor(0.32f, 0.94f, 0.52f, 0.95f)
+            : FLinearColor(0.95f, 0.74f, 0.24f, 0.92f);
+        const FString PillText = bRunningNow
+            ? TEXT(">> RUNNING  ([Any Key] stop | [Shift/.] off)")
+            : TEXT("RUN MODE: ON  ([Up/Dn] run | [Shift/.] off)");
+
+        DrawRect(PillBg, X, PillY, PanelW, PillH);
+        DrawRect(PillAccent, X, PillY, PanelW, 2.0f);
+        DrawText(PillText, PillAccent, X + 10.0f, PillY + 4.0f, SmallFont, 0.86f);
+    }
+
     DrawRect(FLinearColor(0.04f, 0.045f, 0.06f, 0.84f), X, Y, PanelW, PanelH);
     DrawRect(FLinearColor(0.55f, 0.43f, 0.22f, 0.78f), X, Y, PanelW, 2.0f);
 
@@ -1087,9 +1107,13 @@ void AABFPHUD::DrawControlsHelp(const AABFPFirstPersonPawn* Pawn)
         return;
     }
 
+    const FString RunLine = Pawn->IsRunModeEnabled()
+        ? TEXT("Shift / .      Run mode [ON]")
+        : TEXT("Shift / .      Toggle Run mode");
     const FString Lines[] = {
         TEXT("CONTROLS  ([H] hide)"),
-        TEXT("Up / Down      Step forward / back"),
+        TEXT("Up / Down      Step / Run fwd & back"),
+        RunLine,
         TEXT("Left / Right   Turn 45 deg"),
         TEXT("F              Interact / Door / Shop"),
         TEXT("E / G          Pick up item"),

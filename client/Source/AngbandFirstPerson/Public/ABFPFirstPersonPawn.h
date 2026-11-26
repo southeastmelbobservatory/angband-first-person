@@ -37,6 +37,12 @@ public:
     bool IsAwaitingServerTurn() const { return bAwaitingServerTurn; }
 
     UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool IsRunModeEnabled() const { return bRunModeEnabled; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
+    bool IsRunning() const { return bIsRunning; }
+
+    UFUNCTION(BlueprintPure, Category="Angband|State")
     float GetDamageFlashAlpha() const { return FMath::Clamp(PlayerDamageFlashSeconds / 0.35f, 0.0f, 1.0f); }
 
     UFUNCTION(BlueprintPure, Category="Angband|State")
@@ -144,6 +150,7 @@ private:
     void MoveBackward();
     void TurnLeft();
     void TurnRight();
+    void ToggleRun();
     void InteractForward();
     void WaitTurn();
     void GoUp();
@@ -186,6 +193,14 @@ private:
 
     void SendSimpleCommand(const FString& Command);
     void MoveRelative(FVector2D LocalDirection);
+    void StartRun(int32 DX, int32 DY);
+    void StopRunning(const FString& Reason = FString());
+    void CaptureRunBaseline();
+    bool CheckPreStepRunObstacle(int32 NextX, int32 NextY, FString& OutReason) const;
+    void EvaluatePostStepRunStop(const TArray<FABFPEvent>& StepEvents, bool bLevelChanged);
+    void ExecuteRunStep();
+    const FABFPCell* FindCellAt(int32 X, int32 Y) const;
+    const FABFPEntity* FindEntityAt(int32 X, int32 Y, EABFPEntityType Type) const;
     void StartOfflineShowcase();
     void BuildDemoSnapshot();
     void TryDemoStep(int32 DX, int32 DY);
@@ -207,6 +222,13 @@ private:
     float LanternElapsed = 0.0f;
     float AttackSwingSeconds = 0.0f;
     bool bInterpolatingMove = false;
+    bool bRunModeEnabled = false;
+    bool bIsRunning = false;
+    FIntPoint RunDirection = FIntPoint::ZeroValue;
+    int32 RunStepsTaken = 0;
+    FIntPoint RunLastPlayerGrid = FIntPoint::ZeroValue;
+    int32 RunLastPlayerHP = 0;
+    TMap<int64, FIntPoint> RunVisibleMonsters;
     bool bLiveMode = false;
     bool bOfflineDemoInitialized = false;
     bool bAwaitingServerTurn = false;
