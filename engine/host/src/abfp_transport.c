@@ -172,8 +172,11 @@ static void serve_client(int fd)
     size_t used = 0;
     bool discarding = false;
     ssize_t n;
-    while ((n = recv(fd, buffer, sizeof(buffer), 0)) > 0) {
+    while (1) {
         ssize_t i;
+        n = recv(fd, buffer, sizeof(buffer), 0);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) break;
         for (i = 0; i < n; ++i) {
             char ch = buffer[i];
             if (ch == '\n') {

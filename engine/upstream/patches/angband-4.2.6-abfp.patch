@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 920c537f..03ac28b1 100644
+index 920c537..03ac28b 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -377,6 +377,22 @@ add_library(OurCoreLib OBJECT
@@ -33,8 +33,20 @@ index 920c537f..03ac28b1 100644
  
  # Allow for some introspection:  have rules to print out names that something
  # downstream could use.  Have the output start with "our-<something>=" so it
+diff --git a/src/init.c b/src/init.c
+index a948513..cd0455d 100644
+--- a/src/init.c
++++ b/src/init.c
+@@ -4515,6 +4515,7 @@ void cleanup_angband(void)
+ 	}
+ 	mem_free(chunk_list);
+ 	chunk_list = NULL;
++	chunk_list_max = 0;
+ 
+ 	for (i = 0; modules[i]; i++)
+ 		if (modules[i]->cleanup)
 diff --git a/src/main.c b/src/main.c
-index b685bc80..95bbb10a 100644
+index b685bc8..95bbb10 100644
 --- a/src/main.c
 +++ b/src/main.c
 @@ -27,6 +27,7 @@
@@ -64,7 +76,7 @@ index b685bc80..95bbb10a 100644
  	textui_cleanup();
  	cleanup_angband();
 diff --git a/src/mon-util.c b/src/mon-util.c
-index 1c8033b1..f26fb194 100644
+index 1c8033b..f26fb19 100644
 --- a/src/mon-util.c
 +++ b/src/mon-util.c
 @@ -31,6 +31,7 @@
@@ -84,7 +96,7 @@ index 1c8033b1..f26fb194 100644
  	/* Delete any mimicked objects */
  	if (mon->mimicked_obj) {
 diff --git a/src/ui-game.c b/src/ui-game.c
-index 0f97d18d..acc39f65 100644
+index 0f97d18..42d101e 100644
 --- a/src/ui-game.c
 +++ b/src/ui-game.c
 @@ -42,6 +42,8 @@
@@ -107,7 +119,7 @@ index 0f97d18d..acc39f65 100644
  	} else {
  		/*
  		 * Bring the stock curse objects up-to-date with what the
-@@ -940,11 +944,24 @@ void play_game(enum game_mode_type mode)
+@@ -940,11 +944,26 @@ void play_game(enum game_mode_type mode)
  		while (!player->is_dead && player->upkeep->playing) {
  			pre_turn_refresh();
  			cmd_get_hook(CTX_GAME);
@@ -121,9 +133,11 @@ index 0f97d18d..acc39f65 100644
 -		close_game(true);
 +		if (abfp_host_handle_game_end()) {
 +			if (!player->is_dead && savefile[0]) (void)savefile_save(savefile);
++			event_signal(EVENT_LEAVE_WORLD);
 +			wipe_mon_list(cave, player);
 +			event_signal(EVENT_LEAVE_GAME);
 +			abfp_host_game_closed();
++			savefile[0] = '\0';
 +			play_again = true;
 +			mode = GAME_NEW;
 +		} else {
@@ -133,7 +147,7 @@ index 0f97d18d..acc39f65 100644
  
  		if (!play_again) break;
  
-@@ -955,6 +972,7 @@ void play_game(enum game_mode_type mode)
+@@ -955,6 +974,7 @@ void play_game(enum game_mode_type mode)
  			(*reinit_hook)();
  		}
  		textui_init();

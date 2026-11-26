@@ -494,12 +494,19 @@ bool abfp_host_handle_game_end(void)
     }
     if (player && player->is_dead &&
         !getenv("ABFP_TEST_KILL_MONSTER") && !getenv("ABFP_TEST_MONSTER") &&
-        abfp_transport_has_client()) {
+        (abfp_transport_has_client() || getenv("ABFP_CLIENT_BIRTH"))) {
         abfp_command cmd;
-        while (abfp_transport_wait_command_ex(&cmd)) {
-            if (cmd.type == ABFP_COMMAND_NEW_CHAR) {
-                new_char_requested = true;
-                return true;
+        bool first_pass = true;
+        while (abfp_transport_wait_for_client()) {
+            if (!first_pass) {
+                (void)abfp_host_publish_state(true);
+            }
+            first_pass = false;
+            while (abfp_transport_wait_command_ex(&cmd)) {
+                if (cmd.type == ABFP_COMMAND_NEW_CHAR) {
+                    new_char_requested = true;
+                    return true;
+                }
             }
         }
     }
