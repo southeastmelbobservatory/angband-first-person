@@ -165,6 +165,8 @@ private:
     void QuickFire();
     void QuickCast();
     void NewCharacter();
+    void QuickSave();
+    void ToggleSaves();
     void QuickQuaff();
     void QuickEat();
     void RestTurn();
@@ -242,6 +244,8 @@ private:
     float InitialConnectGraceSeconds = 0.0f;
     float PlayerDamageFlashSeconds = 0.0f;
     float NewCharConfirmSeconds = 0.0f;
+    float DeleteSaveConfirmSeconds = 0.0f;
+    int32 DeleteSaveConfirmIndex = INDEX_NONE;
     int64 LockedTargetId = 0;
     int32 LastCastSpellIndex = INDEX_NONE;
     int32 BirthFocusColumn = 0;

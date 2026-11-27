@@ -551,6 +551,28 @@ bool FABFPNetworkClient::ParseStateLine(const FString& Line,
         ParseOptArr(TEXT("classes"), Snapshot.Birth.Classes);
     }
 
+    const TArray<TSharedPtr<FJsonValue>>* SavesArr = nullptr;
+    if (Root->TryGetArrayField(TEXT("saves"), SavesArr) && SavesArr)
+    {
+        Snapshot.Saves.Reserve(SavesArr->Num());
+        for (const TSharedPtr<FJsonValue>& Value : *SavesArr)
+        {
+            TArray<TSharedPtr<FJsonValue>> Row;
+            if (!ReadRow(Value, Row) || Row.Num() < 4) continue;
+            FABFPSaveEntry Entry;
+            if (Row[0].IsValid() && Row[0]->Type == EJson::String)
+                Entry.Name = Row[0]->AsString();
+            if (Row[1].IsValid() && Row[1]->Type == EJson::String)
+                Entry.Description = Row[1]->AsString();
+            Entry.bIsCurrent = ReadInt(Row[2]) != 0;
+            Entry.bIsDead = ReadInt(Row[3]) != 0;
+            if (!Entry.Name.IsEmpty())
+            {
+                Snapshot.Saves.Add(MoveTemp(Entry));
+            }
+        }
+    }
+
     OutSnapshot = MoveTemp(Snapshot);
     return true;
 }

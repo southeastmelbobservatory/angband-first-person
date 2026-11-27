@@ -67,6 +67,15 @@ static void test_parse(void)
     assert(full_cmd.type == ABFP_COMMAND_BIRTH_NAME && strcmp(full_cmd.text, "Thorin Oak") == 0);
     assert(abfp_transport_parse_command_ex("BIRTH_ACCEPT Gandalf\n", &full_cmd));
     assert(full_cmd.type == ABFP_COMMAND_BIRTH_ACCEPT && strcmp(full_cmd.text, "Gandalf") == 0);
+    assert(abfp_transport_parse_command_ex("SAVE\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_SAVE_GAME && full_cmd.text[0] == '\0');
+    assert(abfp_transport_parse_command_ex("SAVE Aragorn_D2\r\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_SAVE_GAME && strcmp(full_cmd.text, "Aragorn_D2") == 0);
+    assert(abfp_transport_parse_command_ex("LOAD Aragorn\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_LOAD_GAME && strcmp(full_cmd.text, "Aragorn") == 0);
+    assert(abfp_transport_parse_command_ex("DELETE_SAVE OldHero\n", &full_cmd));
+    assert(full_cmd.type == ABFP_COMMAND_DELETE_SAVE && strcmp(full_cmd.text, "OldHero") == 0);
+    assert(!abfp_transport_parse_command_ex("LOAD \n", &full_cmd));
     assert(!abfp_transport_parse_command_ex("BUY -1 1", &full_cmd));
     assert(!abfp_transport_parse_command("MOVE_UP", &command));
     assert(!abfp_transport_parse_command("", &command));
@@ -83,6 +92,7 @@ static void test_loopback_round_trip(void)
     abfp_message message = {0};
     abfp_inventory_item inv_item = {0};
     abfp_shop_state shop = {0};
+    abfp_save_entry save_entry = {0};
     abfp_snapshot snapshot = {0};
     abfp_command_type command = ABFP_COMMAND_WAIT;
     char response[8192];
@@ -113,6 +123,10 @@ static void test_loopback_round_trip(void)
     shop.items[0].quantity = 5;
     shop.items[0].price = 25;
     strcpy(shop.items[0].name, "5 Rations of Food");
+    strcpy(save_entry.name, "Aragorn");
+    strcpy(save_entry.description, "Aragorn, L4 Half-Orc Paladin, at DL1");
+    save_entry.is_current = 1;
+    save_entry.is_dead = 0;
 
     snapshot.turn = 99;
     snapshot.dungeon_depth = 5;
@@ -137,6 +151,8 @@ static void test_loopback_round_trip(void)
     snapshot.inventory = &inv_item;
     snapshot.inventory_count = 1;
     snapshot.shop = &shop;
+    snapshot.saves = &save_entry;
+    snapshot.save_count = 1;
 
     assert(abfp_transport_start(port));
 
@@ -165,6 +181,7 @@ static void test_loopback_round_trip(void)
     assert(strstr(response, "\"messages\":[[2,\"You open the \\\"oak\\\" door.\"]]") != NULL);
     assert(strstr(response, "\"inventory\":[[0,\"a\",0,") != NULL);
     assert(strstr(response, "\"shop\":{\"is_home\":false,\"name\":\"General Store\",\"owner\":\"Bilbo\"") != NULL);
+    assert(strstr(response, "\"saves\":[[\"Aragorn\",\"Aragorn, L4 Half-Orc Paladin, at DL1\",1,0]]") != NULL);
     assert(strstr(response, "\"initial\":true") != NULL);
 
     assert(send(fd, "INVALID\nWAIT\n", 13, 0) == 13);

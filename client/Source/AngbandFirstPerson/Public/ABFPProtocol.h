@@ -34,7 +34,8 @@ enum class EABFPMenuMode : uint8
     ShopBuy = 3,
     ShopSell = 4,
     Spellbook = 5,
-    CharacterCreation = 6
+    CharacterCreation = 6,
+    SaveLoad = 7
 };
 
 UENUM(BlueprintType)
@@ -224,6 +225,17 @@ struct FABFPBirthState
 };
 
 USTRUCT(BlueprintType)
+struct FABFPSaveEntry
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Name;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Description;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bIsCurrent = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bIsDead = false;
+};
+
+USTRUCT(BlueprintType)
 struct FABFPSnapshot
 {
     GENERATED_BODY()
@@ -259,4 +271,5 @@ struct FABFPSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) FABFPShopState Shop;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPSpellEntry> Spells;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) FABFPBirthState Birth;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FABFPSaveEntry> Saves;
 };

@@ -402,6 +402,8 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
     PlayerDamageFlashSeconds = FMath::Max(0.0f, PlayerDamageFlashSeconds - DeltaSeconds);
     AttackSwingSeconds = FMath::Max(0.0f, AttackSwingSeconds - DeltaSeconds);
     NewCharConfirmSeconds = FMath::Max(0.0f, NewCharConfirmSeconds - DeltaSeconds);
+    DeleteSaveConfirmSeconds = FMath::Max(0.0f, DeleteSaveConfirmSeconds - DeltaSeconds);
+    if (DeleteSaveConfirmSeconds <= 0.0f) DeleteSaveConfirmIndex = INDEX_NONE;
 
     if (IsTypingCharacterName())
     {
@@ -556,6 +558,7 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
                     BirthDraftName = CurrentSnapshot.Birth.Name;
                 }
                 bWasInBirthMode = true;
+                ClampSelectedMenuIndex();
             }
             else
             {
@@ -725,6 +728,11 @@ void AABFPFirstPersonPawn::Tick(float DeltaSeconds)
 void AABFPFirstPersonPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     StopRunning();
+    if (bLiveMode && bHaveAuthoritativeState && !CurrentSnapshot.bPlayerDead &&
+        !CurrentSnapshot.Birth.bActive && NetworkClient.IsConnected())
+    {
+        NetworkClient.SendCommand(TEXT("SAVE"));
+    }
     NetworkClient.Disconnect();
     Super::EndPlay(EndPlayReason);
 }
@@ -764,6 +772,8 @@ void AABFPFirstPersonPawn::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     PlayerInputComponent->BindAction("ToggleSpells", IE_Pressed, this, &AABFPFirstPersonPawn::ToggleSpells);
     PlayerInputComponent->BindAction("QuickCast", IE_Pressed, this, &AABFPFirstPersonPawn::QuickCast);
     PlayerInputComponent->BindAction("NewCharacter", IE_Pressed, this, &AABFPFirstPersonPawn::NewCharacter);
+    PlayerInputComponent->BindAction("QuickSave", IE_Pressed, this, &AABFPFirstPersonPawn::QuickSave);
+    PlayerInputComponent->BindAction("ToggleSaves", IE_Pressed, this, &AABFPFirstPersonPawn::ToggleSaves);
 }
 
 FIntPoint AABFPFirstPersonPawn::GetFacingGridDelta() const
@@ -863,6 +873,8 @@ int32 AABFPFirstPersonPawn::GetActiveMenuItemCount() const
         return CurrentSnapshot.Shop.Items.Num();
     case EABFPMenuMode::Spellbook:
         return CurrentSnapshot.Spells.Num();
+    case EABFPMenuMode::SaveLoad:
+        return CurrentSnapshot.Saves.Num();
     default:
         return 0;
     }
@@ -1360,7 +1372,7 @@ void AABFPFirstPersonPawn::ToggleMinimap()
 
 void AABFPFirstPersonPawn::ToggleInventory()
 {
-    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation || CurrentSnapshot.Birth.bActive) return;
     if (bIsRunning) StopRunning();
     ActiveMenu = (ActiveMenu == EABFPMenuMode::Inventory) ? EABFPMenuMode::None : EABFPMenuMode::Inventory;
     SelectedMenuIndex = 0;
@@ -1369,7 +1381,7 @@ void AABFPFirstPersonPawn::ToggleInventory()
 
 void AABFPFirstPersonPawn::ToggleEquipment()
 {
-    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation || CurrentSnapshot.Birth.bActive) return;
     if (bIsRunning) StopRunning();
     ActiveMenu = (ActiveMenu == EABFPMenuMode::Equipment) ? EABFPMenuMode::None : EABFPMenuMode::Equipment;
     SelectedMenuIndex = 0;
@@ -1378,7 +1390,7 @@ void AABFPFirstPersonPawn::ToggleEquipment()
 
 void AABFPFirstPersonPawn::ToggleShop()
 {
-    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation || CurrentSnapshot.Birth.bActive) return;
     if (bIsRunning) StopRunning();
     if (ActiveMenu == EABFPMenuMode::ShopBuy || ActiveMenu == EABFPMenuMode::ShopSell)
     {
@@ -1398,7 +1410,7 @@ void AABFPFirstPersonPawn::ToggleShop()
 
 void AABFPFirstPersonPawn::ToggleSpells()
 {
-    if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (ActiveMenu == EABFPMenuMode::CharacterCreation || CurrentSnapshot.Birth.bActive) return;
     if (bIsRunning) StopRunning();
     if (ActiveMenu == EABFPMenuMode::Spellbook)
     {
@@ -1493,6 +1505,14 @@ void AABFPFirstPersonPawn::NewCharacter()
 {
     if (IsTypingCharacterName()) return;
     if (ActiveMenu == EABFPMenuMode::CharacterCreation) return;
+    if (CurrentSnapshot.Birth.bActive)
+    {
+        ActiveMenu = EABFPMenuMode::CharacterCreation;
+        SelectedMenuIndex = 0;
+        DeleteSaveConfirmSeconds = 0.0f;
+        DeleteSaveConfirmIndex = INDEX_NONE;
+        return;
+    }
     if (bIsRunning) StopRunning();
 
     if (!CurrentSnapshot.bPlayerDead && NewCharConfirmSeconds <= 0.0f)
@@ -1503,6 +1523,10 @@ void AABFPFirstPersonPawn::NewCharacter()
     }
 
     NewCharConfirmSeconds = 0.0f;
+    ActiveMenu = EABFPMenuMode::None;
+    SelectedMenuIndex = 0;
+    DeleteSaveConfirmSeconds = 0.0f;
+    DeleteSaveConfirmIndex = INDEX_NONE;
     if (bLiveMode)
     {
         if (NetworkClient.SendCommand(TEXT("NEW_CHAR")))
@@ -1516,6 +1540,74 @@ void AABFPFirstPersonPawn::NewCharacter()
     {
         OpenDemoCharacterCreation();
     }
+}
+
+void AABFPFirstPersonPawn::QuickSave()
+{
+    if (IsTypingCharacterName()) return;
+    if (CurrentSnapshot.Birth.bActive || CurrentSnapshot.bPlayerDead)
+    {
+        AddStatusMessage(TEXT("Create or load a living character before saving."));
+        return;
+    }
+    if (bIsRunning) StopRunning();
+
+    if (bLiveMode)
+    {
+        if (!bHaveAuthoritativeState)
+        {
+            AddStatusMessage(TEXT("Waiting for Angband host state before saving..."));
+            return;
+        }
+        SendSimpleCommand(TEXT("SAVE"));
+        return;
+    }
+
+    /* Offline demo save simulation */
+    const FString HeroName = CurrentSnapshot.PlayerName.IsEmpty() ? TEXT("Hero") : CurrentSnapshot.PlayerName;
+    const FString Desc = FString::Printf(TEXT("%s, L%d %s %s, at DL%d"),
+        *HeroName, CurrentSnapshot.PlayerLevel, *CurrentSnapshot.PlayerRaceName,
+        *CurrentSnapshot.PlayerClassName, CurrentSnapshot.DungeonDepth);
+    FABFPSaveEntry* Existing = CurrentSnapshot.Saves.FindByPredicate(
+        [&HeroName](const FABFPSaveEntry& E) { return E.Name == HeroName; });
+    if (Existing)
+    {
+        Existing->Description = Desc;
+        Existing->bIsCurrent = true;
+        Existing->bIsDead = false;
+    }
+    else
+    {
+        FABFPSaveEntry Entry;
+        Entry.Name = HeroName;
+        Entry.Description = Desc;
+        Entry.bIsCurrent = true;
+        Entry.bIsDead = false;
+        CurrentSnapshot.Saves.Insert(MoveTemp(Entry), 0);
+    }
+    AddStatusMessage(FString::Printf(TEXT("Demo game saved (%s)."), *Desc));
+}
+
+void AABFPFirstPersonPawn::ToggleSaves()
+{
+    if (IsTypingCharacterName()) return;
+    if (bIsRunning) StopRunning();
+
+    if (ActiveMenu == EABFPMenuMode::SaveLoad)
+    {
+        ActiveMenu = CurrentSnapshot.Birth.bActive
+            ? EABFPMenuMode::CharacterCreation : EABFPMenuMode::None;
+        SelectedMenuIndex = 0;
+        DeleteSaveConfirmSeconds = 0.0f;
+        DeleteSaveConfirmIndex = INDEX_NONE;
+        return;
+    }
+
+    ActiveMenu = EABFPMenuMode::SaveLoad;
+    SelectedMenuIndex = 0;
+    DeleteSaveConfirmSeconds = 0.0f;
+    DeleteSaveConfirmIndex = INDEX_NONE;
+    ClampSelectedMenuIndex();
 }
 
 void AABFPFirstPersonPawn::MenuClose()
@@ -1544,6 +1636,15 @@ void AABFPFirstPersonPawn::MenuClose()
             CurrentSnapshot.Birth.bActive = false;
             ActiveMenu = EABFPMenuMode::None;
         }
+        return;
+    }
+    if (ActiveMenu == EABFPMenuMode::SaveLoad)
+    {
+        ActiveMenu = CurrentSnapshot.Birth.bActive
+            ? EABFPMenuMode::CharacterCreation : EABFPMenuMode::None;
+        SelectedMenuIndex = 0;
+        DeleteSaveConfirmSeconds = 0.0f;
+        DeleteSaveConfirmIndex = INDEX_NONE;
         return;
     }
     if (ActiveMenu != EABFPMenuMode::None)
@@ -1644,6 +1745,44 @@ void AABFPFirstPersonPawn::MenuConfirm()
             ActiveMenu = EABFPMenuMode::None;
             AddStatusMessage(FString::Printf(TEXT("Welcome, %s the %s %s!"),
                 *CurrentSnapshot.PlayerName, *CurrentSnapshot.PlayerRaceName, *CurrentSnapshot.PlayerClassName));
+        }
+        return;
+    }
+
+    if (ActiveMenu == EABFPMenuMode::SaveLoad)
+    {
+        if (!CurrentSnapshot.Saves.IsValidIndex(SelectedMenuIndex))
+        {
+            AddStatusMessage(TEXT("No saved characters available. Press [F5] in-game to save or [N] for a new hero."));
+            return;
+        }
+        const FABFPSaveEntry Save = CurrentSnapshot.Saves[SelectedMenuIndex];
+        if (Save.bIsDead)
+        {
+            AddStatusMessage(FString::Printf(
+                TEXT("Cannot load fallen hero '%s'. Press [D] twice to delete it or select a living save."),
+                *Save.Name));
+            return;
+        }
+        ActiveMenu = EABFPMenuMode::None;
+        SelectedMenuIndex = 0;
+        DeleteSaveConfirmSeconds = 0.0f;
+        DeleteSaveConfirmIndex = INDEX_NONE;
+        if (bLiveMode)
+        {
+            if (NetworkClient.SendCommand(FString::Printf(TEXT("LOAD %s"), *Save.Name)))
+            {
+                bAwaitingServerTurn = true;
+                AwaitingTurnSeconds = 0.0f;
+                bHaveAuthoritativeState = false;
+                bWasInBirthMode = false;
+                bInterpolatingMove = false;
+                AddStatusMessage(FString::Printf(TEXT("Loading saved hero '%s'..."), *Save.Name));
+            }
+        }
+        else
+        {
+            AddStatusMessage(FString::Printf(TEXT("Loaded demo hero '%s'."), *Save.Name));
         }
         return;
     }
@@ -1874,6 +2013,42 @@ void AABFPFirstPersonPawn::MenuTakeOffSelected()
 
 void AABFPFirstPersonPawn::MenuDropSelected()
 {
+    if (ActiveMenu == EABFPMenuMode::SaveLoad)
+    {
+        if (!CurrentSnapshot.Saves.IsValidIndex(SelectedMenuIndex)) return;
+        const FABFPSaveEntry& Save = CurrentSnapshot.Saves[SelectedMenuIndex];
+        if (Save.bIsCurrent && !CurrentSnapshot.bPlayerDead && !CurrentSnapshot.Birth.bActive)
+        {
+            AddStatusMessage(TEXT("Cannot delete the currently active hero."));
+            return;
+        }
+        if (DeleteSaveConfirmIndex != SelectedMenuIndex || DeleteSaveConfirmSeconds <= 0.0f)
+        {
+            DeleteSaveConfirmIndex = SelectedMenuIndex;
+            DeleteSaveConfirmSeconds = 3.5f;
+            AddStatusMessage(FString::Printf(
+                TEXT("Press [D] again within 3.5s to permanently delete save '%s'."), *Save.Name));
+            return;
+        }
+        const FString TargetName = Save.Name;
+        DeleteSaveConfirmIndex = INDEX_NONE;
+        DeleteSaveConfirmSeconds = 0.0f;
+        if (bLiveMode)
+        {
+            if (NetworkClient.SendCommand(FString::Printf(TEXT("DELETE_SAVE %s"), *TargetName)))
+            {
+                bAwaitingServerTurn = true;
+                AwaitingTurnSeconds = 0.0f;
+            }
+        }
+        else
+        {
+            CurrentSnapshot.Saves.RemoveAt(SelectedMenuIndex);
+            ClampSelectedMenuIndex();
+            AddStatusMessage(FString::Printf(TEXT("Deleted demo save '%s'."), *TargetName));
+        }
+        return;
+    }
     if (ActiveMenu != EABFPMenuMode::Inventory && ActiveMenu != EABFPMenuMode::Equipment) return;
     const TArray<int32> List = GetMenuInventoryIndices(ActiveMenu == EABFPMenuMode::Equipment);
     if (!List.IsValidIndex(SelectedMenuIndex)) return;

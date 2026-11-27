@@ -49,7 +49,10 @@ typedef enum abfp_command_type {
     ABFP_COMMAND_BIRTH_ROLL,
     ABFP_COMMAND_BIRTH_RESET_STATS,
     ABFP_COMMAND_BIRTH_NAME,
-    ABFP_COMMAND_BIRTH_ACCEPT
+    ABFP_COMMAND_BIRTH_ACCEPT,
+    ABFP_COMMAND_SAVE_GAME,
+    ABFP_COMMAND_LOAD_GAME,
+    ABFP_COMMAND_DELETE_SAVE
 } abfp_command_type;
 
 typedef struct abfp_command {

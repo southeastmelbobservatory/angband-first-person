@@ -49,16 +49,20 @@ void AABFPHUD::DrawHUD()
     if (!Pawn) return;
 
     const FABFPSnapshot& Snapshot = Pawn->GetCurrentSnapshot();
-    if (Pawn->GetActiveMenu() == EABFPMenuMode::CharacterCreation || Snapshot.Birth.bActive)
+    if (Pawn->GetActiveMenu() == EABFPMenuMode::CharacterCreation ||
+        (Snapshot.Birth.bActive && Pawn->GetActiveMenu() != EABFPMenuMode::SaveLoad))
     {
         DrawCharacterCreationMenu(Pawn, Snapshot);
         return;
     }
 
-    DrawStatusOverlay(Pawn, Snapshot);
-    DrawVitalsPanel(Pawn, Snapshot);
+    if (!Snapshot.Birth.bActive)
+    {
+        DrawStatusOverlay(Pawn, Snapshot);
+        DrawVitalsPanel(Pawn, Snapshot);
+        DrawMinimap(Pawn, Snapshot);
+    }
     DrawMessageLog(Pawn);
-    DrawMinimap(Pawn, Snapshot);
     if (Pawn->GetActiveMenu() == EABFPMenuMode::None)
     {
         DrawTargetAndPrompt(Pawn, Snapshot);
@@ -91,7 +95,9 @@ void AABFPHUD::DrawStatusOverlay(const AABFPFirstPersonPawn* Pawn, const FABFPSn
         DrawText(Banner, FLinearColor(0.95f, 0.18f, 0.14f, 1.0f),
             (Canvas->ClipX - TextW) * 0.5f, BannerY, LargeFont, 1.8f);
 
-        const FString Sub = TEXT("Press [N] or [Enter] to Create a New Character");
+        const FString Sub = Snapshot.Saves.Num() > 0
+            ? TEXT("Press [N] / [Enter] for New Hero   |   [F9 / O] Load Saved Character")
+            : TEXT("Press [N] or [Enter] to Create a New Character");
         float SubW = 0.0f, SubH = 0.0f;
         GetTextSize(Sub, SubW, SubH, MedFont, 1.0f);
         DrawText(Sub, FLinearColor(0.96f, 0.85f, 0.48f, 1.0f),
@@ -871,14 +877,108 @@ void AABFPHUD::DrawCharacterCreationMenu(const AABFPFirstPersonPawn* Pawn, const
 
     /* Footer controls */
     DrawRect(FLinearColor(0.32f, 0.27f, 0.16f, 0.70f), X + 14.0f, Y + PanelH - FooterH, PanelW - 28.0f, 1.0f);
-    DrawText(TEXT("[Tab] Next Section   [Up/Down] Choose   [Left/Right] Stat -/+ or Section   [R] Random Roll   [X] Reset   [Enter] Advance / Begin"),
+    const FString BirthFooter = Snapshot.Saves.Num() > 0
+        ? TEXT("[Tab] Next  [Up/Dn] Pick  [L/R] Stat  [R] Roll  [X] Reset  [Enter] Begin  [F9] Load Save")
+        : TEXT("[Tab] Next Section   [Up/Down] Choose   [Left/Right] Stat -/+ or Section   [R] Random Roll   [X] Reset   [Enter] Advance / Begin");
+    DrawText(BirthFooter,
         FLinearColor(0.88f, 0.80f, 0.56f), X + 18.0f, Y + PanelH - FooterH + 8.0f, SmallFont, 0.84f);
+}
+
+void AABFPHUD::DrawSaveLoadMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot)
+{
+    UFont* SmallFont = GEngine->GetSmallFont();
+    UFont* MedFont = GEngine->GetMediumFont();
+
+    DrawRect(FLinearColor(0.01f, 0.012f, 0.02f, 0.58f), 0.0f, 0.0f, Canvas->ClipX, Canvas->ClipY);
+
+    const float PanelW = FMath::Min(740.0f, Canvas->ClipX - 72.0f);
+    const float PanelH = FMath::Min(460.0f, Canvas->ClipY - 200.0f);
+    const float X = (Canvas->ClipX - PanelW) * 0.5f;
+    const float Y = FMath::Max(24.0f, (Canvas->ClipY - PanelH) * 0.42f);
+
+    DrawRect(FLinearColor(0.045f, 0.05f, 0.07f, 0.95f), X, Y, PanelW, PanelH);
+    DrawRect(FLinearColor(0.74f, 0.58f, 0.24f, 0.92f), X, Y, PanelW, 3.0f);
+    DrawRect(FLinearColor(0.34f, 0.28f, 0.14f, 0.72f), X, Y + PanelH - 2.0f, PanelW, 2.0f);
+
+    DrawText(TEXT("SAVE & LOAD CHARACTERS"), FLinearColor(0.98f, 0.86f, 0.46f), X + 16.0f, Y + 12.0f, MedFont, 1.0f);
+
+    FString Subtitle;
+    if (!Snapshot.Birth.bActive && !Snapshot.bPlayerDead && !Snapshot.PlayerName.IsEmpty())
+    {
+        const FString DepthStr = Snapshot.DungeonDepth == 0
+            ? TEXT("Town")
+            : FString::Printf(TEXT("Depth %d (%dft)"), Snapshot.DungeonDepth, Snapshot.DungeonDepth * 50);
+        Subtitle = FString::Printf(TEXT("Current: %s (Lv %d %s %s, %s)   |   [F5] Quick Save Now"),
+            *Snapshot.PlayerName, Snapshot.PlayerLevel, *Snapshot.PlayerRaceName,
+            *Snapshot.PlayerClassName, *DepthStr);
+    }
+    else
+    {
+        Subtitle = FString::Printf(TEXT("%d saved %s on disk   |   Select a living hero and press [Enter] to load"),
+            Snapshot.Saves.Num(), Snapshot.Saves.Num() == 1 ? TEXT("character") : TEXT("characters"));
+    }
+    DrawText(Subtitle, FLinearColor(0.78f, 0.82f, 0.86f), X + 16.0f, Y + 36.0f, SmallFont, 0.88f);
+    DrawRect(FLinearColor(0.30f, 0.26f, 0.16f, 0.65f), X + 12.0f, Y + 56.0f, PanelW - 24.0f, 1.0f);
+
+    const float ListTop = Y + 64.0f;
+    const float RowH = 26.0f;
+    const float FooterH = 34.0f;
+    const int32 MaxVisible = FMath::Max(4, static_cast<int32>((PanelH - 64.0f - FooterH) / RowH));
+    const int32 Total = Snapshot.Saves.Num();
+    const int32 Selected = Pawn->GetSelectedMenuIndex();
+
+    if (Total == 0)
+    {
+        DrawText(TEXT("(No saved characters found yet)"),
+            FLinearColor(0.72f, 0.72f, 0.76f), X + 22.0f, ListTop + 14.0f, SmallFont, 0.96f);
+        DrawText(TEXT("Press [F5] during gameplay to save your hero, or [N] to create a new character."),
+            FLinearColor(0.58f, 0.62f, 0.68f), X + 22.0f, ListTop + 38.0f, SmallFont, 0.86f);
+    }
+    else
+    {
+        const int32 ScrollStart = FMath::Clamp(Selected - MaxVisible / 2, 0, FMath::Max(0, Total - MaxVisible));
+        const int32 EndIdx = FMath::Min(Total, ScrollStart + MaxVisible);
+        for (int32 Row = ScrollStart; Row < EndIdx; ++Row)
+        {
+            const FABFPSaveEntry& Entry = Snapshot.Saves[Row];
+            const float RowY = ListTop + (Row - ScrollStart) * RowH;
+            const bool bSel = (Row == Selected);
+            if (bSel)
+            {
+                DrawRect(FLinearColor(0.26f, 0.22f, 0.11f, 0.92f), X + 12.0f, RowY - 1.0f, PanelW - 24.0f, RowH);
+            }
+
+            const FLinearColor NameColor = Entry.bIsDead
+                ? (bSel ? FLinearColor(0.86f, 0.56f, 0.52f) : FLinearColor(0.56f, 0.44f, 0.44f))
+                : (bSel ? FLinearColor(1.0f, 0.95f, 0.76f) : FLinearColor(0.88f, 0.88f, 0.85f));
+            const FString DescText = Entry.Description.IsEmpty() ? Entry.Name : Entry.Description;
+            const FString LineText = DescText.StartsWith(Entry.Name, ESearchCase::IgnoreCase)
+                ? DescText
+                : FString::Printf(TEXT("%s - %s"), *Entry.Name, *DescText);
+            DrawText(LineText, NameColor, X + 18.0f, RowY + 5.0f, SmallFont, 0.92f);
+
+            const FString Tag = Entry.bIsCurrent ? TEXT("[ACTIVE]")
+                : (Entry.bIsDead ? TEXT("[FALLEN]") : TEXT("[ALIVE]"));
+            const FLinearColor TagColor = Entry.bIsCurrent ? FLinearColor(0.32f, 0.92f, 0.48f)
+                : (Entry.bIsDead ? FLinearColor(0.88f, 0.30f, 0.26f) : FLinearColor(0.95f, 0.80f, 0.34f));
+            DrawText(Tag, TagColor, X + PanelW - 84.0f, RowY + 5.0f, SmallFont, 0.86f);
+        }
+    }
+
+    DrawRect(FLinearColor(0.30f, 0.26f, 0.16f, 0.65f), X + 12.0f, Y + PanelH - FooterH, PanelW - 24.0f, 1.0f);
+    DrawText(TEXT("[Up/Dn] Select   [Enter] Load Hero   [F5] Quick Save   [D x2] Delete   [N] New Hero   [F9/O/Esc] Close"),
+        FLinearColor(0.88f, 0.80f, 0.56f), X + 16.0f, Y + PanelH - FooterH + 9.0f, SmallFont, 0.84f);
 }
 
 void AABFPHUD::DrawActiveMenu(const AABFPFirstPersonPawn* Pawn, const FABFPSnapshot& Snapshot)
 {
     const EABFPMenuMode Mode = Pawn->GetActiveMenu();
     if (Mode == EABFPMenuMode::None) return;
+    if (Mode == EABFPMenuMode::SaveLoad)
+    {
+        DrawSaveLoadMenu(Pawn, Snapshot);
+        return;
+    }
     if (Mode == EABFPMenuMode::Spellbook)
     {
         DrawSpellbookMenu(Pawn, Snapshot);
@@ -1124,6 +1224,7 @@ void AABFPHUD::DrawControlsHelp(const AABFPFirstPersonPawn* Pawn)
         TEXT("B              Open Town Shop"),
         TEXT("Q / X / R      Quaff / Eat / Rest"),
         TEXT("M / N          Minimap / New hero"),
+        TEXT("F5 / F9 (O)    Quick Save / Load Menu"),
         TEXT("Space          Wait 1 turn"),
         TEXT("PgUp / PgDn    Ascend / Descend stairs")
     };

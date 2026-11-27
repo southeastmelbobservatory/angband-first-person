@@ -219,6 +219,77 @@ def probe_initial_snapshot(host: str, port: int, timeout: float = 1.5) -> dict |
     return None
 
 
+def detect_resume_save_name(save_dir: Path, user_dir: Path) -> str | None:
+    """Find the most recent living Angband savefile to auto-resume on startup."""
+    def clean_basename(name: str) -> str:
+        # Strip optional POSIX SETGID "<uid>." prefix if present
+        m = re.match(r"^\d+\.(.+)$", name)
+        return m.group(1) if m else name
+
+    def is_living_save_file(path: Path) -> bool:
+        if not path.is_file() or path.stat().st_size < 32:
+            return False
+        if path.name.startswith(".") or path.name.endswith((".new", ".old", ".panic")):
+            return False
+        try:
+            head = path.read_bytes()[:4096]
+            if b", dead (" in head:
+                return False
+        except OSError:
+            return False
+        return True
+
+    def find_matching_file(clean_name: str) -> Path | None:
+        if not clean_name:
+            return None
+        for candidate in save_dir.iterdir():
+            if is_living_save_file(candidate) and clean_basename(candidate.name) == clean_name:
+                return candidate
+        return None
+
+    marker = user_dir / "abfp_last_save.txt"
+    if marker.is_file():
+        try:
+            last_name = marker.read_text(encoding="utf-8", errors="ignore").strip().splitlines()[0].strip()
+            if find_matching_file(last_name) is not None:
+                return last_name
+        except (OSError, IndexError):
+            pass
+
+    living: list[tuple[float, str]] = []
+    if save_dir.is_dir():
+        for entry in save_dir.iterdir():
+            if is_living_save_file(entry):
+                try:
+                    living.append((entry.stat().st_mtime, clean_basename(entry.name)))
+                except OSError:
+                    pass
+    if living:
+        living.sort(reverse=True)
+        return living[0][1]
+    return None
+
+
+def request_graceful_save(host: str, port: int, timeout: float = 0.75) -> bool:
+    """Ask the running ABFP host to flush a savefile cleanly before shutdown."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(b"SAVE\n")
+            buf = b""
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                buf += chunk
+                if b"\n" in buf:
+                    return True
+    except OSError:
+        return False
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run patched Angband host headlessly in the background.")
     parser.add_argument("--bind", default=os.environ.get("ABFP_BIND_ADDRESS", "127.0.0.1"))
@@ -265,11 +336,18 @@ def main() -> int:
     user_dir.mkdir(parents=True, exist_ok=True)
     save_dir.mkdir(parents=True, exist_ok=True)
 
+    player_name = args.player
+    if not args.new_game and player_name == "ABFPPlayer":
+        resumed = detect_resume_save_name(save_dir, user_dir)
+        if resumed:
+            player_name = resumed
+            print(f"[abfp-host] Auto-resuming saved hero: {player_name}", flush=True)
+
     pid_file = Path(args.pid_file) if args.pid_file else (save_root / "angband-host.pid")
 
     argv = [
         str(binary),
-        f"-u{args.player}",
+        f"-u{player_name}",
         f"-duser={user_dir}",
         f"-dsave={save_dir}",
     ]
@@ -361,6 +439,11 @@ def main() -> int:
                 sent_confirm = True
                 continue
 
+            if "panic save exists" in screen:
+                os.write(master_fd, b"y")
+                output.clear()
+                continue
+
             if "press any key" in screen or "-more-" in screen:
                 os.write(master_fd, b" ")
 
@@ -380,7 +463,7 @@ def main() -> int:
         mode_label = "character-creation" if initial_snapshot.get("birth") else "in-game"
         print(
             f"[abfp-host] READY on {args.bind}:{args.port} ({mode_label}) | "
-            f"player={args.player} depth={initial_snapshot.get('depth')} "
+            f"player={player_name} depth={initial_snapshot.get('depth')} "
             f"turn={initial_snapshot.get('turn')} pos={initial_snapshot.get('player')}",
             flush=True,
         )
@@ -402,6 +485,8 @@ def main() -> int:
                     output.clear()
 
     finally:
+        # Flush a clean Angband save before terminating the game process
+        request_graceful_save(probe_host, args.port, timeout=0.75)
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:

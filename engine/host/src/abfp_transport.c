@@ -50,6 +50,7 @@ bool abfp_transport_parse_command_ex(const char *line, abfp_command *out)
         {"ALTER_SOUTH_WEST", ABFP_COMMAND_ALTER_SOUTH_WEST},
         {"ALTER_SOUTH_EAST", ABFP_COMMAND_ALTER_SOUTH_EAST},
         {"NEW_CHAR", ABFP_COMMAND_NEW_CHAR},
+        {"SAVE", ABFP_COMMAND_SAVE_GAME},
         {"BIRTH_ROLL", ABFP_COMMAND_BIRTH_ROLL},
         {"BIRTH_RESET", ABFP_COMMAND_BIRTH_RESET_STATS},
         {"BIRTH_ACCEPT", ABFP_COMMAND_BIRTH_ACCEPT}
@@ -77,7 +78,10 @@ bool abfp_transport_parse_command_ex(const char *line, abfp_command *out)
     };
     static const struct { const char *prefix; abfp_command_type command; } text_names[] = {
         {"BIRTH_NAME ", ABFP_COMMAND_BIRTH_NAME},
-        {"BIRTH_ACCEPT ", ABFP_COMMAND_BIRTH_ACCEPT}
+        {"BIRTH_ACCEPT ", ABFP_COMMAND_BIRTH_ACCEPT},
+        {"SAVE ", ABFP_COMMAND_SAVE_GAME},
+        {"LOAD ", ABFP_COMMAND_LOAD_GAME},
+        {"DELETE_SAVE ", ABFP_COMMAND_DELETE_SAVE}
     };
     size_t i, length;
     if (!line || !out) return false;
@@ -403,12 +407,14 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
         (snapshot->message_count && !snapshot->messages) ||
         (snapshot->inventory_count && !snapshot->inventory) ||
         (snapshot->spell_count && !snapshot->spells) ||
+        (snapshot->save_count && !snapshot->saves) ||
         (event_count && !events) || event_count > 4096) return false;
     capacity = 2048 + (size_t)snapshot->cell_count * 96 +
         (size_t)snapshot->entity_count * 512 +
         (size_t)snapshot->message_count * (ABFP_MAX_MESSAGE_LENGTH * 6 + 32) +
         (size_t)snapshot->inventory_count * 512 +
         (size_t)snapshot->spell_count * 256 +
+        (size_t)snapshot->save_count * 384 +
         (snapshot->shop && snapshot->shop->active ? (1024 + (size_t)snapshot->shop->item_count * 512) : 64) +
         (snapshot->birth && snapshot->birth->active ? 6144 : 64) +
         event_count * 192;
@@ -570,10 +576,22 @@ bool abfp_transport_publish_state(const abfp_snapshot *snapshot,
                     c->stat_adj[3], c->stat_adj[4],
                     c->hit_die, c->exp_factor, (unsigned)c->has_magic)) goto done;
         }
-        if (!append_json(&cursor, &remaining, "]}}\n")) goto done;
+        if (!append_json(&cursor, &remaining, "]}")) goto done;
     } else {
-        if (!append_json(&cursor, &remaining, "],\"birth\":null}\n")) goto done;
+        if (!append_json(&cursor, &remaining, "],\"birth\":null")) goto done;
     }
+
+    if (!append_json(&cursor, &remaining, ",\"saves\":[")) goto done;
+    for (i = 0; i < snapshot->save_count; ++i) {
+        const abfp_save_entry *sv = &snapshot->saves[i];
+        if (!append_json(&cursor, &remaining, "%s[", i ? "," : "") ||
+            !append_json_string(&cursor, &remaining, sv->name, sizeof(sv->name)) ||
+            !append_json(&cursor, &remaining, ",") ||
+            !append_json_string(&cursor, &remaining, sv->description, sizeof(sv->description)) ||
+            !append_json(&cursor, &remaining, ",%u,%u]",
+                (unsigned)sv->is_current, (unsigned)sv->is_dead)) goto done;
+    }
+    if (!append_json(&cursor, &remaining, "]}\n")) goto done;
 
     pthread_mutex_lock(&send_mutex);
     pthread_mutex_lock(&mutex);

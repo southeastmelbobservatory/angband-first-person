@@ -26,6 +26,7 @@ typedef enum abfp_terrain_type {
 #define ABFP_MAX_SPELLS 64
 #define ABFP_MAX_RACES 16
 #define ABFP_MAX_CLASSES 16
+#define ABFP_MAX_SAVES 24
 #define ABFP_NUM_STATS 5
 
 /* Item capability bitflags exported on abfp_inventory_item.flags */
@@ -166,6 +167,13 @@ typedef struct abfp_player_state {
     char class_name[32];
 } abfp_player_state;
 
+typedef struct abfp_save_entry {
+    char name[48];
+    char description[128];
+    uint8_t is_current;
+    uint8_t is_dead;
+} abfp_save_entry;
+
 typedef struct abfp_snapshot {
     uint64_t turn;
     int32_t dungeon_depth;
@@ -183,6 +191,8 @@ typedef struct abfp_snapshot {
     const abfp_spell_entry* spells;
     uint32_t spell_count;
     const abfp_birth_state* birth;
+    const abfp_save_entry* saves;
+    uint32_t save_count;
 } abfp_snapshot;
 
 #ifdef __cplusplus
